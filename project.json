@@ -1,0 +1,23 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "web-app",
+  "projectType": "application",
+  "root": "packages/web-app",
+  "sourceRoot": "packages/web-app/src",
+  "targets": {
+    "build": {
+      "executor": "@nx/vite:build",
+      "options": {
+        "configFile": "packages/web-app/vite.config.ts"
+      },
+      "cache": true
+    },
+    "dev": {
+      "executor": "@nx/vite:dev-server",
+      "options": {
+        "configFile": "packages/web-app/vite.config.ts"
+      },
+      "cache": false
+    }
+  }
+}
