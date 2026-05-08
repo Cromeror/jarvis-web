@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { DocType } from '../../lib/markdown-parser.js';
-import { parseSections, serializeSections } from '../../lib/markdown-parser.js';
 import { saveFile, saveVersion } from '../../lib/api.js';
 import { ModeToggle } from './ModeToggle.js';
 import type { EditorMode } from './ModeToggle.js';
@@ -35,16 +34,8 @@ export function Editor({
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'idle'>('idle');
   const [savingVersion, setSavingVersion] = useState(false);
 
-  // Parse sections for guided mode
-  const parsed = parseSections(editorContent, fileType);
-  const guidedAvailable = parsed !== null;
-
-  // If guided not available, force raw mode
-  useEffect(() => {
-    if (!guidedAvailable && mode === 'guided') {
-      setMode('raw');
-    }
-  }, [guidedAvailable, mode]);
+  // Guided mode is always available now — TipTap handles any markdown.
+  const guidedAvailable = true;
 
   // Reset when file changes
   useEffect(() => {
@@ -83,16 +74,14 @@ export function Editor({
     setSaveStatus('idle');
   }, []);
 
-  const handleSectionsChange = useCallback(
-    (sections: Record<string, string>) => {
-      if (!parsed) return;
-      const newContent = serializeSections({ title: parsed.title, sections }, fileType);
-      setEditorContent(newContent);
+  const handleGuidedChange = useCallback((newContent: string) => {
+    setEditorContent((prev) => {
+      if (prev === newContent) return prev;
       setDirty(true);
       setSaveStatus('idle');
-    },
-    [parsed, fileType],
-  );
+      return newContent;
+    });
+  }, []);
 
   const handleModeChange = (newMode: EditorMode): void => {
     setMode(newMode);
@@ -141,16 +130,14 @@ export function Editor({
       </div>
 
       <div className="editor-body">
-        {mode === 'raw' || !guidedAvailable ? (
+        {mode === 'raw' ? (
           <RawEditor content={editorContent} onChange={handleContentChange} />
         ) : (
-          parsed && (
-            <GuidedEditor
-              sections={parsed.sections}
-              type={fileType}
-              onChange={handleSectionsChange}
-            />
-          )
+          <GuidedEditor
+            content={editorContent}
+            currentDocPath={filePath}
+            onChange={handleGuidedChange}
+          />
         )}
       </div>
     </div>

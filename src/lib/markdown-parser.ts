@@ -62,13 +62,9 @@ export function parseSections(md: string, _type: DocType): ParsedDoc | null {
  * preserving template section order.
  * Design §serializeMarkdownSections.
  */
-export function serializeSections(parsed: ParsedDoc, type: DocType): string {
-  const order = SECTION_ORDER[type];
-  const allKeys = new Set([...order, ...Object.keys(parsed.sections)]);
-  const orderedKeys = [
-    ...order.filter((k) => allKeys.has(k)),
-    ...Object.keys(parsed.sections).filter((k) => !order.includes(k)),
-  ];
+export function serializeSections(parsed: ParsedDoc, _type: DocType): string {
+  // Preserve the original order of sections (insertion order from parseSections).
+  const orderedKeys = Object.keys(parsed.sections);
 
   const lines: string[] = [];
   if (parsed.title) {
@@ -76,7 +72,6 @@ export function serializeSections(parsed: ParsedDoc, type: DocType): string {
   }
 
   for (const key of orderedKeys) {
-    if (!(key in parsed.sections)) continue;
     lines.push(`## ${key}`, '');
     const content = parsed.sections[key];
     if (content) {
@@ -120,4 +115,39 @@ export function injectMermaidCode(content: string, code: string): string {
 /** Returns the ordered list of sections for a given doc type */
 export function getSectionOrder(type: DocType): string[] {
   return SECTION_ORDER[type] ?? [];
+}
+
+/**
+ * Extract the path to the .drawio file referenced by a section, if any.
+ * Looks for: <!-- jarvis:diagram src=path/to/file.drawio -->
+ */
+export function extractDrawioRef(content: string): string | null {
+  const m = content.match(/<!--\s*jarvis:diagram\s+src=([^\s>]+)/);
+  return m ? (m[1] ?? null) : null;
+}
+
+/**
+ * Extract the optional notation hint from the diagram marker.
+ * Looks for: <!-- jarvis:diagram src=... notation=ansi-iso-5807 -->
+ * Returns null when no notation is specified (caller should treat as generic flow).
+ */
+export function extractDrawioNotation(content: string): string | null {
+  const m = content.match(/<!--\s*jarvis:diagram\s+[^>]*notation=([a-z0-9-]+)/i);
+  return m ? (m[1] ?? null) : null;
+}
+
+/**
+ * Replace the existing toon block in a section with new content.
+ * If no toon block exists, append one after the diagram marker.
+ */
+export function injectToonBlock(content: string, toon: string): string {
+  if (/```toon\n[\s\S]*?```/.test(content)) {
+    return content.replace(/```toon\n[\s\S]*?```/, '```toon\n' + toon + '\n```');
+  }
+  // No toon block yet — append after the marker (or at the end if no marker)
+  const marker = /<!--\s*jarvis:diagram\s+src=[^>]+-->/;
+  if (marker.test(content)) {
+    return content.replace(marker, (m) => m + '\n\n```toon\n' + toon + '\n```');
+  }
+  return content + '\n\n```toon\n' + toon + '\n```';
 }

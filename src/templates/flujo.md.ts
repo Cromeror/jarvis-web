@@ -1,4 +1,11 @@
-export const flujoTemplate = (titulo: string): string => `# ${titulo}
+export const flujoTemplate = (titulo: string): string => {
+  const slug = titulo
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return `# ${titulo}
 
 ## Resumen
 
@@ -15,19 +22,24 @@ export const flujoTemplate = (titulo: string): string => `# ${titulo}
 
 ## Pasos
 
-\`\`\`mermaid
-sequenceDiagram
-  actor PM
-  PM->>Sistema: acción
+<!-- jarvis:diagram src=diagrams/${slug}-pasos.drawio -->
+
+\`\`\`toon
+diagram: flow
+direction: LR
+nodes[0]{id,label,shape,group}:
+edges[0]{from,to,label}:
 \`\`\`
 
 ## Casos alternos
 
-\`\`\`mermaid
-flowchart TD
-  A[Inicio] --> B{Condición}
-  B -- Sí --> C[Resultado]
-  B -- No --> D[Alternativa]
+<!-- jarvis:diagram src=diagrams/${slug}-alternos.drawio -->
+
+\`\`\`toon
+diagram: flow
+direction: LR
+nodes[0]{id,label,shape,group}:
+edges[0]{from,to,label}:
 \`\`\`
 
 ## Reglas de negocio
@@ -40,3 +52,4 @@ flowchart TD
 
 - [Notion](https://notion.so/...)
 `;
+};
