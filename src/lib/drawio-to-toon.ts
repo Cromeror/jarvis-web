@@ -164,7 +164,7 @@ function detectShape(style: string): Shape {
 function detectAnsiShape(style: string, label: string, width?: number): AnsiShape {
   const s = style.toLowerCase();
   if (s.includes('offpageconnector')) return 'offpage';
-  if (s.includes('rhombus')) return 'decision';
+  if (s.includes('rhombus') || s.includes('flowchart.decision')) return 'decision';
   if (s.includes('document')) return 'document';
   if (s.includes('parallelogram') || s.includes('shape=data')) return 'data';
   if (s.includes('shape=process') || s.includes('shape=predefinedprocess')) return 'predefined';
@@ -192,7 +192,8 @@ function slugify(label: string, fallback: string): string {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/¿/g, '')          // drop opening ¿ (closing ? is kept below)
+    .replace(/[^a-z0-9?]+/g, '-')
     .replace(/^-+|-+$/g, '');
   return slug || fallback;
 }
@@ -221,6 +222,11 @@ export function xmlToDiagram(xml: string): ToonDiagram {
   // Skip the synthetic root cells (id "0" and "1")
   const real = cells.filter((c) => c.id !== '0' && c.id !== '1' && c.id !== '');
 
+  // Build a set of edge cell ids so we can detect drawio label-cells:
+  // drawio creates a vertex="1" child cell parented to an edge cell to hold
+  // a manually-positioned edge label. These must be excluded from nodes.
+  const edgeCellIds = new Set<string>(real.filter((c) => c.edge).map((c) => c.id));
+
   const groupCellIds = new Set<string>();
   for (const c of real) {
     if (c.vertex && isGroup(c, cells)) groupCellIds.add(c.id);
@@ -231,6 +237,8 @@ export function xmlToDiagram(xml: string): ToonDiagram {
   const usedSlugs = new Set<string>();
   for (const c of real) {
     if (!c.vertex && !c.edge) continue;
+    // Skip label-cells parented to edges — they are not real nodes
+    if (c.vertex && c.parent !== null && edgeCellIds.has(c.parent)) continue;
     const label = stripHtml(c.value);
     const base = slugify(label, c.id);
     let slug = base;
@@ -245,6 +253,7 @@ export function xmlToDiagram(xml: string): ToonDiagram {
   const edges: ToonEdge[] = [];
 
   for (const c of real) {
+    if (c.vertex && c.parent !== null && edgeCellIds.has(c.parent)) continue;
     if (c.vertex) {
       const id = idMap.get(c.id)!;
       const label = stripHtml(c.value);
@@ -283,11 +292,19 @@ export function xmlToDiagram(xml: string): ToonDiagram {
 /**
  * Serialize a ToonDiagram to TOON markdown text.
  * Output format matches the project's TOON conventions (header + tabular blocks).
+ *
+ * Edges use the format: `slug "Label",slug "Label",edge-label` so the LLM
+ * can read natural language directly from the edge line without looking up nodes.
  */
 export function diagramToToon(d: ToonDiagram): string {
   const lines: string[] = [];
   lines.push(`diagram: flow`);
   lines.push(`direction: ${d.direction}`);
+
+  // Build id → label index for inline edge labels (option C)
+  const labelOf = new Map<string, string>();
+  for (const g of d.groups) labelOf.set(g.id, g.label);
+  for (const n of d.nodes) labelOf.set(n.id, n.label);
 
   if (d.groups.length > 0) {
     lines.push(`groups[${d.groups.length}]{id,label}:`);
@@ -304,7 +321,9 @@ export function diagramToToon(d: ToonDiagram): string {
   if (d.edges.length > 0) {
     lines.push(`edges[${d.edges.length}]{from,to,label}:`);
     for (const e of d.edges) {
-      lines.push(`  ${e.from},${e.to},${escapeField(e.label ?? '')}`);
+      const from = labelOf.has(e.from) ? `${e.from} "${escapeField(labelOf.get(e.from)!)}"` : e.from;
+      const to   = labelOf.has(e.to)   ? `${e.to} "${escapeField(labelOf.get(e.to)!)}"` : e.to;
+      lines.push(`  ${from},${to},${escapeField(e.label ?? '')}`);
     }
   }
 
@@ -339,10 +358,13 @@ interface AnsiToonDiagram {
 function cellsToDiagramAnsi(cells: MxCell[]): AnsiToonDiagram {
   const real = cells.filter((c) => c.id !== '0' && c.id !== '1' && c.id !== '');
 
+  const edgeCellIds = new Set<string>(real.filter((c) => c.edge).map((c) => c.id));
+
   const idMap = new Map<string, string>();
   const usedSlugs = new Set<string>();
   for (const c of real) {
     if (!c.vertex && !c.edge) continue;
+    if (c.vertex && c.parent !== null && edgeCellIds.has(c.parent)) continue;
     const label = stripHtml(c.value);
     const base = slugify(label, c.id);
     let slug = base;
@@ -356,6 +378,7 @@ function cellsToDiagramAnsi(cells: MxCell[]): AnsiToonDiagram {
   const edges: ToonEdge[] = [];
 
   for (const c of real) {
+    if (c.vertex && c.parent !== null && edgeCellIds.has(c.parent)) continue;
     const slug = idMap.get(c.id);
     if (!slug) continue;
     const label = stripHtml(c.value);
@@ -385,13 +408,19 @@ function pageBodyAnsi(name: string, d: AnsiToonDiagram): string {
   if (name) lines.push(`page: ${escapeField(name)}`);
   lines.push(`direction: ${d.direction}`);
   lines.push(`nodes[${d.nodes.length}]{id,label,shape}:`);
+
+  const labelOf = new Map<string, string>();
+  for (const n of d.nodes) labelOf.set(n.id, n.label);
+
   for (const n of d.nodes) {
     lines.push(`  ${n.id},${escapeField(n.label)},${n.shape}`);
   }
   if (d.edges.length > 0) {
     lines.push(`edges[${d.edges.length}]{from,to,label}:`);
     for (const e of d.edges) {
-      lines.push(`  ${e.from},${e.to},${escapeField(e.label ?? '')}`);
+      const from = labelOf.has(e.from) ? `${e.from} "${escapeField(labelOf.get(e.from)!)}"` : e.from;
+      const to   = labelOf.has(e.to)   ? `${e.to} "${escapeField(labelOf.get(e.to)!)}"` : e.to;
+      lines.push(`  ${from},${to},${escapeField(e.label ?? '')}`);
     }
   }
   return lines.join('\n');

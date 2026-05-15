@@ -1,35 +1,60 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { xmlToToonByNotation, validateAnsiDiagram, type AnsiLintWarning } from '../../lib/drawio-to-toon.js';
 
 interface Props {
-  /** Initial XML loaded from the .drawio file (empty string = new diagram). */
   initialXml: string;
-  /**
-   * Optional notation hint — controls (1) which TOON converter is used on save and
-   * (2) which drawio palette is opened by default. `null`/missing = generic.
-   */
   notation?: string | null;
-  /** Called whenever the user saves; receives both XML (for the .drawio file) and TOON (for the MD block). */
   onSave: (xml: string, toon: string) => void;
 }
 
-const DRAWIO_URL =
-  'https://embed.diagrams.net/?embed=1&proto=json&spin=1&ui=atlas&libraries=1&saveAndExit=0&noExitBtn=1&modified=unsavedChanges';
-
+function buildDrawioUrl(notation?: string | null): string {
+  const base = 'https://embed.diagrams.net/?embed=1&proto=json&spin=1&ui=atlas&saveAndExit=0&noExitBtn=1&modified=unsavedChanges&configure=1';
+  if (notation === 'ansi-iso-5807') {
+    return base + '&libs=flowchart';
+  }
+  return base;
+}
 
 const EMPTY_XML =
   '<mxfile><diagram><mxGraphModel><root><mxCell id="0" /><mxCell id="1" parent="0" /></root></mxGraphModel></diagram></mxfile>';
 
-/**
- * Drawio embedded editor.
- * The XML in the .drawio file is the source of truth for visual editing.
- * On every save (manual or autosave) we regenerate the TOON block of the .md.
- */
+// Shapes shown in the custom toolbox. Each shape is inserted via action:'load'
+// with the accumulated XML + new cell appended.
+interface ShapeDef {
+  label: string;
+  icon: string;
+  style: string;
+  w: number;
+  h: number;
+}
+
+const ANSI_SHAPES: ShapeDef[] = [
+  { label: 'Proceso',           icon: '▭', style: 'rounded=0;whiteSpace=wrap;html=1;',                      w: 160, h: 60 },
+  { label: 'Decisión',          icon: '◇', style: 'rhombus;whiteSpace=wrap;html=1;',                        w: 160, h: 80 },
+  { label: 'Terminador',        icon: '⬭', style: 'ellipse;whiteSpace=wrap;html=1;',                        w: 120, h: 60 },
+  { label: 'Off-page',          icon: '⬠', style: 'shape=offPageConnector;whiteSpace=wrap;html=1;',         w: 80,  h: 60 },
+  { label: 'On-page',           icon: '○', style: 'ellipse;whiteSpace=wrap;html=1;aspect=fixed;',           w: 40,  h: 40 },
+];
+
+let cellCounter = 100;
+function makeCell(style: string, label: string, w: number, h: number): string {
+  const id = `inserted-${cellCounter++}`;
+  return `<mxCell id="${id}" value="${label}" style="${style}" vertex="1" parent="1"><mxGeometry x="100" y="100" width="${w}" height="${h}" as="geometry"/></mxCell>`;
+}
+
+function injectCell(currentXml: string, style: string, label: string, w: number, h: number): string {
+  const cell = makeCell(style, label, w, h);
+  // Insert before </root>
+  return currentXml.replace('</root>', `${cell}</root>`);
+}
+
 export function DrawioEditor({ initialXml, notation, onSave }: Props): React.ReactElement {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [status, setStatus] = useState<string>('Cargando drawio...');
   const [fullscreen, setFullscreen] = useState(false);
   const [warnings, setWarnings] = useState<AnsiLintWarning[]>([]);
+  // Track the current XML so we can inject cells into it
+  const currentXmlRef = useRef<string>(initialXml || EMPTY_XML);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent): void {
@@ -38,6 +63,10 @@ export function DrawioEditor({ initialXml, notation, onSave }: Props): React.Rea
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [fullscreen]);
+
+  useEffect(() => {
+    currentXmlRef.current = initialXml || EMPTY_XML;
+  }, [initialXml]);
 
   useEffect(() => {
     function onMessage(event: MessageEvent): void {
@@ -55,12 +84,19 @@ export function DrawioEditor({ initialXml, notation, onSave }: Props): React.Rea
       if (!iframe?.contentWindow) return;
 
       switch (msg.event) {
+        case 'configure':
+          iframe.contentWindow.postMessage(
+            JSON.stringify({ action: 'configure', config: {} }),
+            'https://embed.diagrams.net',
+          );
+          break;
+
         case 'init':
           setStatus('Listo' + (notation ? ` (${notation})` : ''));
           iframe.contentWindow.postMessage(
             JSON.stringify({
               action: 'load',
-              xml: initialXml || EMPTY_XML,
+              xml: currentXmlRef.current,
               autosave: 0,
             }),
             'https://embed.diagrams.net',
@@ -69,11 +105,10 @@ export function DrawioEditor({ initialXml, notation, onSave }: Props): React.Rea
 
         case 'save':
           if (msg.xml) {
+            currentXmlRef.current = msg.xml;
             try {
               const toon = xmlToToonByNotation(msg.xml, notation ?? null);
               onSave(msg.xml, toon);
-              // Run ANSI validation only when the diagram declares the notation;
-              // for generic flows there is no contract to enforce.
               if (notation === 'ansi-iso-5807') {
                 const w = validateAnsiDiagram(msg.xml);
                 setWarnings(w);
@@ -83,16 +118,12 @@ export function DrawioEditor({ initialXml, notation, onSave }: Props): React.Rea
                 setStatus('Guardado');
               }
             } catch (err) {
-              setStatus(
-                'Error al generar TOON: ' +
-                  (err instanceof Error ? err.message : String(err)),
-              );
+              setStatus('Error al generar TOON: ' + (err instanceof Error ? err.message : String(err)));
             }
           }
           break;
 
         case 'exit':
-          // Ignored — we use saveAndExit=0
           break;
 
         default:
@@ -104,6 +135,17 @@ export function DrawioEditor({ initialXml, notation, onSave }: Props): React.Rea
     return () => window.removeEventListener('message', onMessage);
   }, [initialXml, notation, onSave]);
 
+  const insertShape = useCallback((shape: ShapeDef) => {
+    const iframe = iframeRef.current;
+    if (!iframe?.contentWindow) return;
+    const newXml = injectCell(currentXmlRef.current, shape.style, shape.label, shape.w, shape.h);
+    currentXmlRef.current = newXml;
+    iframe.contentWindow.postMessage(
+      JSON.stringify({ action: 'load', xml: newXml, autosave: 0 }),
+      'https://embed.diagrams.net',
+    );
+  }, []);
+
   function highlightCell(cellId: string): void {
     const iframe = iframeRef.current;
     if (!iframe?.contentWindow) return;
@@ -112,6 +154,8 @@ export function DrawioEditor({ initialXml, notation, onSave }: Props): React.Rea
       'https://embed.diagrams.net',
     );
   }
+
+  const shapes = notation === 'ansi-iso-5807' || !notation ? ANSI_SHAPES : ANSI_SHAPES;
 
   return (
     <div className={'drawio-editor' + (fullscreen ? ' drawio-fullscreen' : '')}>
@@ -150,12 +194,29 @@ export function DrawioEditor({ initialXml, notation, onSave }: Props): React.Rea
           </ul>
         </div>
       )}
-      <iframe
-        ref={iframeRef}
-        title="drawio editor"
-        src={DRAWIO_URL}
-        className="drawio-iframe"
-      />
+      <div className="drawio-workspace">
+        <div className="drawio-toolbox">
+          <div className="drawio-toolbox-title">Formas</div>
+          {shapes.map((shape) => (
+            <button
+              key={shape.label}
+              type="button"
+              className="drawio-toolbox-item"
+              onClick={() => insertShape(shape)}
+              title={`Insertar: ${shape.label}`}
+            >
+              <span className="drawio-toolbox-icon">{shape.icon}</span>
+              <span className="drawio-toolbox-label">{shape.label}</span>
+            </button>
+          ))}
+        </div>
+        <iframe
+          ref={iframeRef}
+          title="drawio editor"
+          src={buildDrawioUrl(notation)}
+          className="drawio-iframe"
+        />
+      </div>
     </div>
   );
 }
