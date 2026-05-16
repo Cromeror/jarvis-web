@@ -165,6 +165,7 @@ function detectAnsiShape(style: string, label: string, width?: number): AnsiShap
   const s = style.toLowerCase();
   if (s.includes('offpageconnector')) return 'offpage';
   if (s.includes('rhombus') || s.includes('flowchart.decision')) return 'decision';
+  if (s.includes('flowchart.terminator') || s.includes('flowchart.start')) return 'terminator';
   if (s.includes('document')) return 'document';
   if (s.includes('parallelogram') || s.includes('shape=data')) return 'data';
   if (s.includes('shape=process') || s.includes('shape=predefinedprocess')) return 'predefined';
