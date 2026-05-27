@@ -33,6 +33,7 @@ export function Editor({
   const [dirty, setDirty] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'idle'>('idle');
   const [savingVersion, setSavingVersion] = useState(false);
+  const [externalChange, setExternalChange] = useState(false);
 
   // Guided mode is always available now — TipTap handles any markdown.
   const guidedAvailable = true;
@@ -42,12 +43,25 @@ export function Editor({
     setEditorContent(initialContent);
     setDirty(false);
     setSaveStatus('idle');
+    setExternalChange(false);
   }, [filePath, initialContent]);
 
-  // Autosave — debounce 1500ms
+  // SSE: detect external changes (e.g. LLM editing the file)
+  useEffect(() => {
+    const es = new EventSource(`/api/file/watch?path=${encodeURIComponent(filePath)}`);
+    es.onmessage = (e: MessageEvent) => {
+      try {
+        const data = JSON.parse(e.data as string) as { event?: string };
+        if (data.event === 'changed') setExternalChange(true);
+      } catch { /* ignore malformed events */ }
+    };
+    return () => es.close();
+  }, [filePath]);
+
+  // Autosave — debounce 1500ms (paused when external change detected)
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (!dirty) return;
+    if (!dirty || externalChange) return;
 
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
     autosaveTimerRef.current = setTimeout(async () => {
@@ -106,6 +120,14 @@ export function Editor({
 
   return (
     <div className="editor">
+      {externalChange && (
+        <div className="editor-external-change-banner">
+          <span>El archivo fue modificado externamente (posiblemente por la LLM).</span>
+          <button type="button" onClick={() => { setExternalChange(false); }}>
+            Ignorar
+          </button>
+        </div>
+      )}
       <div className="editor-toolbar">
         <ModeToggle
           mode={mode}

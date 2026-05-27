@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { xmlToToonByNotation, validateAnsiDiagram, type AnsiLintWarning } from '../../lib/drawio-to-toon.js';
+const EMPTY_DRAWIO_XML =
+  '<mxfile><diagram><mxGraphModel><root><mxCell id="0" /><mxCell id="1" parent="0" /></root></mxGraphModel></diagram></mxfile>';
 
 interface Props {
   initialXml: string;
@@ -14,9 +16,6 @@ function buildDrawioUrl(notation?: string | null): string {
   }
   return base;
 }
-
-const EMPTY_XML =
-  '<mxfile><diagram><mxGraphModel><root><mxCell id="0" /><mxCell id="1" parent="0" /></root></mxGraphModel></diagram></mxfile>';
 
 // Shapes shown in the custom toolbox. Each shape is inserted via action:'load'
 // with the accumulated XML + new cell appended.
@@ -54,7 +53,7 @@ export function DrawioEditor({ initialXml, notation, onSave }: Props): React.Rea
   const [fullscreen, setFullscreen] = useState(false);
   const [warnings, setWarnings] = useState<AnsiLintWarning[]>([]);
   // Track the current XML so we can inject cells into it
-  const currentXmlRef = useRef<string>(initialXml || EMPTY_XML);
+  const currentXmlRef = useRef<string>(initialXml || EMPTY_DRAWIO_XML);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent): void {
@@ -65,7 +64,7 @@ export function DrawioEditor({ initialXml, notation, onSave }: Props): React.Rea
   }, [fullscreen]);
 
   useEffect(() => {
-    currentXmlRef.current = initialXml || EMPTY_XML;
+    currentXmlRef.current = initialXml || EMPTY_DRAWIO_XML;
   }, [initialXml]);
 
   useEffect(() => {
