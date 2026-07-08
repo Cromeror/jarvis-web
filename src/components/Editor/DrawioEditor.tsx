@@ -105,19 +105,31 @@ export function DrawioEditor({ initialXml, notation, onSave }: Props): React.Rea
         case 'save':
           if (msg.xml) {
             currentXmlRef.current = msg.xml;
+            let toon = '';
+            let toonError: string | null = null;
             try {
-              const toon = xmlToToonByNotation(msg.xml, notation ?? null);
-              onSave(msg.xml, toon);
-              if (notation === 'ansi-iso-5807') {
+              toon = xmlToToonByNotation(msg.xml, notation ?? null);
+            } catch (err) {
+              toonError = err instanceof Error ? err.message : String(err);
+            }
+            // Always persist the XML regardless of TOON generation errors.
+            onSave(msg.xml, toon);
+            if (notation === 'ansi-iso-5807') {
+              try {
                 const w = validateAnsiDiagram(msg.xml);
                 setWarnings(w);
-                setStatus(w.length === 0 ? 'Guardado ✓' : `Guardado con ${w.length} error${w.length === 1 ? '' : 'es'} de modelado`);
-              } else {
+                if (toonError) {
+                  setStatus(`Guardado (TOON parcial: ${toonError})`);
+                } else {
+                  setStatus(w.length === 0 ? 'Guardado ✓' : `Guardado con ${w.length} error${w.length === 1 ? '' : 'es'} de modelado`);
+                }
+              } catch {
                 setWarnings([]);
-                setStatus('Guardado');
+                setStatus(toonError ? `Guardado (TOON parcial: ${toonError})` : 'Guardado');
               }
-            } catch (err) {
-              setStatus('Error al generar TOON: ' + (err instanceof Error ? err.message : String(err)));
+            } else {
+              setWarnings([]);
+              setStatus(toonError ? `Guardado (TOON parcial: ${toonError})` : 'Guardado');
             }
           }
           break;

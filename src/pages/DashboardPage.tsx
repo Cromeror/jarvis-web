@@ -4,6 +4,7 @@ import type { ProjectSummary } from '../lib/projects-api.js';
 
 interface DashboardPageProps {
   onNavigateToProject: (projectId: string) => void;
+  onNavigateToContextGraph?: () => void;
 }
 
 /**
@@ -11,7 +12,7 @@ interface DashboardPageProps {
  * REQ-1, REQ-11, SC-01, R8 — handles empty state without crash.
  * T9.
  */
-export function DashboardPage({ onNavigateToProject }: DashboardPageProps): React.ReactElement {
+export function DashboardPage({ onNavigateToProject, onNavigateToContextGraph }: DashboardPageProps): React.ReactElement {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +47,14 @@ export function DashboardPage({ onNavigateToProject }: DashboardPageProps): Reac
     <div className="dashboard-page">
       <header className="dashboard-header">
         <h1 className="dashboard-title">Jarvis Projects</h1>
-        <span className="dashboard-count">{projects.length} project{projects.length !== 1 ? 's' : ''}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {onNavigateToContextGraph && (
+            <button className="dashboard-graph-link" onClick={onNavigateToContextGraph}>
+              ◉ Grafo de conocimiento
+            </button>
+          )}
+          <span className="dashboard-count">{projects.length} project{projects.length !== 1 ? 's' : ''}</span>
+        </div>
       </header>
 
       {projects.length === 0 ? (

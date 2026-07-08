@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { EditorPage } from './pages/EditorPage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
 import { ProjectMapPage } from './pages/ProjectMapPage.js';
+import { ContextGraphPage } from './pages/ContextGraphPage.js';
 
-type View = 'dashboard' | 'project' | 'editor';
+type View = 'dashboard' | 'project' | 'editor' | 'context-graph';
 
 interface AppState {
   view: View;
@@ -30,6 +31,7 @@ export default function App(): React.ReactElement {
       const id = params.get('id') ?? undefined;
       return { view: 'project', projectId: id };
     }
+    if (view === 'context-graph') return { view: 'context-graph' };
     // default: dashboard
     return { view: 'dashboard' };
   };
@@ -54,6 +56,8 @@ export default function App(): React.ReactElement {
     } else if (state.view === 'project' && state.projectId) {
       url.searchParams.set('view', 'project');
       url.searchParams.set('id', state.projectId);
+    } else if (state.view === 'context-graph') {
+      url.searchParams.set('view', 'context-graph');
     } else {
       url.searchParams.set('view', 'dashboard');
     }
@@ -67,6 +71,10 @@ export default function App(): React.ReactElement {
 
   const handleBackToDashboard = (): void => {
     navigate({ view: 'dashboard' });
+  };
+
+  const handleNavigateToContextGraph = (): void => {
+    navigate({ view: 'context-graph' });
   };
 
   const handleFileChange = (path: string | null): void => {
@@ -101,6 +109,20 @@ export default function App(): React.ReactElement {
     );
   }
 
+  if (appState.view === 'context-graph') {
+    return (
+      <ContextGraphPage
+        onEditFile={(path) => navigate({ view: 'editor', file: path })}
+        onBack={handleBackToDashboard}
+      />
+    );
+  }
+
   // default: dashboard
-  return <DashboardPage onNavigateToProject={handleNavigateToProject} />;
+  return (
+    <DashboardPage
+      onNavigateToProject={handleNavigateToProject}
+      onNavigateToContextGraph={handleNavigateToContextGraph}
+    />
+  );
 }
