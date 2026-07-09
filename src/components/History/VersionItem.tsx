@@ -1,7 +1,7 @@
 import React from 'react';
 import type { VersionEntry } from '../../lib/api.js';
 import { formatSnapshotTimestamp } from '../../lib/snapshot-name.js';
-import { Button } from '../ui/Button.js';
+import { Button } from '../ui/atoms/Button.js';
 
 interface VersionItemProps {
   version: VersionEntry;

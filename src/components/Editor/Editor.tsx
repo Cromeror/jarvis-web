@@ -5,8 +5,8 @@ import { ModeToggle } from './ModeToggle.js';
 import type { EditorMode } from './ModeToggle.js';
 import { RawEditor } from './RawEditor.js';
 import { GuidedEditor } from './GuidedEditor.js';
-import { CopyPromptBtn } from '../ui/CopyPromptBtn.js';
-import { Button } from '../ui/Button.js';
+import { CopyPromptBtn } from '../ui/atoms/CopyPromptBtn.js';
+import { Button } from '../ui/atoms/Button.js';
 
 interface EditorProps {
   filePath: string;

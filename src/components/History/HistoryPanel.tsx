@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { listVersions, saveVersion, restoreVersion, saveFile, getFile } from '../../lib/api.js';
 import type { VersionEntry } from '../../lib/api.js';
 import { VersionItem } from './VersionItem.js';
-import { Button } from '../ui/Button.js';
+import { Button } from '../ui/atoms/Button.js';
 
 interface HistoryPanelProps {
   filePath: string;

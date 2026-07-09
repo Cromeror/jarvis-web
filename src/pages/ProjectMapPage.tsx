@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import ReactFlow, {
   Background,
   Controls,
@@ -27,17 +28,15 @@ const COL_SKILL = 650;
 const NODE_HEIGHT = 80;
 const NODE_V_GAP = 20;
 
-interface ProjectMapPageProps {
-  projectId: string;
-  onBack: () => void;
-}
-
 /**
  * ReactFlow canvas: project root node + integration nodes + skill nodes.
  * Manual layered layout (no dagre — no new deps).
  * REQ-2, REQ-3, REQ-12, SC-02/03, T11.
  */
-export function ProjectMapPage({ projectId, onBack }: ProjectMapPageProps): React.ReactElement {
+export function ProjectMapPage(): React.ReactElement {
+  const { projectId = '' } = useParams<{ projectId: string }>();
+  const navigate = useNavigate();
+  const onBack = useCallback(() => navigate('/'), [navigate]);
   const [project, setProject] = useState<ProjectSummary | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);

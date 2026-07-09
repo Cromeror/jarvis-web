@@ -1,22 +1,21 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { getFile } from '../lib/api.js';
 import type { FileContent } from '../lib/api.js';
 import type { DocType } from '../lib/markdown-parser.js';
 import { Sidebar } from '../components/Sidebar/Sidebar.js';
 import { Editor } from '../components/Editor/Editor.js';
 import { HistoryPanel } from '../components/History/HistoryPanel.js';
-import { Toast, useToast } from '../components/ui/Toast.js';
-
-interface EditorPageProps {
-  initialFile: string | null;
-  onFileChange: (path: string | null) => void;
-}
+import { Toast, useToast } from '../components/ui/atoms/Toast.js';
 
 /**
  * Main layout: sidebar (left) + editor (center) + history panel (right).
- * Design §Frontend structure.
+ * Design §Frontend structure. The open file is kept as a `?file=` query
+ * param (not a route) since it's transient view state, not a location.
  */
-export function EditorPage({ initialFile, onFileChange }: EditorPageProps): React.ReactElement {
+export function EditorPage(): React.ReactElement {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialFile = searchParams.get('file');
   const [activeFile, setActiveFile] = useState<string | null>(initialFile);
   const [fileData, setFileData] = useState<FileContent | null>(null);
   const [loading, setLoading] = useState(false);
@@ -47,11 +46,7 @@ export function EditorPage({ initialFile, onFileChange }: EditorPageProps): Reac
 
   const handleFileSelect = (path: string): void => {
     setActiveFile(path);
-    onFileChange(path);
-    // Update URL query param
-    const url = new URL(window.location.href);
-    url.searchParams.set('file', path);
-    window.history.pushState({}, '', url.toString());
+    setSearchParams({ file: path });
   };
 
   const handleSave = (warnings: string[]): void => {

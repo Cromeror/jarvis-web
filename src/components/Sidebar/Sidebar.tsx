@@ -4,7 +4,7 @@ import type { FileEntry } from '../../lib/api.js';
 import type { DocType } from '../../lib/markdown-parser.js';
 import { SearchBox } from './SearchBox.js';
 import { FileTree } from './FileTree.js';
-import { Button } from '../ui/Button.js';
+import { Button } from '../ui/atoms/Button.js';
 
 interface SidebarProps {
   activeFile: string | null;

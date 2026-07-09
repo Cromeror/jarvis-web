@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ReactFlow, {
   Background,
   Controls,
@@ -104,12 +105,13 @@ const TYPE_COLOR: Record<NodeType, string> = {
   section: '#888',
 };
 
-interface ContextGraphInnerProps {
-  onEditFile: (path: string) => void;
-  onBack: () => void;
-}
-
-function ContextGraphInner({ onEditFile, onBack }: ContextGraphInnerProps): React.ReactElement {
+function ContextGraphInner(): React.ReactElement {
+  const navigate = useNavigate();
+  const onBack = useCallback(() => navigate('/'), [navigate]);
+  const onEditFile = useCallback(
+    (path: string) => navigate(`/editor?file=${encodeURIComponent(path)}`),
+    [navigate],
+  );
   const [rfNodes, setRfNodes] = useState<Node<GraphNodeData>[]>([]);
   const [rfEdges, setRfEdges] = useState<Edge[]>([]);
   const [loading, setLoading] = useState(true);
@@ -226,9 +228,6 @@ function ContextGraphInner({ onEditFile, onBack }: ContextGraphInnerProps): Reac
     <div className="cgraph-page">
       {/* Toolbar */}
       <div className="cgraph-toolbar">
-        <button className="btn btn-ghost" onClick={onBack}>
-          ← Dashboard
-        </button>
         <span className="cgraph-toolbar-title">Grafo de Conocimiento</span>
         <input
           className="cgraph-search"
@@ -287,15 +286,10 @@ function ContextGraphInner({ onEditFile, onBack }: ContextGraphInnerProps): Reac
 
 // ── public export (wrapped in ReactFlowProvider) ──────────────────────────────
 
-interface ContextGraphPageProps {
-  onEditFile: (path: string) => void;
-  onBack: () => void;
-}
-
-export function ContextGraphPage(props: ContextGraphPageProps): React.ReactElement {
+export function ContextGraphPage(): React.ReactElement {
   return (
     <ReactFlowProvider>
-      <ContextGraphInner {...props} />
+      <ContextGraphInner />
     </ReactFlowProvider>
   );
 }

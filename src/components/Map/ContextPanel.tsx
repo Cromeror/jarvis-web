@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { getProjectContext } from '../../lib/projects-api.js';
 import type { ContextFormat } from '../../lib/projects-api.js';
-import { Button } from '../ui/Button.js';
+import { Button } from '../ui/atoms/Button.js';
 
 interface ContextPanelProps {
   projectId: string;
