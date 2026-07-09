@@ -5,6 +5,14 @@ import { Avatar } from '../atoms/Avatar.js';
 interface MessageBubbleProps {
   role: string;
   content: string;
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  contextUsedPercent?: number | null;
+  durationMs?: number | null;
+}
+
+function formatDuration(ms: number): string {
+  return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`;
 }
 
 function CodeBlock({ children }: { children: React.ReactNode }): React.ReactElement {
@@ -35,7 +43,14 @@ function CodeBlock({ children }: { children: React.ReactNode }): React.ReactElem
   );
 }
 
-export function MessageBubble({ role, content }: MessageBubbleProps): React.ReactElement {
+export function MessageBubble({
+  role,
+  content,
+  inputTokens,
+  outputTokens,
+  contextUsedPercent,
+  durationMs,
+}: MessageBubbleProps): React.ReactElement {
   const isUser = role === 'user';
 
   if (isUser) {
@@ -47,6 +62,10 @@ export function MessageBubble({ role, content }: MessageBubbleProps): React.Reac
       </div>
     );
   }
+
+  const hasTokens = inputTokens != null || outputTokens != null;
+  const hasContextPercent = contextUsedPercent != null;
+  const hasDuration = durationMs != null;
 
   return (
     <div className="flex gap-3">
@@ -70,6 +89,21 @@ export function MessageBubble({ role, content }: MessageBubbleProps): React.Reac
         >
           {content}
         </ReactMarkdown>
+        {(hasTokens || hasContextPercent || hasDuration) && (
+          <div className="mt-1 flex items-center justify-between text-xs text-slate-400">
+            <span>
+              {hasTokens && (
+                <>
+                  {inputTokens ?? 0} in · {outputTokens ?? 0} out
+                </>
+              )}
+              {hasContextPercent && (
+                <>{hasTokens ? ' · ' : ''}{contextUsedPercent}% de contexto usado</>
+              )}
+            </span>
+            {hasDuration && <span>{formatDuration(durationMs!)}</span>}
+          </div>
+        )}
       </div>
     </div>
   );

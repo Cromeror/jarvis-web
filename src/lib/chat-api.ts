@@ -18,6 +18,10 @@ export interface ChatMessage {
   content: string;
   tool_calls: string | null;
   created_at: string;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  context_used_percent: number | null;
+  duration_ms: number | null;
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {
@@ -42,13 +46,27 @@ export async function startChatSession(projectId: string): Promise<{ session_id:
 export async function sendChatMessage(
   sessionId: string,
   message: string,
-): Promise<{ text: string; session_id: string }> {
+): Promise<{
+  text: string;
+  session_id: string;
+  input_tokens?: number;
+  output_tokens?: number;
+  context_used_percent?: number;
+  duration_ms?: number;
+}> {
   const res = await fetch(`/api/chat/sessions/${encodeURIComponent(sessionId)}/messages`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ message }),
   });
-  return handleResponse<{ text: string; session_id: string }>(res);
+  return handleResponse<{
+    text: string;
+    session_id: string;
+    input_tokens?: number;
+    output_tokens?: number;
+    context_used_percent?: number;
+    duration_ms?: number;
+  }>(res);
 }
 
 /** GET /api/chat/sessions?project_id= — list conversations for a project */

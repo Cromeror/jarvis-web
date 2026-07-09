@@ -114,7 +114,18 @@ export function ChatPage(): React.ReactElement {
 
       setMessages((prev) => [
         ...prev,
-        { id: Date.now(), session_id: sessionId!, role: 'user', content: message, tool_calls: null, created_at: new Date().toISOString() },
+        {
+          id: Date.now(),
+          session_id: sessionId!,
+          role: 'user',
+          content: message,
+          tool_calls: null,
+          created_at: new Date().toISOString(),
+          input_tokens: null,
+          output_tokens: null,
+          context_used_percent: null,
+          duration_ms: null,
+        },
       ]);
       setPending(true);
       try {

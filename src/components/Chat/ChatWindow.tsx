@@ -38,7 +38,15 @@ export function ChatWindow({ messages, pending, onSend }: ChatWindowProps): Reac
             </div>
           )}
           {messages.map((m) => (
-            <MessageBubble key={m.id} role={m.role} content={m.content} />
+            <MessageBubble
+              key={m.id}
+              role={m.role}
+              content={m.content}
+              inputTokens={m.input_tokens}
+              outputTokens={m.output_tokens}
+              contextUsedPercent={m.context_used_percent}
+              durationMs={m.duration_ms}
+            />
           ))}
           {pending && (
             <div className="flex items-center gap-2 text-sm text-slate-400">
