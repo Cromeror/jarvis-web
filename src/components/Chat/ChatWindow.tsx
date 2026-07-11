@@ -7,7 +7,7 @@ import { Spinner } from '../ui/atoms/Spinner.js';
 interface ChatWindowProps {
   messages: ChatMessage[];
   pending: boolean;
-  onSend: (message: string) => void;
+  onSend: (message: string, attachments?: File[]) => void;
 }
 
 export function ChatWindow({ messages, pending, onSend }: ChatWindowProps): React.ReactElement {
@@ -46,6 +46,7 @@ export function ChatWindow({ messages, pending, onSend }: ChatWindowProps): Reac
               outputTokens={m.output_tokens}
               contextUsedPercent={m.context_used_percent}
               durationMs={m.duration_ms}
+              attachments={m.attachments}
             />
           ))}
           {pending && (

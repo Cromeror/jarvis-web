@@ -9,10 +9,28 @@ interface MessageBubbleProps {
   outputTokens?: number | null;
   contextUsedPercent?: number | null;
   durationMs?: number | null;
+  attachments?: string | null;
+}
+
+/** Parses the JSON `attachments` column into filenames, fail-soft on malformed/missing data. */
+function parseAttachmentNames(attachments?: string | null): string[] {
+  if (!attachments) return [];
+  try {
+    const parsed = JSON.parse(attachments) as Array<{ filename?: string }>;
+    return parsed.map((a) => a.filename).filter((f): f is string => Boolean(f));
+  } catch {
+    return [];
+  }
 }
 
 function formatDuration(ms: number): string {
-  return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`;
+  if (ms < 1000) return `${ms}ms`;
+  const seconds = ms / 1000;
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  const minutes = seconds / 60;
+  if (minutes < 60) return `${minutes.toFixed(1)}m`;
+  const hours = minutes / 60;
+  return `${hours.toFixed(1)}h`;
 }
 
 function CodeBlock({ children }: { children: React.ReactNode }): React.ReactElement {
@@ -50,13 +68,27 @@ export function MessageBubble({
   outputTokens,
   contextUsedPercent,
   durationMs,
+  attachments,
 }: MessageBubbleProps): React.ReactElement {
   const isUser = role === 'user';
 
   if (isUser) {
+    const attachmentNames = parseAttachmentNames(attachments);
     return (
       <div className="flex justify-end">
         <div className="max-w-[75%] rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm text-white shadow-sm">
+          {attachmentNames.length > 0 && (
+            <div className="mb-1.5 flex flex-wrap gap-1.5">
+              {attachmentNames.map((name, i) => (
+                <span
+                  key={`${name}-${i}`}
+                  className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs text-white/90"
+                >
+                  {name}
+                </span>
+              ))}
+            </div>
+          )}
           {content}
         </div>
       </div>

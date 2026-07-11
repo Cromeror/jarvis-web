@@ -22,6 +22,13 @@ export interface ChatMessage {
   output_tokens: number | null;
   context_used_percent: number | null;
   duration_ms: number | null;
+  attachments: string | null;
+}
+
+/** An attachment (image, document) about to be sent with a chat turn — filename + base64 content. */
+export interface ChatAttachmentInput {
+  filename: string;
+  content_base64: string;
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {
@@ -46,6 +53,7 @@ export async function startChatSession(projectId: string): Promise<{ session_id:
 export async function sendChatMessage(
   sessionId: string,
   message: string,
+  attachments?: ChatAttachmentInput[],
 ): Promise<{
   text: string;
   session_id: string;
@@ -57,7 +65,7 @@ export async function sendChatMessage(
   const res = await fetch(`/api/chat/sessions/${encodeURIComponent(sessionId)}/messages`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify(attachments?.length ? { message, attachments } : { message }),
   });
   return handleResponse<{
     text: string;

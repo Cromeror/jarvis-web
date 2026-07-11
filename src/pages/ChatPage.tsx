@@ -9,7 +9,7 @@ import {
   getChatMessages,
   deleteChatSession,
 } from '../lib/chat-api.js';
-import type { ChatSession, ChatMessage } from '../lib/chat-api.js';
+import type { ChatSession, ChatMessage, ChatAttachmentInput } from '../lib/chat-api.js';
 import { SessionList } from '../components/Chat/SessionList.js';
 import { ChatWindow } from '../components/Chat/ChatWindow.js';
 import { Toast, useToast } from '../components/ui/atoms/Toast.js';
@@ -20,6 +20,19 @@ import { Button } from '../components/ui/atoms/Button.js';
  * Every turn runs against the project's own root_path via
  * packages/mcp/src/api/chat.ts — see plan for backend details.
  */
+/** Reads a File as a base64 string (without the data: URL prefix) for sending over JSON. */
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolvePromise, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolvePromise(result.slice(result.indexOf(',') + 1));
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
 export function ChatPage(): React.ReactElement {
   const { projectId: initialProjectId } = useParams<{ projectId?: string }>();
   const navigate = useNavigate();
@@ -98,7 +111,7 @@ export function ChatPage(): React.ReactElement {
   }, [selectedProjectId, loadSessions, addToast]);
 
   const handleSend = useCallback(
-    async (message: string) => {
+    async (message: string, attachmentFiles?: File[]) => {
       if (!selectedProjectId) return;
       let sessionId = activeSessionId;
       if (!sessionId) {
@@ -125,11 +138,23 @@ export function ChatPage(): React.ReactElement {
           output_tokens: null,
           context_used_percent: null,
           duration_ms: null,
+          attachments: attachmentFiles?.length
+            ? JSON.stringify(attachmentFiles.map((f) => ({ filename: f.name })))
+            : null,
         },
       ]);
       setPending(true);
       try {
-        await sendChatMessage(sessionId, message);
+        let attachments: ChatAttachmentInput[] | undefined;
+        if (attachmentFiles?.length) {
+          attachments = await Promise.all(
+            attachmentFiles.map(async (file) => ({
+              filename: file.name,
+              content_base64: await fileToBase64(file),
+            })),
+          );
+        }
+        await sendChatMessage(sessionId, message, attachments);
         const fresh = await getChatMessages(sessionId);
         setMessages(fresh);
         loadSessions(selectedProjectId);
