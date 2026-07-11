@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { listProjects } from '../lib/projects-api.js';
 import type { ProjectSummary } from '../lib/projects-api.js';
@@ -23,6 +23,7 @@ import { Button } from '../components/ui/atoms/Button.js';
 interface SessionChatState {
   messages: ChatMessage[];
   pending: boolean;
+  hasUnread: boolean;
 }
 
 /** Reads a File as a base64 string (without the data: URL prefix) for sending over JSON. */
@@ -47,11 +48,13 @@ export function ChatPage(): React.ReactElement {
   const selectedProjectId = initialProjectId ?? null;
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const activeSessionIdRef = useRef<string | null>(null);
+  activeSessionIdRef.current = activeSessionId;
   const [chatBySession, setChatBySession] = useState<Record<string, SessionChatState>>({});
 
   const patchSession = useCallback((sessionId: string, patch: Partial<SessionChatState>) => {
     setChatBySession((prev) => {
-      const current: SessionChatState = prev[sessionId] ?? { messages: [], pending: false };
+      const current: SessionChatState = prev[sessionId] ?? { messages: [], pending: false, hasUnread: false };
       return { ...prev, [sessionId]: { ...current, ...patch } };
     });
   }, []);
@@ -82,6 +85,7 @@ export function ChatPage(): React.ReactElement {
   const handleSelectSession = useCallback(
     (sessionId: string) => {
       setActiveSessionId(sessionId);
+      patchSession(sessionId, { hasUnread: false });
       getChatMessages(sessionId)
         .then((fresh) => patchSession(sessionId, { messages: fresh }))
         .catch((err: unknown) => {
@@ -180,7 +184,10 @@ export function ChatPage(): React.ReactElement {
         }
         await sendChatMessage(activeSessionIdForSend, message, attachments);
         const fresh = await getChatMessages(activeSessionIdForSend);
-        patchSession(activeSessionIdForSend, { messages: fresh });
+        patchSession(activeSessionIdForSend, {
+          messages: fresh,
+          hasUnread: activeSessionIdRef.current !== activeSessionIdForSend,
+        });
         loadSessions(selectedProjectId);
       } catch (err) {
         addToast(err instanceof Error ? err.message : 'Error al enviar el mensaje', 'error');
@@ -218,6 +225,16 @@ export function ChatPage(): React.ReactElement {
 
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
   const activeChat = activeSessionId ? chatBySession[activeSessionId] : undefined;
+  const pendingSessionIds = new Set(
+    Object.entries(chatBySession)
+      .filter(([, state]) => state.pending)
+      .map(([sessionId]) => sessionId),
+  );
+  const unreadSessionIds = new Set(
+    Object.entries(chatBySession)
+      .filter(([, state]) => state.hasUnread)
+      .map(([sessionId]) => sessionId),
+  );
 
   return (
     <div className="flex h-full flex-col bg-white" style={{ fontSize: '16px' }}>
@@ -226,6 +243,8 @@ export function ChatPage(): React.ReactElement {
         <SessionList
           sessions={sessions}
           activeSessionId={activeSessionId}
+          pendingSessionIds={pendingSessionIds}
+          unreadSessionIds={unreadSessionIds}
           projectName={selectedProject?.name ?? selectedProjectId}
           onSelect={handleSelectSession}
           onNewSession={handleNewSession}

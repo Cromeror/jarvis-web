@@ -5,6 +5,8 @@ import { SessionListItem } from '../ui/molecules/SessionListItem.js';
 interface SessionListProps {
   sessions: ChatSession[];
   activeSessionId: string | null;
+  pendingSessionIds: Set<string>;
+  unreadSessionIds: Set<string>;
   projectName: string;
   onSelect: (sessionId: string) => void;
   onNewSession: () => void;
@@ -35,6 +37,8 @@ function groupByDate(sessions: ChatSession[]): Array<[string, ChatSession[]]> {
 export function SessionList({
   sessions,
   activeSessionId,
+  pendingSessionIds,
+  unreadSessionIds,
   projectName,
   onSelect,
   onNewSession,
@@ -90,6 +94,8 @@ export function SessionList({
                   key={session.id}
                   session={session}
                   active={session.id === activeSessionId}
+                  pending={pendingSessionIds.has(session.id)}
+                  unread={unreadSessionIds.has(session.id)}
                   onClick={() => onSelect(session.id)}
                   onDelete={() => onDelete(session.id)}
                 />
