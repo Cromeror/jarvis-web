@@ -77,12 +77,14 @@ export function ChatInputBar({ disabled = false, onSend }: ChatInputBarProps): R
             className="hidden"
             onChange={(e) => {
               if (e.target.files?.length) addFiles(e.target.files);
-              e.target.value = '';
             }}
           />
           <button
             type="button"
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => {
+              if (fileInputRef.current) fileInputRef.current.value = '';
+              fileInputRef.current?.click();
+            }}
             disabled={disabled}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30"
             aria-label="Adjuntar archivo"

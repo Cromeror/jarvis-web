@@ -20,6 +20,11 @@ import { Button } from '../components/ui/atoms/Button.js';
  * Every turn runs against the project's own root_path via
  * packages/mcp/src/api/chat.ts — see plan for backend details.
  */
+interface SessionChatState {
+  messages: ChatMessage[];
+  pending: boolean;
+}
+
 /** Reads a File as a base64 string (without the data: URL prefix) for sending over JSON. */
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolvePromise, reject) => {
@@ -42,8 +47,14 @@ export function ChatPage(): React.ReactElement {
   const selectedProjectId = initialProjectId ?? null;
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [pending, setPending] = useState(false);
+  const [chatBySession, setChatBySession] = useState<Record<string, SessionChatState>>({});
+
+  const patchSession = useCallback((sessionId: string, patch: Partial<SessionChatState>) => {
+    setChatBySession((prev) => {
+      const current: SessionChatState = prev[sessionId] ?? { messages: [], pending: false };
+      return { ...prev, [sessionId]: { ...current, ...patch } };
+    });
+  }, []);
 
   useEffect(() => {
     listProjects().catch((err: unknown) => {
@@ -72,12 +83,12 @@ export function ChatPage(): React.ReactElement {
     (sessionId: string) => {
       setActiveSessionId(sessionId);
       getChatMessages(sessionId)
-        .then(setMessages)
+        .then((fresh) => patchSession(sessionId, { messages: fresh }))
         .catch((err: unknown) => {
           addToast(err instanceof Error ? err.message : 'Error al cargar mensajes', 'error');
         });
     },
-    [addToast],
+    [addToast, patchSession],
   );
 
   const handleDeleteSession = useCallback(
@@ -88,8 +99,11 @@ export function ChatPage(): React.ReactElement {
         await deleteChatSession(sessionId);
         if (sessionId === activeSessionId) {
           setActiveSessionId(null);
-          setMessages([]);
         }
+        setChatBySession((prev) => {
+          const { [sessionId]: _removed, ...rest } = prev;
+          return rest;
+        });
         loadSessions(selectedProjectId);
       } catch (err) {
         addToast(err instanceof Error ? err.message : 'Error al eliminar la conversación', 'error');
@@ -103,12 +117,12 @@ export function ChatPage(): React.ReactElement {
     try {
       const { session_id } = await startChatSession(selectedProjectId);
       setActiveSessionId(session_id);
-      setMessages([]);
+      patchSession(session_id, { messages: [] });
       loadSessions(selectedProjectId);
     } catch (err) {
       addToast(err instanceof Error ? err.message : 'Error al crear la conversación', 'error');
     }
-  }, [selectedProjectId, loadSessions, addToast]);
+  }, [selectedProjectId, loadSessions, addToast, patchSession]);
 
   const handleSend = useCallback(
     async (message: string, attachmentFiles?: File[]) => {
@@ -124,26 +138,36 @@ export function ChatPage(): React.ReactElement {
           return;
         }
       }
+      const activeSessionIdForSend = sessionId;
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now(),
-          session_id: sessionId!,
-          role: 'user',
-          content: message,
-          tool_calls: null,
-          created_at: new Date().toISOString(),
-          input_tokens: null,
-          output_tokens: null,
-          context_used_percent: null,
-          duration_ms: null,
-          attachments: attachmentFiles?.length
-            ? JSON.stringify(attachmentFiles.map((f) => ({ filename: f.name })))
-            : null,
-        },
-      ]);
-      setPending(true);
+      setChatBySession((prev) => {
+        const current = prev[activeSessionIdForSend] ?? { messages: [], pending: false };
+        return {
+          ...prev,
+          [activeSessionIdForSend]: {
+            ...current,
+            messages: [
+              ...current.messages,
+              {
+                id: Date.now(),
+                session_id: activeSessionIdForSend,
+                role: 'user',
+                content: message,
+                tool_calls: null,
+                created_at: new Date().toISOString(),
+                input_tokens: null,
+                output_tokens: null,
+                context_used_percent: null,
+                duration_ms: null,
+                attachments: attachmentFiles?.length
+                  ? JSON.stringify(attachmentFiles.map((f) => ({ filename: f.name })))
+                  : null,
+              },
+            ],
+          },
+        };
+      });
+      patchSession(activeSessionIdForSend, { pending: true });
       try {
         let attachments: ChatAttachmentInput[] | undefined;
         if (attachmentFiles?.length) {
@@ -154,17 +178,17 @@ export function ChatPage(): React.ReactElement {
             })),
           );
         }
-        await sendChatMessage(sessionId, message, attachments);
-        const fresh = await getChatMessages(sessionId);
-        setMessages(fresh);
+        await sendChatMessage(activeSessionIdForSend, message, attachments);
+        const fresh = await getChatMessages(activeSessionIdForSend);
+        patchSession(activeSessionIdForSend, { messages: fresh });
         loadSessions(selectedProjectId);
       } catch (err) {
         addToast(err instanceof Error ? err.message : 'Error al enviar el mensaje', 'error');
       } finally {
-        setPending(false);
+        patchSession(activeSessionIdForSend, { pending: false });
       }
     },
-    [selectedProjectId, activeSessionId, loadSessions, addToast],
+    [selectedProjectId, activeSessionId, loadSessions, addToast, patchSession],
   );
 
   if (!selectedProjectId) {
@@ -193,6 +217,7 @@ export function ChatPage(): React.ReactElement {
   }
 
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
+  const activeChat = activeSessionId ? chatBySession[activeSessionId] : undefined;
 
   return (
     <div className="flex h-full flex-col bg-white" style={{ fontSize: '16px' }}>
@@ -208,7 +233,7 @@ export function ChatPage(): React.ReactElement {
           onBack={onBack}
           onChangeProject={() => navigate('/chat')}
         />
-        <ChatWindow messages={messages} pending={pending} onSend={handleSend} />
+        <ChatWindow messages={activeChat?.messages ?? []} pending={activeChat?.pending ?? false} onSend={handleSend} />
       </div>
     </div>
   );
