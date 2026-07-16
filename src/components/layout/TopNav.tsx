@@ -1,6 +1,8 @@
 import React from 'react';
 import { NavLink, useParams } from 'react-router-dom';
 import { PipelinesMenu } from './PipelinesMenu.js';
+import { EnvironmentsMenu } from './EnvironmentsMenu.js';
+import { AccountMenu } from './AccountMenu.js';
 
 const linkBase =
   'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors';
@@ -33,7 +35,11 @@ export function TopNav(): React.ReactElement {
           Planes
         </NavLink>
       </nav>
-      <PipelinesMenu projectId={projectId ?? null} />
+      <div className="ml-auto flex items-center gap-1">
+        <AccountMenu />
+        <EnvironmentsMenu projectId={projectId ?? null} />
+        <PipelinesMenu projectId={projectId ?? null} />
+      </div>
     </header>
   );
 }
