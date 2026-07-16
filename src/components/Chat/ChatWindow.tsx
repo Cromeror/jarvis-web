@@ -3,14 +3,19 @@ import type { ChatMessage } from '../../lib/chat-api.js';
 import { MessageBubble } from '../ui/molecules/MessageBubble.js';
 import { ChatInputBar } from '../ui/molecules/ChatInputBar.js';
 import { Spinner } from '../ui/atoms/Spinner.js';
+import { PlanProposalCard } from '../Plan/PlanProposalCard.js';
 
 interface ChatWindowProps {
   messages: ChatMessage[];
   pending: boolean;
-  onSend: (message: string, attachments?: File[]) => void;
+  onSend: (message: string, attachments?: File[], planMode?: boolean) => void;
+  planMode?: boolean;
+  onTogglePlanMode?: (next: boolean) => void;
+  /** Plans proposed during this session's turns — rendered inline after the message list. */
+  proposedPlanIds?: string[];
 }
 
-export function ChatWindow({ messages, pending, onSend }: ChatWindowProps): React.ReactElement {
+export function ChatWindow({ messages, pending, onSend, planMode, onTogglePlanMode, proposedPlanIds }: ChatWindowProps): React.ReactElement {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -55,10 +60,13 @@ export function ChatWindow({ messages, pending, onSend }: ChatWindowProps): Reac
               Jarvis está pensando...
             </div>
           )}
+          {proposedPlanIds?.map((planId) => (
+            <PlanProposalCard key={planId} planId={planId} />
+          ))}
           <div ref={bottomRef} />
         </div>
       </div>
-      <ChatInputBar disabled={pending} onSend={onSend} />
+      <ChatInputBar disabled={pending} onSend={onSend} planMode={planMode} onTogglePlanMode={onTogglePlanMode} />
     </div>
   );
 }

@@ -23,6 +23,12 @@ export function TopNav(): React.ReactElement {
         >
           Grafo de conocimiento
         </NavLink>
+        <NavLink
+          to="/plans"
+          className={({ isActive }) => `${linkBase} ${isActive ? linkActive : linkInactive}`}
+        >
+          Planes
+        </NavLink>
       </nav>
     </header>
   );

@@ -24,6 +24,7 @@ interface SessionChatState {
   messages: ChatMessage[];
   pending: boolean;
   hasUnread: boolean;
+  proposedPlanIds?: string[];
 }
 
 /** Reads a File as a base64 string (without the data: URL prefix) for sending over JSON. */
@@ -51,13 +52,21 @@ export function ChatPage(): React.ReactElement {
   const activeSessionIdRef = useRef<string | null>(null);
   activeSessionIdRef.current = activeSessionId;
   const [chatBySession, setChatBySession] = useState<Record<string, SessionChatState>>({});
+  // Independent of any session — the user can toggle Plan Mode before a
+  // conversation exists yet (empty chat, nothing sent), so it can't live
+  // nested under chatBySession[activeSessionId], which wouldn't exist then.
+  const [planMode, setPlanMode] = useState(false);
 
-  const patchSession = useCallback((sessionId: string, patch: Partial<SessionChatState>) => {
-    setChatBySession((prev) => {
-      const current: SessionChatState = prev[sessionId] ?? { messages: [], pending: false, hasUnread: false };
-      return { ...prev, [sessionId]: { ...current, ...patch } };
-    });
-  }, []);
+  const patchSession = useCallback(
+    (sessionId: string, patch: Partial<SessionChatState> | ((current: SessionChatState) => Partial<SessionChatState>)) => {
+      setChatBySession((prev) => {
+        const current: SessionChatState = prev[sessionId] ?? { messages: [], pending: false, hasUnread: false };
+        const resolved = typeof patch === 'function' ? patch(current) : patch;
+        return { ...prev, [sessionId]: { ...current, ...resolved } };
+      });
+    },
+    [],
+  );
 
   useEffect(() => {
     listProjects().catch((err: unknown) => {
@@ -129,7 +138,7 @@ export function ChatPage(): React.ReactElement {
   }, [selectedProjectId, loadSessions, addToast, patchSession]);
 
   const handleSend = useCallback(
-    async (message: string, attachmentFiles?: File[]) => {
+    async (message: string, attachmentFiles?: File[], planMode?: boolean) => {
       if (!selectedProjectId) return;
       let sessionId = activeSessionId;
       if (!sessionId) {
@@ -182,12 +191,15 @@ export function ChatPage(): React.ReactElement {
             })),
           );
         }
-        await sendChatMessage(activeSessionIdForSend, message, attachments);
+        const result = await sendChatMessage(activeSessionIdForSend, message, attachments, planMode ? 'plan' : undefined);
         const fresh = await getChatMessages(activeSessionIdForSend);
-        patchSession(activeSessionIdForSend, {
+        patchSession(activeSessionIdForSend, (current) => ({
           messages: fresh,
           hasUnread: activeSessionIdRef.current !== activeSessionIdForSend,
-        });
+          ...(result.plan_id
+            ? { proposedPlanIds: [...(current.proposedPlanIds ?? []), result.plan_id] }
+            : {}),
+        }));
         loadSessions(selectedProjectId);
       } catch (err) {
         addToast(err instanceof Error ? err.message : 'Error al enviar el mensaje', 'error');
@@ -252,7 +264,14 @@ export function ChatPage(): React.ReactElement {
           onBack={onBack}
           onChangeProject={() => navigate('/chat')}
         />
-        <ChatWindow messages={activeChat?.messages ?? []} pending={activeChat?.pending ?? false} onSend={handleSend} />
+        <ChatWindow
+          messages={activeChat?.messages ?? []}
+          pending={activeChat?.pending ?? false}
+          onSend={handleSend}
+          planMode={planMode}
+          onTogglePlanMode={setPlanMode}
+          proposedPlanIds={activeChat?.proposedPlanIds}
+        />
       </div>
     </div>
   );

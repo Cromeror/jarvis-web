@@ -54,6 +54,7 @@ export async function sendChatMessage(
   sessionId: string,
   message: string,
   attachments?: ChatAttachmentInput[],
+  mode?: 'plan',
 ): Promise<{
   text: string;
   session_id: string;
@@ -61,11 +62,16 @@ export async function sendChatMessage(
   output_tokens?: number;
   context_used_percent?: number;
   duration_ms?: number;
+  plan_id?: string;
 }> {
   const res = await fetch(`/api/chat/sessions/${encodeURIComponent(sessionId)}/messages`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(attachments?.length ? { message, attachments } : { message }),
+    body: JSON.stringify({
+      message,
+      ...(attachments?.length ? { attachments } : {}),
+      ...(mode ? { mode } : {}),
+    }),
   });
   return handleResponse<{
     text: string;
@@ -74,6 +80,7 @@ export async function sendChatMessage(
     output_tokens?: number;
     context_used_percent?: number;
     duration_ms?: number;
+    plan_id?: string;
   }>(res);
 }
 
