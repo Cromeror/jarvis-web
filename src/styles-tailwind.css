@@ -1,6 +1,9 @@
-@layer legacy, theme, base, components, utilities;
+@layer legacy, theme, base, primereact, components, utilities;
 @import "tailwindcss";
 @import "./styles.css" layer(legacy);
+@import "primereact/resources/themes/lara-light-blue/theme.css" layer(primereact);
+@import "primereact/resources/primereact.min.css" layer(primereact);
+@import "primeicons/primeicons.css" layer(primereact);
 
 @theme {
   --animate-session-pending: session-pending 1.1s ease-in-out infinite;
