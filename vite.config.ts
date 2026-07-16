@@ -7,7 +7,9 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     proxy: {
-      '/api': 'http://localhost:7432',
+      // @jarvis/http-api (packages/http-api) — independent NestJS server,
+      // not the @jarvis/mcp daemon (which stays on 7432 for the MCP shim).
+      '/api': 'http://localhost:7433',
     },
   },
   build: {
