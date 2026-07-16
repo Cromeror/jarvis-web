@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { Avatar } from 'primereact/avatar';
 import { listExecutorAccounts, activateExecutorAccount, type ExecutorAccount } from '../../lib/executor-accounts-api.js';
 
 /**
@@ -51,9 +52,13 @@ export function AccountMenu(): React.ReactElement | null {
     >
       <button
         type="button"
-        className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+        className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-slate-800"
       >
-        Cuenta: {active?.label ?? '—'}
+        <Avatar label={(active?.label ?? '?').charAt(0).toUpperCase()} shape="circle" className="bg-indigo-500! text-white!" />
+        <span className="hidden flex-col leading-tight sm:flex">
+          <span className="text-sm font-medium text-white">{active?.label ?? '—'}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Cuenta activa</span>
+        </span>
       </button>
 
       {hovering && (
