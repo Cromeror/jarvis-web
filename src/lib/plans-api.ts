@@ -101,10 +101,16 @@ export async function approvePlan(planId: string): Promise<{ plan: PlanSummary }
   return handleResponse<{ plan: PlanSummary }>(res);
 }
 
-/** POST /api/plans/:id/launch — fire-and-forget, returns immediately */
-export async function launchPlan(planId: string): Promise<{ ok: true }> {
+/** POST /api/plans/:id/launch — fire-and-forget, returns immediately with the runId */
+export async function launchPlan(planId: string): Promise<{ ok: true; run_id: string }> {
   const res = await fetch(`/api/plans/${encodeURIComponent(planId)}/launch`, { method: 'POST' });
-  return handleResponse<{ ok: true }>(res);
+  return handleResponse<{ ok: true; run_id: string }>(res);
+}
+
+/** GET /api/plans/:id/latest-run — resolves the most recent run for a plan */
+export async function getLatestPlanRun(planId: string): Promise<{ run: PlanRunSnapshot }> {
+  const res = await fetch(`/api/plans/${encodeURIComponent(planId)}/latest-run`);
+  return handleResponse<{ run: PlanRunSnapshot }>(res);
 }
 
 /** GET /api/plan-runs/:runId — snapshot */

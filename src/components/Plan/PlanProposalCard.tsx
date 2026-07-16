@@ -58,10 +58,10 @@ export function PlanProposalCard({ planId, onLaunched }: PlanProposalCardProps):
     setBusy(true);
     try {
       if (plan.status === 'draft') await approvePlan(planId);
-      await launchPlan(planId);
+      const { run_id } = await launchPlan(planId);
       const fresh = await getPlan(planId);
       setDetail(fresh);
-      onLaunched?.(planId);
+      onLaunched?.(run_id);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al lanzar el plan');
     } finally {

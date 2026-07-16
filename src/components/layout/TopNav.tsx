@@ -1,5 +1,6 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useParams } from 'react-router-dom';
+import { PipelinesMenu } from './PipelinesMenu.js';
 
 const linkBase =
   'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors';
@@ -7,6 +8,8 @@ const linkActive = 'bg-indigo-50 text-indigo-700';
 const linkInactive = 'text-slate-500 hover:bg-slate-100 hover:text-slate-700';
 
 export function TopNav(): React.ReactElement {
+  const { projectId } = useParams<{ projectId?: string }>();
+
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-4">
       <NavLink
@@ -30,6 +33,7 @@ export function TopNav(): React.ReactElement {
           Planes
         </NavLink>
       </nav>
+      <PipelinesMenu projectId={projectId ?? null} />
     </header>
   );
 }

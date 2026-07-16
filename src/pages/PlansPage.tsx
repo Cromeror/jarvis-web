@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { listProjects } from '../lib/projects-api.js';
 import type { ProjectSummary } from '../lib/projects-api.js';
-import { listPlans, launchPlan, approvePlan } from '../lib/plans-api.js';
+import { listPlans, launchPlan, approvePlan, getLatestPlanRun } from '../lib/plans-api.js';
 import type { PlanSummary } from '../lib/plans-api.js';
 import { Toast, useToast } from '../components/ui/atoms/Toast.js';
 import { Button } from '../components/ui/atoms/Button.js';
@@ -59,12 +59,24 @@ export function PlansPage(): React.ReactElement {
       setBusyPlanId(planId);
       try {
         if (status === 'draft') await approvePlan(planId);
-        await launchPlan(planId);
-        navigate(`/plan-runs/${planId}`);
+        const { run_id } = await launchPlan(planId);
+        navigate(`/plan-runs/${run_id}`);
       } catch (err) {
         addToast(err instanceof Error ? err.message : 'Error al lanzar el plan', 'error');
       } finally {
         setBusyPlanId(null);
+      }
+    },
+    [navigate, addToast],
+  );
+
+  const handleViewProgress = useCallback(
+    async (planId: string) => {
+      try {
+        const { run } = await getLatestPlanRun(planId);
+        navigate(`/plan-runs/${run.id}`);
+      } catch (err) {
+        addToast(err instanceof Error ? err.message : 'Error al obtener el progreso', 'error');
       }
     },
     [navigate, addToast],
@@ -116,7 +128,7 @@ export function PlansPage(): React.ReactElement {
               </Button>
             )}
             {plan.status === 'running' && (
-              <Button variant="secondary" onClick={() => navigate(`/plan-runs/${plan.id}`)}>Ver progreso</Button>
+              <Button variant="secondary" onClick={() => void handleViewProgress(plan.id)}>Ver progreso</Button>
             )}
           </li>
         ))}
