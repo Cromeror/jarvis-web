@@ -43,3 +43,13 @@ export async function activateExecutorAccount(id: number): Promise<{ ok: true; a
   });
   return handleResponse<{ ok: true; activated: number }>(res);
 }
+
+/** PATCH /api/executor-accounts/:id — rename an existing account's label */
+export async function renameExecutorAccount(id: number, label: string): Promise<ExecutorAccount> {
+  const res = await fetch(`/api/executor-accounts/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ label }),
+  });
+  return handleResponse<ExecutorAccount>(res);
+}

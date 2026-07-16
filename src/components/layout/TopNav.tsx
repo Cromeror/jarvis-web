@@ -31,14 +31,6 @@ export function TopNav(): React.ReactElement {
 
   return (
     <header className="flex h-16 shrink-0 items-center gap-4 border-b border-slate-800 bg-slate-900 px-5 text-white">
-      <NavLink
-        to="/"
-        end
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-500 text-xs font-semibold"
-      >
-        J
-      </NavLink>
-
       <h1 className="shrink-0 text-lg font-semibold">{title}</h1>
 
       <div className="mx-auto w-full max-w-md">
