@@ -112,7 +112,7 @@ export function DashboardPage(): React.ReactElement {
 
   if (loading) {
     return (
-      <div className="flex h-full flex-col overflow-y-auto bg-slate-50 p-6">
+      <div className="flex h-full flex-col overflow-x-hidden overflow-y-auto bg-slate-50 p-6">
         <div className="py-16 text-center text-sm text-slate-400">Loading projects...</div>
       </div>
     );
@@ -120,7 +120,7 @@ export function DashboardPage(): React.ReactElement {
 
   if (error) {
     return (
-      <div className="flex h-full flex-col overflow-y-auto bg-slate-50 p-6">
+      <div className="flex h-full flex-col overflow-x-hidden overflow-y-auto bg-slate-50 p-6">
         <div className="py-16 text-center text-sm text-red-600">{error}</div>
       </div>
     );
@@ -128,7 +128,7 @@ export function DashboardPage(): React.ReactElement {
 
   if (projects.length === 0) {
     return (
-      <div className="flex h-full flex-col overflow-y-auto bg-slate-50 p-6">
+      <div className="flex h-full flex-col overflow-x-hidden overflow-y-auto bg-slate-50 p-6">
         <div className="py-16 text-center text-sm text-slate-400">
           <p>No projects found.</p>
           <p className="mt-2">
@@ -140,7 +140,7 @@ export function DashboardPage(): React.ReactElement {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto bg-slate-50 p-6">
+    <div className="flex h-full flex-col overflow-x-hidden overflow-y-auto bg-slate-50 p-6">
       <header className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Overview</h1>
