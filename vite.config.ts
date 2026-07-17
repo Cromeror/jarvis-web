@@ -6,6 +6,10 @@ import { resolve } from 'path';
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
+    // Defaults to loopback-only, matching Vite's own default. Override to
+    // 0.0.0.0 so a reverse proxy in another container/host (e.g. Traefik
+    // reaching this via host.docker.internal) can reach it.
+    host: process.env['JARVIS_WEB_APP_HOST'] ?? 'localhost',
     port: process.env['JARVIS_WEB_APP_PORT'] ? parseInt(process.env['JARVIS_WEB_APP_PORT'], 10) : 5173,
     strictPort: true,
     proxy: {
