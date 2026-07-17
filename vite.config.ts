@@ -6,10 +6,12 @@ import { resolve } from 'path';
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
+    port: process.env['JARVIS_WEB_APP_PORT'] ? parseInt(process.env['JARVIS_WEB_APP_PORT'], 10) : 5173,
+    strictPort: true,
     proxy: {
       // @jarvis/http-api (packages/http-api) — independent NestJS server,
       // not the @jarvis/mcp daemon (which stays on 7432 for the MCP shim).
-      '/api': 'http://localhost:7433',
+      '/api': process.env['JARVIS_HTTP_API_URL'] ?? 'http://localhost:7433',
     },
   },
   build: {
