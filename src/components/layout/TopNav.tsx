@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useLocation, useParams } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { IconField } from 'primereact/iconfield';
 import { InputIcon } from 'primereact/inputicon';
 import { InputText } from 'primereact/inputtext';
@@ -16,6 +16,7 @@ const PAGE_TITLES: Record<string, string> = {
   '': 'Dashboard',
   'chat': 'Chat',
   'plans': 'Planes',
+  'environments': 'Environments',
 };
 
 function usePageTitle(): string {
@@ -25,7 +26,6 @@ function usePageTitle(): string {
 }
 
 export function TopNav(): React.ReactElement {
-  const { projectId } = useParams<{ projectId?: string }>();
   const title = usePageTitle();
 
   return (
@@ -47,8 +47,8 @@ export function TopNav(): React.ReactElement {
       </nav>
 
       <div className="ml-auto flex shrink-0 items-center gap-2">
-        <EnvironmentsMenu projectId={projectId ?? null} />
-        <PipelinesMenu projectId={projectId ?? null} />
+        <EnvironmentsMenu />
+        <PipelinesMenu />
         <AccountMenu />
       </div>
     </header>

@@ -5,6 +5,7 @@ import { DashboardPage } from './pages/DashboardPage.js';
 import { ProjectMapPage } from './pages/ProjectMapPage.js';
 import { ChatPage } from './pages/ChatPage.js';
 import { PlansPage } from './pages/PlansPage.js';
+import { EnvironmentsPage } from './pages/EnvironmentsPage.js';
 import { AppLayout } from './components/layout/AppLayout.js';
 import { PipelineRunView } from './components/Pipeline/PipelineRunView.js';
 import { PlanRunView } from './components/Plan/PlanRunView.js';
@@ -19,6 +20,8 @@ import { PlanRunView } from './components/Plan/PlanRunView.js';
  *   /chat/:projectId         → AppLayout > ChatPage
  *   /plans                   → AppLayout > PlansPage (project picker)
  *   /plans/:projectId        → AppLayout > PlansPage
+ *   /environments            → AppLayout > EnvironmentsPage (project picker)
+ *   /environments/:projectId → AppLayout > EnvironmentsPage
  *   /project/:projectId      → ProjectMapPage
  *   /editor?file=<path>      → EditorPage (file kept as query param — it's
  *                              not a route, just which file is open)
@@ -34,6 +37,8 @@ export default function App(): React.ReactElement {
         <Route path="/chat/:projectId" element={<ChatPage />} />
         <Route path="/plans" element={<PlansPage />} />
         <Route path="/plans/:projectId" element={<PlansPage />} />
+        <Route path="/environments" element={<EnvironmentsPage />} />
+        <Route path="/environments/:projectId" element={<EnvironmentsPage />} />
       </Route>
       <Route path="/project/:projectId" element={<ProjectMapPage />} />
       <Route path="/editor" element={<EditorPage />} />

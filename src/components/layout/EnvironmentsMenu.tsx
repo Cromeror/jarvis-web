@@ -1,22 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  listEnvironmentDefinitions,
-  listEnvironmentRuns,
-  runEnvironmentByName,
+  listAllEnvironmentRuns,
   type EnvironmentRunSummary,
 } from '../../lib/environments-api.js';
 
 const POLL_MS = 5000;
-
-/**
- * Convention, not config: an environment named exactly this is treated as a
- * read-only status check and auto-run whenever the modal opens, so the user
- * sees current state without an extra click. Environments named anything
- * else (e.g. "stack-up", which actually starts things) are never auto-run —
- * only ever triggered by an explicit "Correr" click.
- */
-const AUTO_CHECK_NAME = 'stack-status';
 
 const STATUS_LABEL: Record<EnvironmentRunSummary['status'], string> = {
   running: '● corriendo',
@@ -31,67 +20,32 @@ const STATUS_CLASS: Record<EnvironmentRunSummary['status'], string> = {
 };
 
 /**
- * Environments button for the TopNav — structural clone of PipelinesMenu,
- * kept as a separate component/system on purpose (see
- * packages/mcp/src/api/environments.ts header): status-checks a project
- * author writes to see what's currently alive (e.g. a Docker stack and
- * which env it's pointing at), not build/deploy tasks. Hover shows a quick
- * popover with checks currently running; click opens a modal with defined
- * checks (with a "Correr" action) and recent run history.
+ * Environments button for the TopNav — always visible, shows checks across
+ * every project (not scoped to whichever :projectId is in the current
+ * route). Structural clone of PipelinesMenu, kept as a separate
+ * component/system on purpose (see packages/mcp/src/api/environments.ts
+ * header): status-checks a project author writes to see what's currently
+ * alive (e.g. a Docker stack and which env it's pointing at), not
+ * build/deploy tasks. Hover shows a quick popover with checks currently
+ * running; click opens a modal with recent run history across projects.
  */
-export function EnvironmentsMenu({ projectId }: { projectId: string | null }): React.ReactElement | null {
+export function EnvironmentsMenu(): React.ReactElement {
   const navigate = useNavigate();
   const [runs, setRuns] = useState<EnvironmentRunSummary[]>([]);
-  const [definitions, setDefinitions] = useState<string[]>([]);
   const [hovering, setHovering] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
-  const [busyName, setBusyName] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
-    if (!projectId) return;
-    listEnvironmentRuns(projectId).then(setRuns).catch(() => { /* best-effort — keep last known list */ });
-  }, [projectId]);
+    listAllEnvironmentRuns().then(setRuns).catch(() => { /* best-effort — keep last known list */ });
+  }, []);
 
   useEffect(() => {
-    if (!projectId) return;
     refresh();
     const id = setInterval(refresh, POLL_MS);
     return () => clearInterval(id);
-  }, [projectId, refresh]);
-
-  useEffect(() => {
-    if (!modalOpen || !projectId) return;
-    listEnvironmentDefinitions(projectId)
-      .then((names) => {
-        setDefinitions(names);
-        // Auto-refresh current status on open — see AUTO_CHECK_NAME above.
-        if (names.includes(AUTO_CHECK_NAME)) {
-          runEnvironmentByName(projectId, AUTO_CHECK_NAME).then(refresh).catch(() => {
-            /* best-effort — the manual "Correr" button still works if this fails */
-          });
-        }
-      })
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Error al cargar environments'));
-  }, [modalOpen, projectId, refresh]);
-
-  if (!projectId) return null;
+  }, [refresh]);
 
   const runningRuns = runs.filter((r) => r.status === 'running');
-
-  async function handleRun(name: string): Promise<void> {
-    if (!projectId) return;
-    setBusyName(name);
-    setError(null);
-    try {
-      await runEnvironmentByName(projectId, name);
-      refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : `Error al correr ${name}`);
-    } finally {
-      setBusyName(null);
-    }
-  }
 
   return (
     <div className="relative">
@@ -141,7 +95,7 @@ export function EnvironmentsMenu({ projectId }: { projectId: string | null }): R
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-slate-900">Environments — {projectId}</h2>
+              <h2 className="text-base font-semibold text-slate-900">Environments — todos los proyectos</h2>
               <button
                 type="button"
                 onClick={() => setModalOpen(false)}
@@ -149,40 +103,6 @@ export function EnvironmentsMenu({ projectId }: { projectId: string | null }): R
               >
                 Cerrar
               </button>
-            </div>
-
-            {error && (
-              <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                {error}
-              </div>
-            )}
-
-            <div className="mb-5">
-              <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">Disponibles</h3>
-              {definitions.length === 0 ? (
-                <p className="text-sm text-slate-400">
-                  No hay environment checks definidos en .jarvis/environments/ para este proyecto.
-                </p>
-              ) : (
-                <ul className="space-y-2">
-                  {definitions.map((name) => (
-                    <li
-                      key={name}
-                      className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2"
-                    >
-                      <span className="font-mono text-sm text-slate-700">{name}</span>
-                      <button
-                        type="button"
-                        onClick={() => void handleRun(name)}
-                        disabled={busyName === name}
-                        className="rounded-full bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-40"
-                      >
-                        {busyName === name ? 'Corriendo…' : 'Correr'}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
             </div>
 
             <div>
@@ -202,7 +122,7 @@ export function EnvironmentsMenu({ projectId }: { projectId: string | null }): R
                     >
                       <div>
                         <div className="text-sm text-slate-700">{r.name}</div>
-                        <div className="text-[11px] text-slate-400">{r.started_at}</div>
+                        <div className="text-[11px] text-slate-400">{r.project_id ?? '—'} · {r.started_at}</div>
                       </div>
                       <span className={`text-xs ${STATUS_CLASS[r.status]}`}>{STATUS_LABEL[r.status]}</span>
                     </li>

@@ -35,6 +35,12 @@ export async function listPipelineRuns(projectId: string): Promise<PipelineRunSu
   return handleResponse<PipelineRunSummary[]>(res);
 }
 
+/** GET /api/pipeline-runs — recent runs across every project, newest first */
+export async function listAllPipelineRuns(): Promise<PipelineRunSummary[]> {
+  const res = await fetch('/api/pipeline-runs');
+  return handleResponse<PipelineRunSummary[]>(res);
+}
+
 /** POST /api/projects/:id/pipelines/:name/run — launch a pipeline, fire-and-forget */
 export async function runPipelineByName(projectId: string, name: string): Promise<{ ok: true; run_id: string }> {
   const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/pipelines/${encodeURIComponent(name)}/run`, {

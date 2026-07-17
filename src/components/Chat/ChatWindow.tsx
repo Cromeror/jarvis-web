@@ -8,6 +8,8 @@ interface ChatWindowProps {
   messages: ChatMessage[];
   pending: boolean;
   onSend: (message: string, attachments?: File[], planMode?: boolean) => void;
+  /** Cancels the turn currently in flight. Absent while there's nothing to stop. */
+  onStop?: () => void;
   planMode?: boolean;
   onTogglePlanMode?: (next: boolean) => void;
   /** Plans proposed during this session's turns — rendered as a small banner that opens the side panel. */
@@ -15,7 +17,7 @@ interface ChatWindowProps {
   onOpenPlan?: (planId: string) => void;
 }
 
-export function ChatWindow({ messages, pending, onSend, planMode, onTogglePlanMode, proposedPlanIds, onOpenPlan }: ChatWindowProps): React.ReactElement {
+export function ChatWindow({ messages, pending, onSend, onStop, planMode, onTogglePlanMode, proposedPlanIds, onOpenPlan }: ChatWindowProps): React.ReactElement {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -58,6 +60,15 @@ export function ChatWindow({ messages, pending, onSend, planMode, onTogglePlanMo
             <div className="flex items-center gap-2 text-sm text-slate-400">
               <Spinner />
               Jarvis está pensando...
+              {onStop && (
+                <button
+                  type="button"
+                  onClick={onStop}
+                  className="ml-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-500 hover:bg-slate-50"
+                >
+                  Detener
+                </button>
+              )}
             </div>
           )}
           {proposedPlanIds?.map((planId) => (

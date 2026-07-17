@@ -63,6 +63,7 @@ export async function sendChatMessage(
   context_used_percent?: number;
   duration_ms?: number;
   plan_id?: string;
+  cancelled?: boolean;
 }> {
   const res = await fetch(`/api/chat/sessions/${encodeURIComponent(sessionId)}/messages`, {
     method: 'POST',
@@ -81,7 +82,16 @@ export async function sendChatMessage(
     context_used_percent?: number;
     duration_ms?: number;
     plan_id?: string;
+    cancelled?: boolean;
   }>(res);
+}
+
+/** POST /api/chat/sessions/:id/stop — cancel the turn currently in flight, if any */
+export async function stopChatMessage(sessionId: string): Promise<{ stopped: boolean }> {
+  const res = await fetch(`/api/chat/sessions/${encodeURIComponent(sessionId)}/stop`, {
+    method: 'POST',
+  });
+  return handleResponse<{ stopped: boolean }>(res);
 }
 
 /** GET /api/chat/sessions?project_id= — list conversations for a project */

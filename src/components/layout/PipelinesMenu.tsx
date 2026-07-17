@@ -1,9 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  listPipelineDefinitions,
-  listPipelineRuns,
-  runPipelineByName,
+  listAllPipelineRuns,
   type PipelineRunSummary,
 } from '../../lib/pipelines-api.js';
 
@@ -22,59 +20,30 @@ const STATUS_CLASS: Record<PipelineRunSummary['status'], string> = {
 };
 
 /**
- * Pipelines button for the TopNav, scoped to the active project (read from
- * the current route by the caller — TopNav resolves :projectId). Hover shows
- * a quick popover with runs currently in progress; click opens a modal with
- * the full picture: defined pipelines (with a "Correr" action) and recent
- * run history. Polls both lists on an interval since there's no aggregate
- * SSE across runs — only per-run (see usePipelineEvents), which the modal
- * links out to via /pipeline/:runId for live step detail.
+ * Pipelines button for the TopNav — always visible, shows runs across every
+ * project (not scoped to whichever :projectId is in the current route).
+ * Hover shows a quick popover with runs currently in progress; click opens a
+ * modal with the full recent run history. Polls on an interval since there's
+ * no aggregate SSE across runs — only per-run (see usePipelineEvents), which
+ * the modal links out to via /pipeline/:runId for live step detail.
  */
-export function PipelinesMenu({ projectId }: { projectId: string | null }): React.ReactElement | null {
+export function PipelinesMenu(): React.ReactElement {
   const navigate = useNavigate();
   const [runs, setRuns] = useState<PipelineRunSummary[]>([]);
-  const [definitions, setDefinitions] = useState<string[]>([]);
   const [hovering, setHovering] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
-  const [busyName, setBusyName] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
-    if (!projectId) return;
-    listPipelineRuns(projectId).then(setRuns).catch(() => { /* best-effort — keep last known list */ });
-  }, [projectId]);
+    listAllPipelineRuns().then(setRuns).catch(() => { /* best-effort — keep last known list */ });
+  }, []);
 
   useEffect(() => {
-    if (!projectId) return;
     refresh();
     const id = setInterval(refresh, POLL_MS);
     return () => clearInterval(id);
-  }, [projectId, refresh]);
-
-  useEffect(() => {
-    if (!modalOpen || !projectId) return;
-    listPipelineDefinitions(projectId)
-      .then(setDefinitions)
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Error al cargar pipelines'));
-  }, [modalOpen, projectId]);
-
-  if (!projectId) return null;
+  }, [refresh]);
 
   const runningRuns = runs.filter((r) => r.status === 'running');
-
-  async function handleRun(name: string): Promise<void> {
-    if (!projectId) return;
-    setBusyName(name);
-    setError(null);
-    try {
-      await runPipelineByName(projectId, name);
-      refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : `Error al correr ${name}`);
-    } finally {
-      setBusyName(null);
-    }
-  }
 
   return (
     <div className="relative">
@@ -124,7 +93,7 @@ export function PipelinesMenu({ projectId }: { projectId: string | null }): Reac
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-slate-900">Pipelines — {projectId}</h2>
+              <h2 className="text-base font-semibold text-slate-900">Pipelines — todos los proyectos</h2>
               <button
                 type="button"
                 onClick={() => setModalOpen(false)}
@@ -132,40 +101,6 @@ export function PipelinesMenu({ projectId }: { projectId: string | null }): Reac
               >
                 Cerrar
               </button>
-            </div>
-
-            {error && (
-              <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                {error}
-              </div>
-            )}
-
-            <div className="mb-5">
-              <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">Disponibles</h3>
-              {definitions.length === 0 ? (
-                <p className="text-sm text-slate-400">
-                  No hay pipelines definidos en .jarvis/pipelines/ para este proyecto.
-                </p>
-              ) : (
-                <ul className="space-y-2">
-                  {definitions.map((name) => (
-                    <li
-                      key={name}
-                      className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2"
-                    >
-                      <span className="font-mono text-sm text-slate-700">{name}</span>
-                      <button
-                        type="button"
-                        onClick={() => void handleRun(name)}
-                        disabled={busyName === name}
-                        className="rounded-full bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-40"
-                      >
-                        {busyName === name ? 'Corriendo…' : 'Correr'}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
             </div>
 
             <div>
@@ -185,7 +120,7 @@ export function PipelinesMenu({ projectId }: { projectId: string | null }): Reac
                     >
                       <div>
                         <div className="text-sm text-slate-700">{r.name}</div>
-                        <div className="text-[11px] text-slate-400">{r.started_at}</div>
+                        <div className="text-[11px] text-slate-400">{r.project_id ?? '—'} · {r.started_at}</div>
                       </div>
                       <span className={`text-xs ${STATUS_CLASS[r.status]}`}>{STATUS_LABEL[r.status]}</span>
                     </li>

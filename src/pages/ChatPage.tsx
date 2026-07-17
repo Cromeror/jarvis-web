@@ -6,6 +6,7 @@ import {
   listChatSessions,
   startChatSession,
   sendChatMessage,
+  stopChatMessage,
   getChatMessages,
   deleteChatSession,
 } from '../lib/chat-api.js';
@@ -217,6 +218,7 @@ export function ChatPage(): React.ReactElement {
             : {}),
         }));
         if (result.plan_id) setOpenPlanId(result.plan_id);
+        if (result.cancelled) addToast('Se detuvo la respuesta de Jarvis', 'info');
         loadSessions(projectIdsToLoad);
       } catch (err) {
         addToast(err instanceof Error ? err.message : 'Error al enviar el mensaje', 'error');
@@ -226,6 +228,13 @@ export function ChatPage(): React.ReactElement {
     },
     [projectFilter, activeSessionId, loadSessions, projectIdsToLoad, addToast, patchSession],
   );
+
+  const handleStop = useCallback(() => {
+    if (!activeSessionId) return;
+    stopChatMessage(activeSessionId).catch((err: unknown) => {
+      addToast(err instanceof Error ? err.message : 'Error al detener la respuesta', 'error');
+    });
+  }, [activeSessionId, addToast]);
 
   const activeChat = activeSessionId ? chatBySession[activeSessionId] : undefined;
   const pendingSessionIds = new Set(
@@ -260,6 +269,7 @@ export function ChatPage(): React.ReactElement {
           messages={activeChat?.messages ?? []}
           pending={activeChat?.pending ?? false}
           onSend={handleSend}
+          onStop={handleStop}
           planMode={planMode}
           onTogglePlanMode={setPlanMode}
           proposedPlanIds={activeChat?.proposedPlanIds}

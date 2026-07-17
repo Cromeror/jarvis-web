@@ -38,10 +38,61 @@ export async function listEnvironmentRuns(projectId: string): Promise<Environmen
   return handleResponse<EnvironmentRunSummary[]>(res);
 }
 
+/** GET /api/environment-runs — recent runs across every project, newest first */
+export async function listAllEnvironmentRuns(): Promise<EnvironmentRunSummary[]> {
+  const res = await fetch('/api/environment-runs');
+  return handleResponse<EnvironmentRunSummary[]>(res);
+}
+
 /** POST /api/projects/:id/environments/:name/run — launch an environment check, fire-and-forget */
 export async function runEnvironmentByName(projectId: string, name: string): Promise<{ ok: true; run_id: string }> {
   const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/environments/${encodeURIComponent(name)}/run`, {
     method: 'POST',
   });
   return handleResponse<{ ok: true; run_id: string }>(res);
+}
+
+/** GET /api/projects/:id/environments/:name — raw YAML content of one environment definition */
+export async function getEnvironmentDefinition(projectId: string, name: string): Promise<{ name: string; content: string }> {
+  const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/environments/${encodeURIComponent(name)}`);
+  return handleResponse<{ name: string; content: string }>(res);
+}
+
+/** POST /api/projects/:id/environments — create a new environment definition */
+export async function createEnvironmentDefinition(
+  projectId: string,
+  name: string,
+  content: string,
+): Promise<{ name: string; content: string }> {
+  const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/environments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, content }),
+  });
+  return handleResponse<{ name: string; content: string }>(res);
+}
+
+/** PUT /api/projects/:id/environments/:name — overwrite an environment definition's YAML */
+export async function updateEnvironmentDefinition(
+  projectId: string,
+  name: string,
+  content: string,
+): Promise<{ name: string; content: string }> {
+  const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/environments/${encodeURIComponent(name)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content }),
+  });
+  return handleResponse<{ name: string; content: string }>(res);
+}
+
+/** DELETE /api/projects/:id/environments/:name — remove an environment definition */
+export async function deleteEnvironmentDefinition(projectId: string, name: string): Promise<void> {
+  const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/environments/${encodeURIComponent(name)}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`HTTP ${res.status}: ${body}`);
+  }
 }
