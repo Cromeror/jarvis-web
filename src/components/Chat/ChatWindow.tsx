@@ -3,7 +3,6 @@ import type { ChatMessage } from '../../lib/chat-api.js';
 import { MessageBubble } from '../ui/molecules/MessageBubble.js';
 import { ChatInputBar } from '../ui/molecules/ChatInputBar.js';
 import { Spinner } from '../ui/atoms/Spinner.js';
-import { PlanProposalCard } from '../Plan/PlanProposalCard.js';
 
 interface ChatWindowProps {
   messages: ChatMessage[];
@@ -11,11 +10,12 @@ interface ChatWindowProps {
   onSend: (message: string, attachments?: File[], planMode?: boolean) => void;
   planMode?: boolean;
   onTogglePlanMode?: (next: boolean) => void;
-  /** Plans proposed during this session's turns — rendered inline after the message list. */
+  /** Plans proposed during this session's turns — rendered as a small banner that opens the side panel. */
   proposedPlanIds?: string[];
+  onOpenPlan?: (planId: string) => void;
 }
 
-export function ChatWindow({ messages, pending, onSend, planMode, onTogglePlanMode, proposedPlanIds }: ChatWindowProps): React.ReactElement {
+export function ChatWindow({ messages, pending, onSend, planMode, onTogglePlanMode, proposedPlanIds, onOpenPlan }: ChatWindowProps): React.ReactElement {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -61,7 +61,16 @@ export function ChatWindow({ messages, pending, onSend, planMode, onTogglePlanMo
             </div>
           )}
           {proposedPlanIds?.map((planId) => (
-            <PlanProposalCard key={planId} planId={planId} />
+            <button
+              key={planId}
+              type="button"
+              onClick={() => onOpenPlan?.(planId)}
+              className="flex w-full items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50/40 px-4 py-3 text-left text-sm text-indigo-700 hover:bg-indigo-50"
+            >
+              <i className="pi pi-list-check text-sm" />
+              Plan propuesto — ver en el panel
+              <i className="pi pi-arrow-right ml-auto text-xs" />
+            </button>
           ))}
           <div ref={bottomRef} />
         </div>

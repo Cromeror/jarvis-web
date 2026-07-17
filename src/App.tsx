@@ -3,7 +3,6 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { EditorPage } from './pages/EditorPage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
 import { ProjectMapPage } from './pages/ProjectMapPage.js';
-import { ContextGraphPage } from './pages/ContextGraphPage.js';
 import { ChatPage } from './pages/ChatPage.js';
 import { PlansPage } from './pages/PlansPage.js';
 import { AppLayout } from './components/layout/AppLayout.js';
@@ -12,11 +11,10 @@ import { PlanRunView } from './components/Plan/PlanRunView.js';
 
 /**
  * Root app component. Routing uses react-router — real paths, no query
- * params for navigation. Dashboard/ContextGraph/Chat share the persistent
+ * params for navigation. Dashboard/Chat share the persistent
  * top nav via AppLayout; ProjectMapPage/EditorPage are full-canvas surfaces
  * that opt out of it:
  *   /                        → AppLayout > DashboardPage
- *   /context-graph           → AppLayout > ContextGraphPage
  *   /chat                    → AppLayout > ChatPage (project picker)
  *   /chat/:projectId         → AppLayout > ChatPage
  *   /plans                   → AppLayout > PlansPage (project picker)
@@ -32,7 +30,6 @@ export default function App(): React.ReactElement {
     <Routes>
       <Route element={<AppLayout />}>
         <Route path="/" element={<DashboardPage />} />
-        <Route path="/context-graph" element={<ContextGraphPage />} />
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/chat/:projectId" element={<ChatPage />} />
         <Route path="/plans" element={<PlansPage />} />

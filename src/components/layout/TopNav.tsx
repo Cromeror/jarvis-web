@@ -14,7 +14,6 @@ import { AccountMenu } from './AccountMenu.js';
  */
 const PAGE_TITLES: Record<string, string> = {
   '': 'Dashboard',
-  'context-graph': 'Grafo de conocimiento',
   'chat': 'Chat',
   'plans': 'Planes',
 };
@@ -44,16 +43,7 @@ export function TopNav(): React.ReactElement {
       </div>
 
       <nav className="hidden items-center gap-1 md:flex">
-        <NavLink
-          to="/plans"
-          className={({ isActive }) =>
-            `rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-              isActive ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-            }`
-          }
-        >
-          Planes
-        </NavLink>
+        {/* nav links aqui */}
       </nav>
 
       <div className="ml-auto flex shrink-0 items-center gap-2">

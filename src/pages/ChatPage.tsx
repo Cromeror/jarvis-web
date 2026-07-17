@@ -12,6 +12,7 @@ import {
 import type { ChatSession, ChatMessage, ChatAttachmentInput } from '../lib/chat-api.js';
 import { SessionList } from '../components/Chat/SessionList.js';
 import { ChatWindow } from '../components/Chat/ChatWindow.js';
+import { PlanSidePanel } from '../components/Plan/PlanSidePanel.js';
 import { Toast, useToast } from '../components/ui/atoms/Toast.js';
 import { Button } from '../components/ui/atoms/Button.js';
 
@@ -56,6 +57,8 @@ export function ChatPage(): React.ReactElement {
   // conversation exists yet (empty chat, nothing sent), so it can't live
   // nested under chatBySession[activeSessionId], which wouldn't exist then.
   const [planMode, setPlanMode] = useState(false);
+  // Which plan is open in the side panel — null means the panel is hidden.
+  const [openPlanId, setOpenPlanId] = useState<string | null>(null);
 
   const patchSession = useCallback(
     (sessionId: string, patch: Partial<SessionChatState> | ((current: SessionChatState) => Partial<SessionChatState>)) => {
@@ -94,6 +97,7 @@ export function ChatPage(): React.ReactElement {
   const handleSelectSession = useCallback(
     (sessionId: string) => {
       setActiveSessionId(sessionId);
+      setOpenPlanId(null);
       patchSession(sessionId, { hasUnread: false });
       getChatMessages(sessionId)
         .then((fresh) => patchSession(sessionId, { messages: fresh }))
@@ -200,6 +204,7 @@ export function ChatPage(): React.ReactElement {
             ? { proposedPlanIds: [...(current.proposedPlanIds ?? []), result.plan_id] }
             : {}),
         }));
+        if (result.plan_id) setOpenPlanId(result.plan_id);
         loadSessions(selectedProjectId);
       } catch (err) {
         addToast(err instanceof Error ? err.message : 'Error al enviar el mensaje', 'error');
@@ -271,7 +276,15 @@ export function ChatPage(): React.ReactElement {
           planMode={planMode}
           onTogglePlanMode={setPlanMode}
           proposedPlanIds={activeChat?.proposedPlanIds}
+          onOpenPlan={setOpenPlanId}
         />
+        {openPlanId && (
+          <PlanSidePanel
+            planId={openPlanId}
+            onClose={() => setOpenPlanId(null)}
+            onLaunched={(runId) => navigate(`/plan-runs/${runId}`)}
+          />
+        )}
       </div>
     </div>
   );
