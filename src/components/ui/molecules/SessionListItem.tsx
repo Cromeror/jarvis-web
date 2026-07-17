@@ -6,8 +6,25 @@ interface SessionListItemProps {
   active: boolean;
   pending: boolean;
   unread: boolean;
+  projectName?: string;
   onClick: () => void;
   onDelete: () => void;
+}
+
+const PROJECT_CHIP_TONES = [
+  'bg-indigo-100 text-indigo-600',
+  'bg-emerald-100 text-emerald-700',
+  'bg-orange-100 text-orange-600',
+  'bg-pink-100 text-pink-600',
+  'bg-cyan-100 text-cyan-700',
+  'bg-violet-100 text-violet-600',
+];
+
+/** Deterministic tone per project name, so the same project always gets the same chip color. */
+function toneForProject(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0;
+  return PROJECT_CHIP_TONES[Math.abs(hash) % PROJECT_CHIP_TONES.length]!;
 }
 
 export function SessionListItem({
@@ -15,6 +32,7 @@ export function SessionListItem({
   active,
   pending,
   unread,
+  projectName,
   onClick,
   onDelete,
 }: SessionListItemProps): React.ReactElement {
@@ -34,14 +52,23 @@ export function SessionListItem({
           <span className="absolute inset-x-0 h-1/3 animate-session-pending rounded-full bg-indigo-500" />
         </span>
       )}
-      <button type="button" onClick={onClick} className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 text-left">
-        <span className="min-w-0 flex-1 truncate">{session.title ?? 'Nueva conversación'}</span>
-        {unread && !pending && (
+      <button type="button" onClick={onClick} className="flex min-w-0 flex-1 flex-col gap-1 px-3 py-2 text-left">
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="min-w-0 flex-1 truncate">{session.title ?? 'Nueva conversación'}</span>
+          {unread && !pending && (
+            <span
+              aria-label="Mensaje nuevo sin leer"
+              title="Mensaje nuevo sin leer"
+              className="h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-600"
+            />
+          )}
+        </span>
+        {projectName && (
           <span
-            aria-label="Mensaje nuevo sin leer"
-            title="Mensaje nuevo sin leer"
-            className="h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-600"
-          />
+            className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${toneForProject(projectName)}`}
+          >
+            {projectName}
+          </span>
         )}
       </button>
       <button
