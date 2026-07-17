@@ -5,8 +5,8 @@ import type { ProjectSummary } from '../lib/projects-api.js';
 import { listPlans, launchPlan, approvePlan, getLatestPlanRun } from '../lib/plans-api.js';
 import type { PlanSummary, PlanStatus } from '../lib/plans-api.js';
 import { Toast, useToast } from '../components/ui/atoms/Toast.js';
-import { Button } from '../components/ui/atoms/Button.js';
 import { PillDropdown } from '../components/ui/atoms/PillDropdown.js';
+import { FilterPopover } from '../components/ui/atoms/FilterPopover.js';
 import { FilterIcon } from '../components/ui/atoms/FilterIcon.js';
 import { SortIcon } from '../components/ui/atoms/SortIcon.js';
 import { EntityCard } from '../components/ui/molecules/EntityCard.js';
@@ -31,10 +31,9 @@ const STATUS_TONE: Record<PlanStatus, StatusBadgeTone> = {
   archived: 'neutral',
 };
 
-const STATUS_FILTER_OPTIONS = [
-  { label: 'Todos los estados', value: null },
-  ...(Object.entries(STATUS_LABEL) as Array<[PlanStatus, string]>).map(([value, label]) => ({ label, value })),
-];
+const STATUS_FILTER_OPTIONS = (Object.entries(STATUS_LABEL) as Array<[PlanStatus, string]>).map(
+  ([value, label]) => ({ label, value }),
+);
 
 const SORT_OPTIONS = [
   { label: 'Recently Updated', value: 'desc' as const },
@@ -63,10 +62,10 @@ export function PlansPage(): React.ReactElement {
   const navigate = useNavigate();
   const { toasts, addToast, removeToast } = useToast();
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
-  const selectedProjectId = initialProjectId ?? null;
+  const [projectFilter, setProjectFilter] = useState<string[]>([]);
   const [plans, setPlans] = useState<PlanSummary[]>([]);
   const [busyPlanId, setBusyPlanId] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<PlanStatus | null>(null);
+  const [statusFilter, setStatusFilter] = useState<PlanStatus[]>([]);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
@@ -77,17 +76,17 @@ export function PlansPage(): React.ReactElement {
     });
   }, [addToast]);
 
-  // Sin :projectId en la ruta, seleccioná el primer proyecto de la lista por defecto.
+  // La ruta /plans/:projectId (si viene) precarga ese proyecto en el filtro; sin ella arranca "todos".
   useEffect(() => {
-    if (!initialProjectId && projects.length > 0) {
-      navigate(`/plans/${projects[0]!.id}`, { replace: true });
-    }
-  }, [initialProjectId, projects, navigate]);
+    if (initialProjectId) setProjectFilter([initialProjectId]);
+  }, [initialProjectId]);
+
+  const projectIdsToLoad = projectFilter.length > 0 ? projectFilter : projects.map((p) => p.id);
 
   const loadPlans = useCallback(
-    (projectId: string) => {
-      listPlans(projectId)
-        .then(setPlans)
+    (projectIds: string[]) => {
+      Promise.all(projectIds.map((id) => listPlans(id)))
+        .then((results) => setPlans(results.flat()))
         .catch((err: unknown) => {
           addToast(err instanceof Error ? err.message : 'Error al cargar planes', 'error');
         });
@@ -96,11 +95,16 @@ export function PlansPage(): React.ReactElement {
   );
 
   useEffect(() => {
-    if (selectedProjectId) loadPlans(selectedProjectId);
-  }, [selectedProjectId, loadPlans]);
+    if (projectIdsToLoad.length > 0) loadPlans(projectIdsToLoad);
+  }, [projectIdsToLoad.join(','), loadPlans]);
+
+  const projectNameById = useMemo(
+    () => new Map(projects.map((p) => [p.id, p.name])),
+    [projects],
+  );
 
   const visiblePlans = useMemo(() => {
-    const filtered = statusFilter ? plans.filter((p) => p.status === statusFilter) : plans;
+    const filtered = statusFilter.length > 0 ? plans.filter((p) => statusFilter.includes(p.status)) : plans;
     const sign = sortOrder === 'desc' ? -1 : 1;
     return [...filtered].sort(
       (a, b) => sign * (new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime()),
@@ -135,37 +139,25 @@ export function PlansPage(): React.ReactElement {
     [navigate, addToast],
   );
 
-  if (!selectedProjectId) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-6 bg-slate-50" style={{ fontSize: '16px' }}>
-        <Toast toasts={toasts} onDismiss={removeToast} />
-        <h1 className="text-xl font-semibold text-slate-900">Elegí un proyecto</h1>
-        <div className="flex max-w-xl flex-wrap justify-center gap-2">
-          {projects.map((p) => (
-            <Button key={p.id} variant="secondary" onClick={() => navigate(`/plans/${p.id}`)}>
-              {p.name}
-            </Button>
-          ))}
-        </div>
-        <Button variant="ghost" onClick={() => navigate('/')}>← Volver</Button>
-      </div>
-    );
-  }
+  const projectOptions = useMemo(
+    () => projects.map((p) => ({ label: p.name, value: p.id })),
+    [projects],
+  );
 
-  const selectedProject = projects.find((p) => p.id === selectedProjectId);
+  const createPlanProjectId = projectFilter.length === 1 ? projectFilter[0] : (projects[0]?.id ?? null);
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-6" style={{ fontSize: '16px' }}>
       <Toast toasts={toasts} onDismiss={removeToast} />
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-900">Planes — {selectedProject?.name ?? selectedProjectId}</h1>
+        <h1 className="text-xl font-semibold text-slate-900">Planes</h1>
         <div className="flex items-center gap-2">
-          <PillDropdown
-            value={statusFilter}
-            options={STATUS_FILTER_OPTIONS}
-            onChange={setStatusFilter}
-            placeholder="Filters"
+          <FilterPopover
             icon={<FilterIcon />}
+            groups={[
+              { label: 'Proyectos', options: projectOptions, selected: projectFilter, onChange: setProjectFilter },
+              { label: 'Estados', options: STATUS_FILTER_OPTIONS, selected: statusFilter, onChange: setStatusFilter },
+            ]}
           />
           <PillDropdown
             value={sortOrder}
@@ -182,7 +174,7 @@ export function PlansPage(): React.ReactElement {
             icon="pi-plus"
             title="Crear Plan"
             description="Proponé uno desde el chat en Modo Plan"
-            onClick={() => navigate(`/chat/${selectedProjectId}`)}
+            onClick={() => createPlanProjectId && navigate(`/chat/${createPlanProjectId}`)}
           />
         )}
         {visiblePlans.map((plan) => {
@@ -195,7 +187,7 @@ export function PlansPage(): React.ReactElement {
               description={plan.context}
               statusLabel={STATUS_LABEL[plan.status] ?? plan.status}
               statusTone={STATUS_TONE[plan.status] ?? 'neutral'}
-              meta={`Actualizado ${timeAgo(plan.updated_at)}`}
+              meta={`${projectNameById.get(plan.project_id ?? '') ?? plan.project_id} · Actualizado ${timeAgo(plan.updated_at)}`}
               actionLabel={
                 plan.status === 'running'
                   ? 'Ver progreso'
