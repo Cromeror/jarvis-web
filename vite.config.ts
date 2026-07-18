@@ -21,6 +21,13 @@ export default defineConfig(({ mode }) => {
       host: env['JARVIS_WEB_APP_HOST'] ?? 'localhost',
       port: env['JARVIS_WEB_APP_PORT'] ? parseInt(env['JARVIS_WEB_APP_PORT'], 10) : 5173,
       strictPort: true,
+      // Vite 6 rejects any request whose Host header isn't recognized —
+      // fine for plain localhost dev, but a reverse proxy (Traefik, via
+      // host.docker.internal) forwards the original Host, not "localhost".
+      // Comma-separated list in .env; unset keeps Vite's own safe default.
+      allowedHosts: env['JARVIS_ALLOWED_HOSTS']
+        ? env['JARVIS_ALLOWED_HOSTS'].split(',').map((h) => h.trim())
+        : undefined,
       proxy: {
         // @jarvis/http-api (packages/http-api) — independent NestJS server,
         // not the @jarvis/mcp daemon (which stays on 7432 for the MCP shim).
