@@ -123,11 +123,12 @@ export function SessionList({
       )}
 
       <div
-        className={`fixed inset-y-0 left-0 z-40 flex h-full w-72 shrink-0 flex-col border-r border-slate-200 bg-slate-50 transition-transform duration-200 md:relative md:w-64 md:translate-x-0 ${
-          mobileOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed inset-y-0 left-0 z-40 overflow-hidden transition-[width] duration-200 md:relative md:w-64 ${
+          mobileOpen ? 'w-72' : 'w-0'
         }`}
         style={{ fontSize: '16px' }}
       >
+      <div className="flex h-full w-72 shrink-0 flex-col border-r border-slate-200 bg-slate-50 md:w-64">
         <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-4">
           <div className="flex items-center justify-between gap-2">
             <span className="text-sm font-semibold text-slate-900">Conversaciones</span>
@@ -189,6 +190,7 @@ export function SessionList({
             ← Dashboard
           </button>
         </div>
+      </div>
       </div>
     </>
   );
