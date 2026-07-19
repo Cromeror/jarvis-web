@@ -25,11 +25,20 @@ function usePageTitle(): string {
   return PAGE_TITLES[segment ?? ''] ?? 'Jarvis';
 }
 
-export function TopNav(): React.ReactElement {
+export function TopNav({ onMenuClick }: { onMenuClick: () => void }): React.ReactElement {
   const title = usePageTitle();
 
   return (
     <header className="flex h-16 shrink-0 items-center gap-4 border-b border-slate-800 bg-slate-900 px-5 text-white">
+      <button
+        type="button"
+        onClick={onMenuClick}
+        aria-label="Abrir menú"
+        className="-ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white md:hidden"
+      >
+        <i className="pi pi-bars text-lg" />
+      </button>
+
       <h1 className="shrink-0 text-lg font-semibold">{title}</h1>
 
       <div className="mx-auto w-full max-w-md">
