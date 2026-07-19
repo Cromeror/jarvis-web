@@ -18,6 +18,8 @@ import { PlanRunView } from './components/Plan/PlanRunView.js';
  *   /                        → AppLayout > DashboardPage
  *   /chat                    → AppLayout > ChatPage (project picker)
  *   /chat/:projectId         → AppLayout > ChatPage
+ *   /chat/:projectId/:sessionId → AppLayout > ChatPage (deep-link to one conversation,
+ *                              kept in sync on selection so a reload doesn't lose it)
  *   /plans                   → AppLayout > PlansPage (project picker)
  *   /plans/:projectId        → AppLayout > PlansPage
  *   /environments            → AppLayout > EnvironmentsPage (project picker)
@@ -35,6 +37,7 @@ export default function App(): React.ReactElement {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/chat/:projectId" element={<ChatPage />} />
+        <Route path="/chat/:projectId/:sessionId" element={<ChatPage />} />
         <Route path="/plans" element={<PlansPage />} />
         <Route path="/plans/:projectId" element={<PlansPage />} />
         <Route path="/environments" element={<EnvironmentsPage />} />

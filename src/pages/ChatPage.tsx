@@ -42,7 +42,7 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 export function ChatPage(): React.ReactElement {
-  const { projectId: initialProjectId } = useParams<{ projectId?: string }>();
+  const { projectId: initialProjectId, sessionId: routeSessionId } = useParams<{ projectId?: string; sessionId?: string }>();
   const navigate = useNavigate();
   const onBack = useCallback(() => navigate('/'), [navigate]);
   const { toasts, addToast, removeToast } = useToast();
@@ -117,6 +117,25 @@ export function ChatPage(): React.ReactElement {
     [addToast, patchSession],
   );
 
+  // Restaura la conversación activa desde la URL (deep-link) — así un reload
+  // no la pierde. La navegación hacia esta URL (selectSession/handleNewSession)
+  // no dispara este efecto de nuevo porque el sessionId de la ruta no cambia.
+  useEffect(() => {
+    if (routeSessionId) handleSelectSession(routeSessionId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeSessionId]);
+
+  // Mantiene la URL en sync con la conversación elegida por el usuario (click
+  // en la lista, o al mandar el primer mensaje sin conversación activa).
+  const selectSessionAndNavigate = useCallback(
+    (sessionId: string, projectId?: string | null) => {
+      handleSelectSession(sessionId);
+      const targetProjectId = projectId ?? sessions.find((s) => s.id === sessionId)?.project_id;
+      if (targetProjectId) navigate(`/chat/${targetProjectId}/${sessionId}`, { replace: true });
+    },
+    [handleSelectSession, navigate, sessions],
+  );
+
   const handleDeleteSession = useCallback(
     async (sessionId: string) => {
       if (!confirm('¿Eliminar esta conversación?')) return;
@@ -124,6 +143,7 @@ export function ChatPage(): React.ReactElement {
         await deleteChatSession(sessionId);
         if (sessionId === activeSessionId) {
           setActiveSessionId(null);
+          navigate('/chat', { replace: true });
         }
         setChatBySession((prev) => {
           const { [sessionId]: _removed, ...rest } = prev;
@@ -134,7 +154,7 @@ export function ChatPage(): React.ReactElement {
         addToast(err instanceof Error ? err.message : 'Error al eliminar la conversación', 'error');
       }
     },
-    [activeSessionId, loadSessions, projectIdsToLoad, addToast],
+    [activeSessionId, loadSessions, projectIdsToLoad, addToast, navigate],
   );
 
   const handleNewSession = useCallback(
@@ -143,12 +163,13 @@ export function ChatPage(): React.ReactElement {
         const { session_id } = await startChatSession(projectId);
         setActiveSessionId(session_id);
         patchSession(session_id, { messages: [] });
+        navigate(`/chat/${projectId}/${session_id}`, { replace: true });
         loadSessions(projectIdsToLoad);
       } catch (err) {
         addToast(err instanceof Error ? err.message : 'Error al crear la conversación', 'error');
       }
     },
-    [loadSessions, projectIdsToLoad, addToast, patchSession],
+    [loadSessions, projectIdsToLoad, addToast, patchSession, navigate],
   );
 
   const handleSend = useCallback(
@@ -165,6 +186,7 @@ export function ChatPage(): React.ReactElement {
           const started = await startChatSession(projectFilter[0]!);
           sessionId = started.session_id;
           setActiveSessionId(sessionId);
+          navigate(`/chat/${projectFilter[0]}/${sessionId}`, { replace: true });
         } catch (err) {
           addToast(err instanceof Error ? err.message : 'Error al crear la conversación', 'error');
           return;
@@ -228,7 +250,7 @@ export function ChatPage(): React.ReactElement {
         patchSession(activeSessionIdForSend, { pending: false });
       }
     },
-    [projectFilter, activeSessionId, loadSessions, projectIdsToLoad, addToast, patchSession],
+    [projectFilter, activeSessionId, loadSessions, projectIdsToLoad, addToast, patchSession, navigate],
   );
 
   const handleStop = useCallback(() => {
@@ -262,7 +284,7 @@ export function ChatPage(): React.ReactElement {
           activeSessionId={activeSessionId}
           pendingSessionIds={pendingSessionIds}
           unreadSessionIds={unreadSessionIds}
-          onSelect={handleSelectSession}
+          onSelect={selectSessionAndNavigate}
           onNewSession={(projectId) => void handleNewSession(projectId)}
           onDelete={(sessionId) => void handleDeleteSession(sessionId)}
           onBack={onBack}
