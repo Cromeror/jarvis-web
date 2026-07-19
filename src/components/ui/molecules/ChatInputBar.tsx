@@ -1,5 +1,11 @@
 import React, { useRef, useState } from 'react';
 
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 interface ChatInputBarProps {
   disabled?: boolean;
   onSend: (message: string, attachments?: File[], planMode?: boolean) => void;
@@ -55,6 +61,7 @@ export function ChatInputBar({ disabled = false, onSend, planMode = false, onTog
                 className="flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600"
               >
                 {file.name}
+                <span className="text-slate-400">{formatFileSize(file.size)}</span>
                 <button
                   type="button"
                   onClick={() => removeAttachment(i)}
