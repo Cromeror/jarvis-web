@@ -76,7 +76,7 @@ export function MessageBubble({
     const attachmentNames = parseAttachmentNames(attachments);
     return (
       <div className="flex justify-end">
-        <div className="max-w-[75%] rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm text-white shadow-sm">
+        <div className="max-w-[75%] rounded-2xl bg-indigo-600 px-4 py-2.5 text-[17px] leading-relaxed text-white shadow-sm md:text-sm md:leading-normal">
           {attachmentNames.length > 0 && (
             <div className="mb-1.5 flex flex-wrap gap-1.5">
               {attachmentNames.map((name, i) => (
@@ -102,7 +102,7 @@ export function MessageBubble({
   return (
     <div className="flex gap-3">
       <Avatar role="assistant" />
-      <div className="min-w-0 max-w-[85%] flex-1 text-sm leading-relaxed text-slate-800 [&_a]:text-indigo-600 [&_a]:underline [&_h1]:mt-3 [&_h1]:mb-2 [&_h1]:text-lg [&_h1]:font-semibold [&_h2]:mt-3 [&_h2]:mb-2 [&_h2]:text-base [&_h2]:font-semibold [&_hr]:my-3 [&_hr]:border-slate-200 [&_li]:my-0.5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-2 [&_strong]:font-semibold [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5">
+      <div className="min-w-0 max-w-[85%] flex-1 text-[17px] leading-relaxed text-slate-800 md:text-sm md:leading-relaxed [&_a]:text-indigo-600 [&_a]:underline [&_h1]:mt-3 [&_h1]:mb-2 [&_h1]:text-lg [&_h1]:font-semibold [&_h2]:mt-3 [&_h2]:mb-2 [&_h2]:text-base [&_h2]:font-semibold [&_hr]:my-3 [&_hr]:border-slate-200 [&_li]:my-0.5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-2 [&_strong]:font-semibold [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5">
         <ReactMarkdown
           components={{
             code({ className, children, ...props }) {

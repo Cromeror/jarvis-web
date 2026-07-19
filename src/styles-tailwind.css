@@ -16,3 +16,22 @@
     }
   }
 }
+
+/*
+ * html/body's font-size is fixed at 14px (styles.css), so Tailwind's rem-based
+ * text-* utilities render smaller than their nominal size (text-sm = .875rem
+ * = 12.25px, not 14px). On mobile that reads uncomfortably small — bump the
+ * text-size tokens back up to their standard px values. Unlayered on purpose:
+ * styles.css imports into the "legacy" layer (lowest priority in the @layer
+ * order above), so a layered override here would lose to Tailwind's own
+ * "theme" layer regardless of this media query; an unlayered rule always
+ * wins over every layer.
+ */
+@media (max-width: 767px) {
+  :root {
+    --text-xs: 12px;
+    --text-sm: 14px;
+    --text-base: 16px;
+    --text-lg: 18px;
+  }
+}
