@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -17,7 +17,24 @@ export function ChatInputBar({ disabled = false, onSend, planMode = false, onTog
   const [value, setValue] = useState('');
   const [focused, setFocused] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [expanded, setExpanded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const expandedTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Crece con el contenido — el tope real lo pone max-h-[40vh] en la clase
+  // (relativo al viewport, así "crece tanto como permite la pantalla" tanto
+  // en mobile como en desktop); pasado eso, scrollea adentro del textarea.
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+
+  useEffect(() => {
+    if (expanded) expandedTextareaRef.current?.focus();
+  }, [expanded]);
 
   const addFiles = (files: FileList | File[]): void => {
     setAttachments((prev) => [...prev, ...Array.from(files)]);
@@ -39,6 +56,16 @@ export function ChatInputBar({ disabled = false, onSend, planMode = false, onTog
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    }
+  };
+
+  const handleExpandedKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+      setExpanded(false);
+    } else if (e.key === 'Escape') {
+      setExpanded(false);
     }
   };
 
@@ -75,10 +102,20 @@ export function ChatInputBar({ disabled = false, onSend, planMode = false, onTog
           </div>
         )}
         <div
-          className={`flex items-end gap-2 rounded-3xl border bg-white p-2 shadow-sm transition-colors ${
+          className={`relative flex items-end gap-2 rounded-3xl border bg-white p-2 pr-10 shadow-sm transition-colors ${
             focused ? 'border-indigo-300 ring-1 ring-indigo-100' : 'border-slate-200'
           }`}
         >
+          <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            disabled={disabled}
+            title="Expandir a pantalla completa"
+            aria-label="Expandir a pantalla completa"
+            className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-slate-100 hover:text-slate-500 disabled:opacity-30"
+          >
+            <i className="pi pi-window-maximize text-xs" />
+          </button>
           <input
             ref={fileInputRef}
             type="file"
@@ -134,7 +171,8 @@ export function ChatInputBar({ disabled = false, onSend, planMode = false, onTog
             </button>
           )}
           <textarea
-            className="flex-1 resize-none bg-transparent px-1 py-2 text-[16px] text-slate-900 placeholder:text-slate-400 focus:outline-none disabled:opacity-50"
+            ref={textareaRef}
+            className="max-h-[40vh] flex-1 resize-none overflow-y-auto bg-transparent px-1 py-2 text-[16px] text-slate-900 placeholder:text-slate-400 focus:outline-none disabled:opacity-50"
             rows={1}
             placeholder={planMode ? 'Describí qué querés planear...' : 'Escribí un mensaje...'}
             value={value}
@@ -158,6 +196,53 @@ export function ChatInputBar({ disabled = false, onSend, planMode = false, onTog
           </button>
         </div>
       </div>
+
+      {expanded && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-white" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+            <span className="text-sm font-medium text-slate-500">Escribir mensaje</span>
+            <button
+              type="button"
+              onClick={() => setExpanded(false)}
+              aria-label="Minimizar"
+              className="flex h-10 items-center gap-1.5 rounded-full border border-slate-200 px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"
+            >
+              <i className="pi pi-window-minimize text-sm" />
+              Minimizar
+            </button>
+          </div>
+          <textarea
+            ref={expandedTextareaRef}
+            className="flex-1 resize-none bg-transparent px-4 py-3 text-[17px] leading-relaxed text-slate-900 placeholder:text-slate-400 focus:outline-none"
+            placeholder={planMode ? 'Describí qué querés planear...' : 'Escribí un mensaje...'}
+            value={value}
+            disabled={disabled}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={handleExpandedKeyDown}
+            onPaste={handlePaste}
+          />
+          <div className="flex items-center justify-end gap-2 border-t border-slate-100 px-4 py-3">
+            <button
+              type="button"
+              onClick={() => setExpanded(false)}
+              className="rounded-full px-4 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100"
+            >
+              Seguir editando
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                handleSend();
+                setExpanded(false);
+              }}
+              disabled={disabled || (!value.trim() && attachments.length === 0)}
+              className="rounded-full bg-indigo-600 px-5 py-2 text-sm font-medium text-white transition-opacity hover:bg-indigo-700 disabled:opacity-30"
+            >
+              Enviar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
