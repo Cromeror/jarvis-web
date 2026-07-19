@@ -15,9 +15,11 @@ interface ChatWindowProps {
   /** Plans proposed during this session's turns — rendered as a small banner that opens the side panel. */
   proposedPlanIds?: string[];
   onOpenPlan?: (planId: string) => void;
+  /** Opens the conversations drawer — only rendered/needed on mobile, where SessionList is hidden by default. */
+  onOpenSessionList?: () => void;
 }
 
-export function ChatWindow({ messages, pending, onSend, onStop, planMode, onTogglePlanMode, proposedPlanIds, onOpenPlan }: ChatWindowProps): React.ReactElement {
+export function ChatWindow({ messages, pending, onSend, onStop, planMode, onTogglePlanMode, proposedPlanIds, onOpenPlan, onOpenSessionList }: ChatWindowProps): React.ReactElement {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -25,7 +27,20 @@ export function ChatWindow({ messages, pending, onSend, onStop, planMode, onTogg
   }, [messages.length, pending]);
 
   return (
-    <div className="flex h-full flex-1 flex-col bg-white">
+    <div className="flex h-full min-w-0 flex-1 flex-col bg-white">
+      {onOpenSessionList && (
+        <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-2 md:hidden">
+          <button
+            type="button"
+            onClick={onOpenSessionList}
+            aria-label="Ver conversaciones"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
+          >
+            <i className="pi pi-comments text-base" />
+          </button>
+          <span className="text-sm font-medium text-slate-600">Conversaciones</span>
+        </div>
+      )}
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl space-y-6 px-6 py-6">
           {messages.length === 0 && !pending && (

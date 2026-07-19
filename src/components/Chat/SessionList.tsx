@@ -17,6 +17,8 @@ interface SessionListProps {
   onNewSession: (projectId: string) => void;
   onDelete: (sessionId: string) => void;
   onBack: () => void;
+  mobileOpen: boolean;
+  onMobileClose: () => void;
 }
 
 function groupByDate(sessions: ChatSession[]): Array<[string, ChatSession[]]> {
@@ -107,61 +109,87 @@ export function SessionList({
   onNewSession,
   onDelete,
   onBack,
+  mobileOpen,
+  onMobileClose,
 }: SessionListProps): React.ReactElement {
   const groups = useMemo(() => groupByDate(sessions), [sessions]);
   const projectNameById = useMemo(() => new Map(projects.map((p) => [p.id, p.name])), [projects]);
   const projectOptions = useMemo(() => projects.map((p) => ({ label: p.name, value: p.id })), [projects]);
 
   return (
-    <div className="flex h-full w-64 shrink-0 flex-col border-r border-slate-200 bg-slate-50" style={{ fontSize: '16px' }}>
-      <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-4">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-semibold text-slate-900">Conversaciones</span>
-          <FilterPopover
-            icon={<FilterIcon />}
-            groups={[{ label: 'Proyectos', options: projectOptions, selected: projectFilter, onChange: onProjectFilterChange }]}
-          />
-        </div>
+    <>
+      {mobileOpen && (
+        <div className="fixed inset-0 z-30 bg-black/50 md:hidden" onClick={onMobileClose} />
+      )}
 
-        <NewSessionButton projects={projects} onCreate={onNewSession} />
-      </div>
-
-      <div className="flex-1 space-y-6 overflow-y-auto px-3 py-4">
-        {sessions.length === 0 && (
-          <p className="px-1 py-8 text-sm text-slate-400">Todavía no hay conversaciones.</p>
-        )}
-        {groups.map(([label, items]) => (
-          <div key={label}>
-            <div className="px-1 pb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-              {label}
-            </div>
-            <div className="space-y-1">
-              {items.map((session) => (
-                <SessionListItem
-                  key={session.id}
-                  session={session}
-                  active={session.id === activeSessionId}
-                  pending={pendingSessionIds.has(session.id)}
-                  unread={unreadSessionIds.has(session.id)}
-                  projectName={session.project_id ? projectNameById.get(session.project_id) : undefined}
-                  onClick={() => onSelect(session.id)}
-                  onDelete={() => onDelete(session.id)}
-                />
-              ))}
+      <div
+        className={`fixed inset-y-0 left-0 z-40 flex h-full w-72 shrink-0 flex-col border-r border-slate-200 bg-slate-50 transition-transform duration-200 md:relative md:w-64 md:translate-x-0 ${
+          mobileOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+        style={{ fontSize: '16px' }}
+      >
+        <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-4">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-sm font-semibold text-slate-900">Conversaciones</span>
+            <div className="flex items-center gap-1">
+              <FilterPopover
+                icon={<FilterIcon />}
+                groups={[{ label: 'Proyectos', options: projectOptions, selected: projectFilter, onChange: onProjectFilterChange }]}
+              />
+              <button
+                type="button"
+                onClick={onMobileClose}
+                aria-label="Cerrar conversaciones"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 md:hidden"
+              >
+                <i className="pi pi-times text-base" />
+              </button>
             </div>
           </div>
-        ))}
-      </div>
 
-      <div className="flex items-center justify-between gap-2 border-t border-slate-200 px-4 py-3">
-        <button
-          type="button"
-          onClick={onBack}
-          className="text-xs font-medium text-slate-400 hover:text-slate-600"
-        >
-          ← Dashboard
-        </button>
+          <NewSessionButton projects={projects} onCreate={onNewSession} />
+        </div>
+
+        <div className="flex-1 space-y-6 overflow-y-auto px-3 py-4">
+          {sessions.length === 0 && (
+            <p className="px-1 py-8 text-sm text-slate-400">Todavía no hay conversaciones.</p>
+          )}
+          {groups.map(([label, items]) => (
+            <div key={label}>
+              <div className="px-1 pb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                {label}
+              </div>
+              <div className="space-y-1">
+                {items.map((session) => (
+                  <SessionListItem
+                    key={session.id}
+                    session={session}
+                    active={session.id === activeSessionId}
+                    pending={pendingSessionIds.has(session.id)}
+                    unread={unreadSessionIds.has(session.id)}
+                    projectName={session.project_id ? projectNameById.get(session.project_id) : undefined}
+                    onClick={() => {
+                      onSelect(session.id);
+                      onMobileClose();
+                    }}
+                    onDelete={() => onDelete(session.id)}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-center justify-between gap-2 border-t border-slate-200 px-4 py-3">
+          <button
+            type="button"
+            onClick={onBack}
+            className="text-xs font-medium text-slate-400 hover:text-slate-600"
+          >
+            ← Dashboard
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

@@ -59,6 +59,8 @@ export function ChatPage(): React.ReactElement {
   const [planMode, setPlanMode] = useState(false);
   // Which plan is open in the side panel — null means the panel is hidden.
   const [openPlanId, setOpenPlanId] = useState<string | null>(null);
+  // SessionList is hidden by default on mobile and opens as a drawer.
+  const [mobileSessionListOpen, setMobileSessionListOpen] = useState(false);
 
   const patchSession = useCallback(
     (sessionId: string, patch: Partial<SessionChatState> | ((current: SessionChatState) => Partial<SessionChatState>)) => {
@@ -264,6 +266,8 @@ export function ChatPage(): React.ReactElement {
           onNewSession={(projectId) => void handleNewSession(projectId)}
           onDelete={(sessionId) => void handleDeleteSession(sessionId)}
           onBack={onBack}
+          mobileOpen={mobileSessionListOpen}
+          onMobileClose={() => setMobileSessionListOpen(false)}
         />
         <ChatWindow
           messages={activeChat?.messages ?? []}
@@ -274,6 +278,7 @@ export function ChatPage(): React.ReactElement {
           onTogglePlanMode={setPlanMode}
           proposedPlanIds={activeChat?.proposedPlanIds}
           onOpenPlan={setOpenPlanId}
+          onOpenSessionList={() => setMobileSessionListOpen(true)}
         />
         {openPlanId && (
           <PlanSidePanel
