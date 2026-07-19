@@ -7,7 +7,7 @@ export function AppLayout(): React.ReactElement {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-dvh">
       <SideNav mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
       <div className="flex min-w-0 flex-1 flex-col">
         <TopNav onMenuClick={() => setMobileNavOpen(true)} />
