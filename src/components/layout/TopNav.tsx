@@ -29,7 +29,7 @@ export function TopNav({ onMenuClick }: { onMenuClick: () => void }): React.Reac
   const title = usePageTitle();
 
   return (
-    <header className="flex h-16 shrink-0 items-center gap-4 border-b border-slate-800 bg-slate-900 px-5 text-white">
+    <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-4 border-b border-slate-800 bg-slate-900 px-5 text-white">
       <button
         type="button"
         onClick={onMenuClick}
