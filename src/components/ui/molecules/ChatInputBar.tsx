@@ -127,7 +127,7 @@ export function ChatInputBar({ disabled = false, onSend, planMode = false, onTog
             </button>
           )}
           <textarea
-            className="flex-1 resize-none bg-transparent px-1 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none disabled:opacity-50"
+            className="flex-1 resize-none bg-transparent px-1 py-2 text-[16px] text-slate-900 placeholder:text-slate-400 focus:outline-none disabled:opacity-50"
             rows={1}
             placeholder={planMode ? 'Describí qué querés planear...' : 'Escribí un mensaje...'}
             value={value}
