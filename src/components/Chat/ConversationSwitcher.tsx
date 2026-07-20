@@ -1,14 +1,18 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChatSession } from '../../lib/chat-api.js';
 import type { ProjectSummary } from '../../lib/projects-api.js';
-import { toneForProject } from '../ui/molecules/SessionListItem.js';
+import { toneForProject } from '../../lib/project-tone.js';
+import { Spinner } from '../ui/atoms/Spinner.js';
 
 interface ConversationSwitcherProps {
   sessions: ChatSession[];
   projects: ProjectSummary[];
   activeSessionId: string | null;
   activeProjectName: string;
+  pendingSessionIds: Set<string>;
+  unreadSessionIds: Set<string>;
   onSelect: (sessionId: string) => void;
+  onDelete: (sessionId: string) => void;
 }
 
 /** Trigger showing the active project — opens a popover to jump to any conversation, filterable by title or project. */
@@ -17,7 +21,10 @@ export function ConversationSwitcher({
   projects,
   activeSessionId,
   activeProjectName,
+  pendingSessionIds,
+  unreadSessionIds,
   onSelect,
+  onDelete,
 }: ConversationSwitcherProps): React.ReactElement {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -76,27 +83,53 @@ export function ConversationSwitcher({
             {filteredSessions.map((session) => {
               const projectName = session.project_id ? projectNameById.get(session.project_id) : undefined;
               const active = session.id === activeSessionId;
+              const pending = pendingSessionIds.has(session.id);
+              const unread = unreadSessionIds.has(session.id);
               return (
-                <button
+                <div
                   key={session.id}
-                  type="button"
-                  onClick={() => {
-                    setOpen(false);
-                    onSelect(session.id);
-                  }}
-                  className={`flex w-full flex-col items-start gap-1 rounded-lg px-2 py-1.5 text-left ${
-                    active ? 'bg-indigo-50' : 'hover:bg-slate-50'
-                  }`}
+                  className={`group flex w-full items-center gap-1 rounded-lg ${active ? 'bg-indigo-50' : 'hover:bg-slate-50'}`}
                 >
-                  <span className="w-full truncate text-sm text-slate-700">{session.title ?? 'Nueva conversación'}</span>
-                  {projectName && (
-                    <span
-                      className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${toneForProject(projectName)}`}
-                    >
-                      {projectName}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpen(false);
+                      onSelect(session.id);
+                    }}
+                    className="flex min-w-0 flex-1 flex-col items-start gap-1 px-2 py-1.5 text-left"
+                  >
+                    <span className="flex w-full min-w-0 items-center gap-2">
+                      <span className="min-w-0 flex-1 truncate text-sm text-slate-700">{session.title ?? 'Nueva conversación'}</span>
+                      {pending && <Spinner />}
+                      {unread && !pending && (
+                        <span
+                          aria-label="Mensaje nuevo sin leer"
+                          title="Mensaje nuevo sin leer"
+                          className="h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-600"
+                        />
+                      )}
                     </span>
-                  )}
-                </button>
+                    {projectName && (
+                      <span
+                        className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${toneForProject(projectName)}`}
+                      >
+                        {projectName}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(session.id);
+                    }}
+                    aria-label="Eliminar conversación"
+                    title="Eliminar conversación"
+                    className="mr-1 shrink-0 rounded px-2 py-1 text-slate-400 opacity-0 transition-opacity hover:text-red-600 group-hover:opacity-100"
+                  >
+                    ×
+                  </button>
+                </div>
               );
             })}
           </div>

@@ -11,7 +11,6 @@ import {
   deleteChatSession,
 } from '../lib/chat-api.js';
 import type { ChatSession, ChatMessage, ChatAttachmentInput } from '../lib/chat-api.js';
-import { SessionList } from '../components/Chat/SessionList.js';
 import { ChatWindow } from '../components/Chat/ChatWindow.js';
 import { PlanSidePanel } from '../components/Plan/PlanSidePanel.js';
 import { Toast, useToast } from '../components/ui/atoms/Toast.js';
@@ -44,10 +43,8 @@ function fileToBase64(file: File): Promise<string> {
 export function ChatPage(): React.ReactElement {
   const { projectId: initialProjectId, sessionId: routeSessionId } = useParams<{ projectId?: string; sessionId?: string }>();
   const navigate = useNavigate();
-  const onBack = useCallback(() => navigate('/'), [navigate]);
   const { toasts, addToast, removeToast } = useToast();
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
-  const [projectFilter, setProjectFilter] = useState<string[]>([]);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const activeSessionIdRef = useRef<string | null>(null);
@@ -59,8 +56,6 @@ export function ChatPage(): React.ReactElement {
   const [planMode, setPlanMode] = useState(false);
   // Which plan is open in the side panel — null means the panel is hidden.
   const [openPlanId, setOpenPlanId] = useState<string | null>(null);
-  // SessionList is hidden by default on mobile and opens as a drawer.
-  const [mobileSessionListOpen, setMobileSessionListOpen] = useState(false);
 
   const patchSession = useCallback(
     (sessionId: string, patch: Partial<SessionChatState> | ((current: SessionChatState) => Partial<SessionChatState>)) => {
@@ -81,13 +76,6 @@ export function ChatPage(): React.ReactElement {
     });
   }, [addToast]);
 
-  // La ruta /chat/:projectId (si viene) precarga ese proyecto en el filtro; sin ella arranca "todos".
-  useEffect(() => {
-    if (initialProjectId) setProjectFilter([initialProjectId]);
-  }, [initialProjectId]);
-
-  const projectIdsToLoad = projectFilter.length > 0 ? projectFilter : projects.map((p) => p.id);
-
   const loadSessions = useCallback(
     (projectIds: string[]) => {
       Promise.all(projectIds.map((id) => listChatSessions(id)))
@@ -99,9 +87,11 @@ export function ChatPage(): React.ReactElement {
     [addToast],
   );
 
+  const projectIds = useMemo(() => projects.map((p) => p.id), [projects]);
+
   useEffect(() => {
-    if (projectIdsToLoad.length > 0) loadSessions(projectIdsToLoad);
-  }, [projectIdsToLoad.join(','), loadSessions]);
+    if (projectIds.length > 0) loadSessions(projectIds);
+  }, [projectIds.join(','), loadSessions]);
 
   const handleSelectSession = useCallback(
     (sessionId: string) => {
@@ -149,12 +139,12 @@ export function ChatPage(): React.ReactElement {
           const { [sessionId]: _removed, ...rest } = prev;
           return rest;
         });
-        loadSessions(projectIdsToLoad);
+        loadSessions(projectIds);
       } catch (err) {
         addToast(err instanceof Error ? err.message : 'Error al eliminar la conversación', 'error');
       }
     },
-    [activeSessionId, loadSessions, projectIdsToLoad, addToast, navigate],
+    [activeSessionId, loadSessions, projectIds, addToast, navigate],
   );
 
   const handleNewSession = useCallback(
@@ -164,33 +154,27 @@ export function ChatPage(): React.ReactElement {
         setActiveSessionId(session_id);
         patchSession(session_id, { messages: [] });
         navigate(`/chat/${projectId}/${session_id}`, { replace: true });
-        loadSessions(projectIdsToLoad);
+        loadSessions(projectIds);
       } catch (err) {
         addToast(err instanceof Error ? err.message : 'Error al crear la conversación', 'error');
       }
     },
-    [loadSessions, projectIdsToLoad, addToast, patchSession, navigate],
+    [loadSessions, projectIds, addToast, patchSession, navigate],
   );
+
+  // La ruta /chat/:projectId (si viene, sin sessionId) llega desde el ProjectCard del
+  // dashboard — arranca directo una conversación nueva para ese proyecto.
+  useEffect(() => {
+    if (initialProjectId && !routeSessionId) void handleNewSession(initialProjectId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialProjectId]);
 
   const handleSend = useCallback(
     async (message: string, attachmentFiles?: File[], planMode?: boolean) => {
-      let sessionId = activeSessionId;
+      const sessionId = activeSessionId;
       if (!sessionId) {
-        // Sin conversación activa, hace falta saber a qué proyecto pertenece la nueva
-        // sesión — solo se puede inferir si el filtro dejó exactamente uno seleccionado.
-        if (projectFilter.length !== 1) {
-          addToast('Elegí un proyecto (o creá la conversación con "Nueva conversación")', 'error');
-          return;
-        }
-        try {
-          const started = await startChatSession(projectFilter[0]!);
-          sessionId = started.session_id;
-          setActiveSessionId(sessionId);
-          navigate(`/chat/${projectFilter[0]}/${sessionId}`, { replace: true });
-        } catch (err) {
-          addToast(err instanceof Error ? err.message : 'Error al crear la conversación', 'error');
-          return;
-        }
+        addToast('Elegí "Nueva conversación" para empezar', 'error');
+        return;
       }
       const activeSessionIdForSend = sessionId;
 
@@ -243,14 +227,14 @@ export function ChatPage(): React.ReactElement {
         }));
         if (result.plan_id) setOpenPlanId(result.plan_id);
         if (result.cancelled) addToast('Se detuvo la respuesta de Jarvis', 'info');
-        loadSessions(projectIdsToLoad);
+        loadSessions(projectIds);
       } catch (err) {
         addToast(err instanceof Error ? err.message : 'Error al enviar el mensaje', 'error');
       } finally {
         patchSession(activeSessionIdForSend, { pending: false });
       }
     },
-    [projectFilter, activeSessionId, loadSessions, projectIdsToLoad, addToast, patchSession, navigate],
+    [activeSessionId, loadSessions, projectIds, addToast, patchSession],
   );
 
   const handleStop = useCallback(() => {
@@ -280,20 +264,6 @@ export function ChatPage(): React.ReactElement {
     <div className="flex h-full flex-col bg-white" style={{ fontSize: '16px' }}>
       <Toast toasts={toasts} onDismiss={removeToast} />
       <div className="flex flex-1 overflow-hidden">
-        <SessionList
-          sessions={sessions}
-          projects={projects}
-          projectFilter={projectFilter}
-          onProjectFilterChange={setProjectFilter}
-          activeSessionId={activeSessionId}
-          pendingSessionIds={pendingSessionIds}
-          unreadSessionIds={unreadSessionIds}
-          onSelect={selectSessionAndNavigate}
-          onDelete={(sessionId) => void handleDeleteSession(sessionId)}
-          onBack={onBack}
-          mobileOpen={mobileSessionListOpen}
-          onMobileClose={() => setMobileSessionListOpen(false)}
-        />
         <ChatWindow
           messages={activeChat?.messages ?? []}
           pending={activeChat?.pending ?? false}
@@ -303,11 +273,13 @@ export function ChatPage(): React.ReactElement {
           onTogglePlanMode={setPlanMode}
           proposedPlanIds={activeChat?.proposedPlanIds}
           onOpenPlan={setOpenPlanId}
-          onOpenSessionList={() => setMobileSessionListOpen(true)}
           activeProjectName={activeProjectName}
           sessions={sessions}
           activeSessionId={activeSessionId}
+          pendingSessionIds={pendingSessionIds}
+          unreadSessionIds={unreadSessionIds}
           onSelectSession={selectSessionAndNavigate}
+          onDeleteSession={(sessionId) => void handleDeleteSession(sessionId)}
           projects={projects}
           onNewSession={(projectId) => void handleNewSession(projectId)}
         />
