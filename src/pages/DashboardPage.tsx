@@ -14,12 +14,14 @@ const STATUS_LABEL: Record<PipelineRunSummary['status'], string> = {
   running: 'Running',
   completed: 'Success',
   failed: 'Failed',
+  cancelled: 'Detenido',
 };
 
 const STATUS_TONE: Record<PipelineRunSummary['status'], StatusBadgeTone> = {
   running: 'warning',
   completed: 'success',
   failed: 'danger',
+  cancelled: 'neutral',
 };
 
 /** "2m 45s" from a duration in milliseconds. */

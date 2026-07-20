@@ -11,12 +11,14 @@ const STATUS_LABEL: Record<PipelineRunSummary['status'], string> = {
   running: '● corriendo',
   completed: '✔ completado',
   failed: '✘ falló',
+  cancelled: '⏹ detenido',
 };
 
 const STATUS_CLASS: Record<PipelineRunSummary['status'], string> = {
   running: 'text-indigo-600',
   completed: 'text-emerald-600',
   failed: 'text-red-600',
+  cancelled: 'text-slate-400',
 };
 
 /**

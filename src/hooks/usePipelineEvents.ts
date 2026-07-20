@@ -6,7 +6,7 @@ export interface PipelineStepEvent {
   step_index: number;
   step_id: string;
   command: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
   stdout: string | null;
   stderr: string | null;
   exit_code: number | null;
@@ -20,7 +20,7 @@ export interface PipelineRunSnapshot {
   project_id: string | null;
   name: string;
   yaml_path: string;
-  status: 'running' | 'completed' | 'failed';
+  status: 'running' | 'completed' | 'failed' | 'cancelled';
   started_at: string;
   finished_at: string | null;
 }
@@ -32,7 +32,7 @@ interface StepUpdatedEvent {
 
 interface RunFinishedEvent {
   event: 'run_finished';
-  status: 'completed' | 'failed';
+  status: 'completed' | 'failed' | 'cancelled';
 }
 
 type PipelineSseEvent = StepUpdatedEvent | RunFinishedEvent;
@@ -44,7 +44,7 @@ type PipelineSseEvent = StepUpdatedEvent | RunFinishedEvent;
  */
 export function usePipelineEvents(runId: string | null) {
   const [steps, setSteps] = useState<PipelineStepEvent[]>([]);
-  const [runStatus, setRunStatus] = useState<'running' | 'completed' | 'failed'>('running');
+  const [runStatus, setRunStatus] = useState<'running' | 'completed' | 'failed' | 'cancelled'>('running');
 
   useEffect(() => {
     if (!runId) return;

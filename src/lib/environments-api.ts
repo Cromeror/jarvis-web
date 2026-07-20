@@ -5,7 +5,7 @@
  * checks for things that stay running, not build/deploy tasks).
  */
 
-export type EnvironmentRunStatus = 'running' | 'completed' | 'failed';
+export type EnvironmentRunStatus = 'running' | 'completed' | 'failed' | 'cancelled';
 
 export interface EnvironmentRunSummary {
   id: string;

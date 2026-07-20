@@ -7,12 +7,14 @@ const STATUS_LABEL: Record<EnvironmentRunSummary['status'], string> = {
   running: '● corriendo',
   completed: '✔ ok',
   failed: '✘ falló',
+  cancelled: '⏹ detenido',
 };
 
 const STATUS_CLASS: Record<EnvironmentRunSummary['status'], string> = {
   running: 'text-indigo-600',
   completed: 'text-emerald-600',
   failed: 'text-red-600',
+  cancelled: 'text-slate-400',
 };
 
 interface EnvironmentDetailPanelProps {

@@ -2,7 +2,7 @@
  * API client for pipeline management endpoints (packages/mcp/src/api/pipelines.ts).
  */
 
-export type PipelineRunStatus = 'running' | 'completed' | 'failed';
+export type PipelineRunStatus = 'running' | 'completed' | 'failed' | 'cancelled';
 
 export interface PipelineRunSummary {
   id: string;
@@ -47,4 +47,15 @@ export async function runPipelineByName(projectId: string, name: string): Promis
     method: 'POST',
   });
   return handleResponse<{ ok: true; run_id: string }>(res);
+}
+
+/**
+ * POST /api/pipeline/:runId/stop — cancel a run in flight, whether it was
+ * launched as a Pipeline or an Environment check (both share this table and
+ * this same runId-scoped route). `stopped: false` if it already finished or
+ * isn't tracked by the server anymore.
+ */
+export async function stopPipelineRun(runId: string): Promise<{ stopped: boolean }> {
+  const res = await fetch(`/api/pipeline/${encodeURIComponent(runId)}/stop`, { method: 'POST' });
+  return handleResponse<{ stopped: boolean }>(res);
 }
