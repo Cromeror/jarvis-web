@@ -155,7 +155,7 @@ export function DashboardPage(): React.ReactElement {
       </header>
 
       <h2 className="mb-4 text-lg font-semibold text-slate-900">Proyectos</h2>
-      <div className="mb-8 grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
+      <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] md:gap-4">
         {visibleProjects.map((p) => (
           <ProjectCard key={p.id} project={p} onClick={() => navigate(`/chat/${p.id}`)} />
         ))}

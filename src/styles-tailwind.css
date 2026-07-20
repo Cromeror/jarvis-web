@@ -6,6 +6,25 @@
 @import "primeicons/primeicons.css" layer(primereact);
 
 @theme {
+  /*
+   * Color de marca/primario — pisa la escala indigo de Tailwind (bg, text y
+   * border, todas las variantes) en vez de tocar cada componente, para que
+   * el botón primario y todos los estados que comparten esa marca (activo
+   * en el nav, avatar, burbuja de usuario, etc.) cambien desde un solo
+   * lugar. Mismo hue/chroma (OKLCH H aprox 318.65, C aprox 0.02) que el
+   * color de referencia del usuario, solo variando L por paso — contraste
+   * vs blanco: 600 da 17.16:1, 700 da 19.44:1 (bien por encima del mínimo
+   * de 4.5:1).
+   */
+  --color-indigo-50: #f7f4f8;
+  --color-indigo-100: #eae6eb;
+  --color-indigo-200: #d4cfd6;
+  --color-indigo-300: #b5aeb7;
+  --color-indigo-400: #766e78;
+  --color-indigo-500: #4c444f;
+  --color-indigo-600: #201922;
+  --color-indigo-700: #110b12;
+
   --animate-session-pending: session-pending 1.1s ease-in-out infinite;
   @keyframes session-pending {
     0% {

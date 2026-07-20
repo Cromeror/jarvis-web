@@ -18,9 +18,13 @@ export function ChatInputBar({ disabled = false, onSend, planMode = false, onTog
   const [focused, setFocused] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [expanded, setExpanded] = useState(false);
+  const [showExpandButton, setShowExpandButton] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const expandedTextareaRef = useRef<HTMLTextAreaElement>(null);
+  // Altura de una sola línea, capturada la primera vez (textarea vacío) —
+  // referencia para saber si ya se pasó a una segunda línea.
+  const singleLineHeightRef = useRef<number | null>(null);
 
   // Crece con el contenido — el tope real lo pone max-h-[40vh] en la clase
   // (relativo al viewport, así "crece tanto como permite la pantalla" tanto
@@ -29,7 +33,9 @@ export function ChatInputBar({ disabled = false, onSend, planMode = false, onTog
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = 'auto';
+    if (singleLineHeightRef.current == null) singleLineHeightRef.current = el.scrollHeight;
     el.style.height = `${el.scrollHeight}px`;
+    setShowExpandButton(el.scrollHeight > singleLineHeightRef.current + 1);
   }, [value]);
 
   useEffect(() => {
@@ -102,20 +108,22 @@ export function ChatInputBar({ disabled = false, onSend, planMode = false, onTog
           </div>
         )}
         <div
-          className={`relative flex items-end gap-2 rounded-3xl border bg-white p-2 pr-10 shadow-sm transition-colors ${
-            focused ? 'border-indigo-300 ring-1 ring-indigo-100' : 'border-slate-200'
-          }`}
+          className={`relative flex items-end gap-2 rounded-3xl border bg-white p-2 shadow-sm transition-colors ${
+            showExpandButton ? 'pr-10' : ''
+          } ${focused ? 'border-indigo-300 ring-1 ring-indigo-100' : 'border-slate-200'}`}
         >
-          <button
-            type="button"
-            onClick={() => setExpanded(true)}
-            disabled={disabled}
-            title="Expandir a pantalla completa"
-            aria-label="Expandir a pantalla completa"
-            className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-slate-100 hover:text-slate-500 disabled:opacity-30"
-          >
-            <i className="pi pi-window-maximize text-xs" />
-          </button>
+          {showExpandButton && (
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              disabled={disabled}
+              title="Expandir a pantalla completa"
+              aria-label="Expandir a pantalla completa"
+              className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-slate-100 hover:text-slate-500 disabled:opacity-30"
+            >
+              <i className="pi pi-window-maximize text-xs" />
+            </button>
+          )}
           <input
             ref={fileInputRef}
             type="file"
