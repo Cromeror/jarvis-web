@@ -126,6 +126,21 @@ export function ChatPage(): React.ReactElement {
     [handleSelectSession, navigate, sessions],
   );
 
+  // /chat "a secas" (sin projectId ni sessionId en la URL) retoma la conversación
+  // más reciente en vez de dejar una sesión activa "invisible": antes, si ya había
+  // una activeSessionId de una navegación previa dentro de la app (React Router no
+  // remonta ChatPage entre /chat, /chat/:id y /chat/:id/:sid, son la misma ruta),
+  // se seguía pudiendo escribir en esa conversación sin que la barra superior
+  // mostrara a qué proyecto pertenecía. Ahora queda explícito: se selecciona y se
+  // refleja en la URL + en el chip de proyecto.
+  useEffect(() => {
+    if (routeSessionId || initialProjectId || activeSessionId || sessions.length === 0) return;
+    const mostRecent = [...sessions].sort(
+      (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+    )[0]!;
+    selectSessionAndNavigate(mostRecent.id, mostRecent.project_id);
+  }, [routeSessionId, initialProjectId, activeSessionId, sessions, selectSessionAndNavigate]);
+
   const handleDeleteSession = useCallback(
     async (sessionId: string) => {
       if (!confirm('¿Eliminar esta conversación?')) return;
