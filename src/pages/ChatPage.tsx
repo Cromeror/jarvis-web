@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { listProjects } from '../lib/projects-api.js';
 import type { ProjectSummary } from '../lib/projects-api.js';
@@ -261,6 +261,10 @@ export function ChatPage(): React.ReactElement {
   }, [activeSessionId, addToast]);
 
   const activeChat = activeSessionId ? chatBySession[activeSessionId] : undefined;
+  const activeProjectName = useMemo(() => {
+    const projectId = sessions.find((s) => s.id === activeSessionId)?.project_id;
+    return projectId ? projects.find((p) => p.id === projectId)?.name : undefined;
+  }, [sessions, activeSessionId, projects]);
   const pendingSessionIds = new Set(
     Object.entries(chatBySession)
       .filter(([, state]) => state.pending)
@@ -285,7 +289,6 @@ export function ChatPage(): React.ReactElement {
           pendingSessionIds={pendingSessionIds}
           unreadSessionIds={unreadSessionIds}
           onSelect={selectSessionAndNavigate}
-          onNewSession={(projectId) => void handleNewSession(projectId)}
           onDelete={(sessionId) => void handleDeleteSession(sessionId)}
           onBack={onBack}
           mobileOpen={mobileSessionListOpen}
@@ -301,6 +304,12 @@ export function ChatPage(): React.ReactElement {
           proposedPlanIds={activeChat?.proposedPlanIds}
           onOpenPlan={setOpenPlanId}
           onOpenSessionList={() => setMobileSessionListOpen(true)}
+          activeProjectName={activeProjectName}
+          sessions={sessions}
+          activeSessionId={activeSessionId}
+          onSelectSession={selectSessionAndNavigate}
+          projects={projects}
+          onNewSession={(projectId) => void handleNewSession(projectId)}
         />
         {openPlanId && (
           <PlanSidePanel

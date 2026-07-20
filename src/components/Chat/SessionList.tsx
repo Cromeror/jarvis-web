@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo } from 'react';
 import type { ChatSession } from '../../lib/chat-api.js';
 import type { ProjectSummary } from '../../lib/projects-api.js';
 import { SessionListItem } from '../ui/molecules/SessionListItem.js';
@@ -14,7 +14,6 @@ interface SessionListProps {
   pendingSessionIds: Set<string>;
   unreadSessionIds: Set<string>;
   onSelect: (sessionId: string) => void;
-  onNewSession: (projectId: string) => void;
   onDelete: (sessionId: string) => void;
   onBack: () => void;
   mobileOpen: boolean;
@@ -40,63 +39,6 @@ function groupByDate(sessions: ChatSession[]): Array<[string, ChatSession[]]> {
   return order.filter((label) => groups.has(label)).map((label) => [label, groups.get(label)!]);
 }
 
-/** Inline "pick a project" popover for creating a new conversation without a fixed project in the page. */
-function NewSessionButton({
-  projects,
-  onCreate,
-}: {
-  projects: ProjectSummary[];
-  onCreate: (projectId: string) => void;
-}): React.ReactElement {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onClickOutside = (e: MouseEvent): void => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', onClickOutside);
-    return () => document.removeEventListener('mousedown', onClickOutside);
-  }, [open]);
-
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:border-indigo-300 hover:text-indigo-600"
-      >
-        <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
-          <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        </svg>
-        Nueva conversación
-      </button>
-
-      {open && (
-        <div className="absolute left-0 top-full z-30 mt-2 w-56 rounded-2xl border border-slate-200 bg-white p-2 shadow-lg">
-          <div className="mb-1 px-2 pt-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
-            ¿En qué proyecto?
-          </div>
-          {projects.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                onCreate(p.id);
-              }}
-              className="flex w-full items-center rounded-lg px-2 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50"
-            >
-              {p.name}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export function SessionList({
   sessions,
   projects,
@@ -106,7 +48,6 @@ export function SessionList({
   pendingSessionIds,
   unreadSessionIds,
   onSelect,
-  onNewSession,
   onDelete,
   onBack,
   mobileOpen,
@@ -147,8 +88,6 @@ export function SessionList({
               </button>
             </div>
           </div>
-
-          <NewSessionButton projects={projects} onCreate={onNewSession} />
         </div>
 
         <div className="flex-1 space-y-6 overflow-y-auto px-3 py-4">

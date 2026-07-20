@@ -1,8 +1,11 @@
 import React, { useEffect, useRef } from 'react';
-import type { ChatMessage } from '../../lib/chat-api.js';
+import type { ChatMessage, ChatSession } from '../../lib/chat-api.js';
+import type { ProjectSummary } from '../../lib/projects-api.js';
 import { MessageBubble } from '../ui/molecules/MessageBubble.js';
 import { ChatInputBar } from '../ui/molecules/ChatInputBar.js';
 import { Spinner } from '../ui/atoms/Spinner.js';
+import { NewSessionButton } from './NewSessionButton.js';
+import { ConversationSwitcher } from './ConversationSwitcher.js';
 
 interface ChatWindowProps {
   messages: ChatMessage[];
@@ -17,9 +20,32 @@ interface ChatWindowProps {
   onOpenPlan?: (planId: string) => void;
   /** Opens the conversations drawer — only rendered/needed on mobile, where SessionList is hidden by default. */
   onOpenSessionList?: () => void;
+  /** Project owning the active conversation — shown in the top bar so it's identifiable without opening the sidebar/drawer. */
+  activeProjectName?: string;
+  sessions: ChatSession[];
+  activeSessionId: string | null;
+  onSelectSession: (sessionId: string) => void;
+  projects: ProjectSummary[];
+  onNewSession: (projectId: string) => void;
 }
 
-export function ChatWindow({ messages, pending, onSend, onStop, planMode, onTogglePlanMode, proposedPlanIds, onOpenPlan, onOpenSessionList }: ChatWindowProps): React.ReactElement {
+export function ChatWindow({
+  messages,
+  pending,
+  onSend,
+  onStop,
+  planMode,
+  onTogglePlanMode,
+  proposedPlanIds,
+  onOpenPlan,
+  onOpenSessionList,
+  activeProjectName,
+  sessions,
+  activeSessionId,
+  onSelectSession,
+  projects,
+  onNewSession,
+}: ChatWindowProps): React.ReactElement {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -28,21 +54,33 @@ export function ChatWindow({ messages, pending, onSend, onStop, planMode, onTogg
 
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col bg-white">
-      {onOpenSessionList && (
-        <div className="border-b border-slate-100 px-3 py-2 md:hidden">
+      <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-2">
+        {onOpenSessionList && (
           <button
             type="button"
             onClick={onOpenSessionList}
             aria-label="Ver conversaciones"
-            className="flex items-center gap-2 rounded-lg py-1 pr-2 text-slate-500 hover:bg-slate-100"
+            className="flex items-center gap-2 rounded-lg py-1 pr-2 text-slate-500 hover:bg-slate-100 md:hidden"
           >
             <span className="flex h-8 w-8 items-center justify-center">
               <i className="pi pi-comments text-base" />
             </span>
             <span className="text-sm font-medium text-slate-600">Conversaciones</span>
           </button>
+        )}
+        {activeProjectName && (
+          <ConversationSwitcher
+            sessions={sessions}
+            projects={projects}
+            activeSessionId={activeSessionId}
+            activeProjectName={activeProjectName}
+            onSelect={onSelectSession}
+          />
+        )}
+        <div className="ml-auto">
+          <NewSessionButton projects={projects} onCreate={onNewSession} />
         </div>
-      )}
+      </div>
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl space-y-6 px-6 py-6">
           {messages.length === 0 && !pending && (
