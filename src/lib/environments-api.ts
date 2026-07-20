@@ -52,6 +52,19 @@ export async function runEnvironmentByName(projectId: string, name: string): Pro
   return handleResponse<{ ok: true; run_id: string }>(res);
 }
 
+/**
+ * POST /api/projects/:id/environments/:name/shutdown — runs this
+ * environment's deliberate `stop` sequence (not defined for every
+ * environment — 400 if it has none). Distinct from stopPipelineRun in
+ * pipelines-api.ts, which cancels whatever run is currently in flight.
+ */
+export async function shutdownEnvironmentByName(projectId: string, name: string): Promise<{ ok: true; run_id: string }> {
+  const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/environments/${encodeURIComponent(name)}/shutdown`, {
+    method: 'POST',
+  });
+  return handleResponse<{ ok: true; run_id: string }>(res);
+}
+
 /** GET /api/projects/:id/environments/:name — raw YAML content of one environment definition */
 export async function getEnvironmentDefinition(projectId: string, name: string): Promise<{ name: string; content: string }> {
   const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/environments/${encodeURIComponent(name)}`);

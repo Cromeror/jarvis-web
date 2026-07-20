@@ -10,6 +10,7 @@ import {
   updateEnvironmentDefinition,
   deleteEnvironmentDefinition,
   runEnvironmentByName,
+  shutdownEnvironmentByName,
 } from '../lib/environments-api.js';
 import type { EnvironmentRunSummary } from '../lib/environments-api.js';
 import { EnvironmentList } from '../components/Environments/EnvironmentList.js';
@@ -17,7 +18,9 @@ import { EnvironmentDetailPanel } from '../components/Environments/EnvironmentDe
 import type { EnvironmentListItem } from '../components/Environments/EnvironmentList.js';
 import { Toast, useToast } from '../components/ui/atoms/Toast.js';
 
-const NEW_ENVIRONMENT_TEMPLATE = 'name: mi-environment\nsteps:\n  - run: docker compose ps\n';
+// `stop` es opcional a propósito — se incluye acá para que quede
+// descubrible (es la única "documentación" del formato que un usuario ve).
+const NEW_ENVIRONMENT_TEMPLATE = 'name: mi-environment\nsteps:\n  - run: docker compose ps\nstop:\n  - run: docker compose down\n';
 
 /**
  * Environments view: definitions from every project (or a filtered subset)
@@ -160,6 +163,19 @@ export function EnvironmentsPage(): React.ReactElement {
     }
   }, [active, addToast, navigate]);
 
+  const handleShutdown = useCallback(async () => {
+    if (!active) return;
+    setRunning(true);
+    try {
+      const { run_id } = await shutdownEnvironmentByName(active.projectId, active.name);
+      navigate(`/pipeline/${run_id}`);
+    } catch (err) {
+      addToast(err instanceof Error ? err.message : 'Error al apagar el environment', 'error');
+    } finally {
+      setRunning(false);
+    }
+  }, [active, addToast, navigate]);
+
   const projectNameById = new Map(projects.map((p) => [p.id, p.name]));
   const activeKey = active ? `${active.projectId}/${active.name}` : null;
 
@@ -189,6 +205,7 @@ export function EnvironmentsPage(): React.ReactElement {
             onDelete={() => void handleDelete()}
             running={running}
             onRun={() => void handleRun()}
+            onShutdown={() => void handleShutdown()}
             runs={runs}
             onOpenRun={(runId) => navigate(`/pipeline/${runId}`)}
           />

@@ -28,6 +28,8 @@ interface EnvironmentDetailPanelProps {
   onDelete: () => void;
   running: boolean;
   onRun: () => void;
+  /** Runs this environment's `stop` sequence — a no-op error from the backend if it doesn't define one, since content is raw YAML here (no client-side parse to know upfront). */
+  onShutdown: () => void;
   runs: EnvironmentRunSummary[];
   onOpenRun: (runId: string) => void;
 }
@@ -43,6 +45,7 @@ export function EnvironmentDetailPanel({
   onDelete,
   running,
   onRun,
+  onShutdown,
   runs,
   onOpenRun,
 }: EnvironmentDetailPanelProps): React.ReactElement {
@@ -63,6 +66,15 @@ export function EnvironmentDetailPanel({
           >
             {running && <Spinner className="h-3.5 w-3.5" />}
             Ejecutar
+          </button>
+          <button
+            type="button"
+            onClick={onShutdown}
+            disabled={running || dirty}
+            title={dirty ? 'Guardá los cambios antes de apagar' : 'Corre el bloque "stop" del YAML, si lo define'}
+            className="flex items-center gap-2 rounded-full border border-amber-200 px-4 py-2 text-sm font-medium text-amber-700 hover:bg-amber-50 disabled:opacity-50"
+          >
+            Apagar
           </button>
           <button
             type="button"
