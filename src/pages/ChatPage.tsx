@@ -303,6 +303,8 @@ export function ChatPage(): React.ReactElement {
             planId={openPlanId}
             onClose={() => setOpenPlanId(null)}
             onLaunched={(runId) => navigate(`/plan-runs/${runId}`)}
+            activeSessionId={activeSessionId}
+            onSendToChat={(message) => void handleSend(message)}
           />
         )}
       </div>

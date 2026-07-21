@@ -2,12 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { getPlan, approvePlan, launchPlan } from '../../lib/plans-api.js';
 import type { PlanDetail } from '../../lib/plans-api.js';
 import { useCollapsible } from '../../hooks/useCollapsible.js';
+import { PlanMarkdown } from './PlanMarkdown.js';
+import { PlanFullscreenModal } from './PlanFullscreenModal.js';
 
 interface PlanSidePanelProps {
   planId: string;
   onClose: () => void;
   /** Called with the run id once the plan is launched, so the caller can navigate to the progress view. */
   onLaunched?: (runId: string) => void;
+  /** Chat session currently open, if any — lets the fullscreen modal know whether "enviar al chat" applies to this plan. */
+  activeSessionId?: string | null;
+  /** Forwards a composed message into the open chat, as if the user had typed it — bound to ChatPage's handleSend. */
+  onSendToChat?: (message: string) => void;
 }
 
 const KIND_LABEL: Record<string, string> = {
@@ -29,12 +35,13 @@ const STATUS_LABEL: Record<string, string> = {
  * collapsible panel to the right of the chat instead of inline in the
  * message feed — lets the user keep chatting while the plan stays visible.
  */
-export function PlanSidePanel({ planId, onClose, onLaunched }: PlanSidePanelProps): React.ReactElement {
+export function PlanSidePanel({ planId, onClose, onLaunched, activeSessionId, onSendToChat }: PlanSidePanelProps): React.ReactElement {
   const [detail, setDetail] = useState<PlanDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [collapsed, toggle] = useCollapsible('plan-side-panel');
   const [openSteps, setOpenSteps] = useState<Set<string>>(new Set());
+  const [fullscreen, setFullscreen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -105,6 +112,14 @@ export function PlanSidePanel({ planId, onClose, onLaunched }: PlanSidePanelProp
         <div className="flex items-center gap-1">
           <button
             type="button"
+            onClick={() => setFullscreen(true)}
+            title="Ver en pantalla completa"
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-200 hover:text-slate-600"
+          >
+            <i className="pi pi-window-maximize text-xs" />
+          </button>
+          <button
+            type="button"
             onClick={toggle}
             title="Colapsar panel"
             className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-200 hover:text-slate-600"
@@ -141,11 +156,11 @@ export function PlanSidePanel({ planId, onClose, onLaunched }: PlanSidePanelProp
             <div className="mb-4 space-y-3 text-sm text-slate-700">
               <div>
                 <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Contexto</div>
-                <p className="mt-0.5 whitespace-pre-wrap">{detail.plan.context}</p>
+                <PlanMarkdown className="mt-0.5">{detail.plan.context}</PlanMarkdown>
               </div>
               <div>
                 <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Arquitectura</div>
-                <p className="mt-0.5 whitespace-pre-wrap">{detail.plan.architecture}</p>
+                <PlanMarkdown className="mt-0.5">{detail.plan.architecture}</PlanMarkdown>
               </div>
             </div>
 
@@ -174,7 +189,7 @@ export function PlanSidePanel({ planId, onClose, onLaunched }: PlanSidePanelProp
                         </button>
                         {isOpen && (
                           <div className="border-t border-slate-100 px-3 py-2">
-                            <p className={step.kind === 'note' ? 'italic text-slate-500' : 'text-slate-700'}>{step.description}</p>
+                            <PlanMarkdown className={step.kind === 'note' ? 'italic text-slate-500' : 'text-slate-700'}>{step.description}</PlanMarkdown>
                             {step.dependsOn.length > 0 && (
                               <p className="mt-1.5 text-[11px] text-slate-400">depende de: {step.dependsOn.join(', ')}</p>
                             )}
@@ -214,6 +229,14 @@ export function PlanSidePanel({ planId, onClose, onLaunched }: PlanSidePanelProp
           </>
         )}
       </div>
+      {fullscreen && (
+        <PlanFullscreenModal
+          planId={planId}
+          onClose={() => setFullscreen(false)}
+          activeSessionId={activeSessionId ?? null}
+          onSendToChat={onSendToChat}
+        />
+      )}
     </div>
   );
 }

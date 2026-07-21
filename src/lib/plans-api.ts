@@ -118,3 +118,90 @@ export async function getPlanRun(runId: string): Promise<{ run: PlanRunSnapshot;
   const res = await fetch(`/api/plan-runs/${encodeURIComponent(runId)}`);
   return handleResponse<{ run: PlanRunSnapshot; steps: PlanRunStepSnapshot[] }>(res);
 }
+
+export type PlanAnnotationAnchorKind = 'context' | 'architecture' | 'step';
+export type PlanAnnotationStatus = 'pending' | 'sent' | 'resolved';
+
+export interface PlanAnnotation {
+  id: string;
+  plan_id: string;
+  anchor_kind: PlanAnnotationAnchorKind;
+  step_id: string | null;
+  quote: string;
+  range_start: number | null;
+  range_end: number | null;
+  comment: string;
+  status: PlanAnnotationStatus;
+  snapshot_before: string | null;
+  created_at: string;
+  updated_at: string;
+  resolved_at: string | null;
+}
+
+export interface CreatePlanAnnotationInput {
+  anchor_kind: PlanAnnotationAnchorKind;
+  step_id?: string | null;
+  quote: string;
+  range_start?: number | null;
+  range_end?: number | null;
+  comment: string;
+}
+
+/** GET /api/plans/:id/annotations */
+export async function listPlanAnnotations(planId: string): Promise<PlanAnnotation[]> {
+  const res = await fetch(`/api/plans/${encodeURIComponent(planId)}/annotations`);
+  const { annotations } = await handleResponse<{ annotations: PlanAnnotation[] }>(res);
+  return annotations;
+}
+
+/** POST /api/plans/:id/annotations */
+export async function createPlanAnnotation(planId: string, input: CreatePlanAnnotationInput): Promise<PlanAnnotation> {
+  const res = await fetch(`/api/plans/${encodeURIComponent(planId)}/annotations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  const { annotation } = await handleResponse<{ annotation: PlanAnnotation }>(res);
+  return annotation;
+}
+
+/** PATCH /api/plans/:id/annotations/:annotationId — edit the comment text */
+export async function updatePlanAnnotation(planId: string, annotationId: string, comment: string): Promise<PlanAnnotation> {
+  const res = await fetch(`/api/plans/${encodeURIComponent(planId)}/annotations/${encodeURIComponent(annotationId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ comment }),
+  });
+  const { annotation } = await handleResponse<{ annotation: PlanAnnotation }>(res);
+  return annotation;
+}
+
+/** DELETE /api/plans/:id/annotations/:annotationId */
+export async function deletePlanAnnotation(planId: string, annotationId: string): Promise<void> {
+  const res = await fetch(`/api/plans/${encodeURIComponent(planId)}/annotations/${encodeURIComponent(annotationId)}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+}
+
+/** POST /api/plans/:id/annotations/send — freezes snapshot_before on each and returns the composed chat message */
+export async function sendPlanAnnotations(planId: string, annotationIds: string[]): Promise<{ annotations: PlanAnnotation[]; message: string }> {
+  const res = await fetch(`/api/plans/${encodeURIComponent(planId)}/annotations/send`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ annotation_ids: annotationIds }),
+  });
+  return handleResponse<{ annotations: PlanAnnotation[]; message: string }>(res);
+}
+
+/** POST /api/plans/:id/annotations/:annotationId/resolve */
+export async function resolvePlanAnnotation(planId: string, annotationId: string): Promise<PlanAnnotation> {
+  const res = await fetch(`/api/plans/${encodeURIComponent(planId)}/annotations/${encodeURIComponent(annotationId)}/resolve`, { method: 'POST' });
+  const { annotation } = await handleResponse<{ annotation: PlanAnnotation }>(res);
+  return annotation;
+}
+
+/** POST /api/plans/:id/annotations/:annotationId/reopen */
+export async function reopenPlanAnnotation(planId: string, annotationId: string): Promise<PlanAnnotation> {
+  const res = await fetch(`/api/plans/${encodeURIComponent(planId)}/annotations/${encodeURIComponent(annotationId)}/reopen`, { method: 'POST' });
+  const { annotation } = await handleResponse<{ annotation: PlanAnnotation }>(res);
+  return annotation;
+}
