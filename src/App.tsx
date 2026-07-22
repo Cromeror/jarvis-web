@@ -27,8 +27,8 @@ import { PlanRunView } from './components/Plan/PlanRunView.js';
  *   /project/:projectId      → ProjectMapPage
  *   /editor?file=<path>      → EditorPage (file kept as query param — it's
  *                              not a route, just which file is open)
- *   /pipeline/:runId         → PipelineRunView (real-time pipeline progress)
- *   /plan-runs/:runId        → PlanRunView (real-time plan progress, parallel by layer)
+ *   /pipeline/:runId         → AppLayout > PipelineRunView (real-time pipeline progress)
+ *   /plan-runs/:runId        → AppLayout > PlanRunView (real-time plan progress, parallel by layer)
  */
 export default function App(): React.ReactElement {
   return (
@@ -42,11 +42,11 @@ export default function App(): React.ReactElement {
         <Route path="/plans/:projectId" element={<PlansPage />} />
         <Route path="/environments" element={<EnvironmentsPage />} />
         <Route path="/environments/:projectId" element={<EnvironmentsPage />} />
+        <Route path="/pipeline/:runId" element={<PipelineRunView />} />
+        <Route path="/plan-runs/:runId" element={<PlanRunView />} />
       </Route>
       <Route path="/project/:projectId" element={<ProjectMapPage />} />
       <Route path="/editor" element={<EditorPage />} />
-      <Route path="/pipeline/:runId" element={<PipelineRunView />} />
-      <Route path="/plan-runs/:runId" element={<PlanRunView />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

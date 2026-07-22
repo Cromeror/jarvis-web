@@ -17,6 +17,8 @@ import { EnvironmentList } from '../components/Environments/EnvironmentList.js';
 import { EnvironmentDetailPanel } from '../components/Environments/EnvironmentDetailPanel.js';
 import type { EnvironmentListItem } from '../components/Environments/EnvironmentList.js';
 import { Toast, useToast } from '../components/ui/atoms/Toast.js';
+import { FilterPopover } from '../components/ui/atoms/FilterPopover.js';
+import { FilterIcon } from '../components/ui/atoms/FilterIcon.js';
 
 // `stop` es opcional a propósito — se incluye acá para que quede
 // descubrible (es la única "documentación" del formato que un usuario ve).
@@ -36,6 +38,8 @@ export function EnvironmentsPage(): React.ReactElement {
 
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [projectFilter, setProjectFilter] = useState<string[]>([]);
+  const [search, setSearch] = useState('');
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [items, setItems] = useState<EnvironmentListItem[]>([]);
   const [active, setActive] = useState<EnvironmentListItem | null>(null);
   const [content, setContent] = useState('');
@@ -177,14 +181,53 @@ export function EnvironmentsPage(): React.ReactElement {
   }, [active, addToast, navigate]);
 
   const projectNameById = new Map(projects.map((p) => [p.id, p.name]));
+  const projectOptions = projects.map((p) => ({ label: p.name, value: p.id }));
   const activeKey = active ? `${active.projectId}/${active.name}` : null;
+
+  // Filtro client-side sobre los items ya cargados (que ya vienen acotados por
+  // projectFilter en loadItems): matchea por nombre del environment o del
+  // proyecto, case-insensitive y por substring.
+  const query = search.trim().toLowerCase();
+  const filteredItems = query
+    ? items.filter(
+        (item) =>
+          item.name.toLowerCase().includes(query) ||
+          (projectNameById.get(item.projectId) ?? item.projectId).toLowerCase().includes(query),
+      )
+    : items;
 
   return (
     <div className="flex h-full flex-col bg-white" style={{ fontSize: '16px' }}>
       <Toast toasts={toasts} onDismiss={removeToast} />
+
+      {/* Barra solo-mobile: hamburguesa (abre el drawer de la lista), búsqueda y
+          filtro de proyectos. En desktop el header propio de EnvironmentList
+          cubre estas mismas funciones y esta barra queda oculta (md:hidden). */}
+      <div className="flex items-center gap-2 border-b border-slate-200 px-4 py-3 md:hidden">
+        <button
+          type="button"
+          onClick={() => setMobileOpen(true)}
+          aria-label="Abrir lista de environments"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+        >
+          <i className="pi pi-bars text-base" />
+        </button>
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar environment…"
+          className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none"
+        />
+        <FilterPopover
+          icon={<FilterIcon />}
+          groups={[{ label: 'Proyectos', options: projectOptions, selected: projectFilter, onChange: setProjectFilter }]}
+        />
+      </div>
+
       <div className="flex flex-1 overflow-hidden">
         <EnvironmentList
-          items={items}
+          items={filteredItems}
           projects={projects}
           projectFilter={projectFilter}
           onProjectFilterChange={setProjectFilter}
@@ -192,6 +235,8 @@ export function EnvironmentsPage(): React.ReactElement {
           onSelect={handleSelect}
           onCreate={(projectId) => void handleCreate(projectId)}
           onBack={onBack}
+          mobileOpen={mobileOpen}
+          onMobileClose={() => setMobileOpen(false)}
         />
         {active ? (
           <EnvironmentDetailPanel
@@ -208,6 +253,7 @@ export function EnvironmentsPage(): React.ReactElement {
             onShutdown={() => void handleShutdown()}
             runs={runs}
             onOpenRun={(runId) => navigate(`/pipeline/${runId}`)}
+            onBackToList={() => setMobileOpen(true)}
           />
         ) : (
           <div className="flex flex-1 items-center justify-center text-sm text-slate-400">

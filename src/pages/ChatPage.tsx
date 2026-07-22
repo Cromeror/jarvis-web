@@ -13,6 +13,8 @@ import {
 import type { ChatSession, ChatMessage, ChatAttachmentInput } from '../lib/chat-api.js';
 import { ChatWindow } from '../components/Chat/ChatWindow.js';
 import { PlanSidePanel } from '../components/Plan/PlanSidePanel.js';
+import { ChatPlansPanel } from '../components/Chat/ChatPlansPanel.js';
+import { ChatOptionsRail } from '../components/layout/ChatOptionsRail.js';
 import { Toast, useToast } from '../components/ui/atoms/Toast.js';
 
 /**
@@ -56,6 +58,8 @@ export function ChatPage(): React.ReactElement {
   const [planMode, setPlanMode] = useState(false);
   // Which plan is open in the side panel — null means the panel is hidden.
   const [openPlanId, setOpenPlanId] = useState<string | null>(null);
+  // Opción activa del rail derecho (null = ningún panel del rail abierto).
+  const [railOption, setRailOption] = useState<string | null>(null);
 
   const patchSession = useCallback(
     (sessionId: string, patch: Partial<SessionChatState> | ((current: SessionChatState) => Partial<SessionChatState>)) => {
@@ -260,10 +264,14 @@ export function ChatPage(): React.ReactElement {
   }, [activeSessionId, addToast]);
 
   const activeChat = activeSessionId ? chatBySession[activeSessionId] : undefined;
-  const activeProjectName = useMemo(() => {
-    const projectId = sessions.find((s) => s.id === activeSessionId)?.project_id;
-    return projectId ? projects.find((p) => p.id === projectId)?.name : undefined;
-  }, [sessions, activeSessionId, projects]);
+  const activeProjectId = useMemo(
+    () => sessions.find((s) => s.id === activeSessionId)?.project_id ?? null,
+    [sessions, activeSessionId],
+  );
+  const activeProjectName = useMemo(
+    () => (activeProjectId ? projects.find((p) => p.id === activeProjectId)?.name : undefined),
+    [activeProjectId, projects],
+  );
   const pendingSessionIds = new Set(
     Object.entries(chatBySession)
       .filter(([, state]) => state.pending)
@@ -307,6 +315,18 @@ export function ChatPage(): React.ReactElement {
             onSendToChat={(message) => void handleSend(message)}
           />
         )}
+        {railOption === 'plans' && (
+          <ChatPlansPanel
+            projectId={activeProjectId}
+            activePlanId={openPlanId}
+            onSelectPlan={setOpenPlanId}
+            onClose={() => setRailOption(null)}
+          />
+        )}
+        <ChatOptionsRail
+          activeOption={railOption}
+          onToggleOption={(key) => setRailOption((cur) => (cur === key ? null : key))}
+        />
       </div>
     </div>
   );

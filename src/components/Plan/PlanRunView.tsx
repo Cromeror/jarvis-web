@@ -37,11 +37,11 @@ function groupByOverlap(steps: PlanRunStepSnapshot[]): PlanRunStepSnapshot[][] {
 
 export function PlanRunView(): React.ReactElement {
   const { runId } = useParams<{ runId: string }>();
-  const { steps, runStatus } = usePlanRunEvents(runId ?? null);
+  const { steps, runStatus, stepProgress } = usePlanRunEvents(runId ?? null);
   const layers = groupByOverlap(steps);
 
   return (
-    <div className="plan-run-view mx-auto max-w-3xl px-6 py-6">
+    <div className="plan-run-view h-full overflow-y-auto mx-auto max-w-3xl px-6 py-6">
       <h1 className="text-lg font-semibold text-slate-900">Plan run {runId}</h1>
       <p className="mt-1 text-sm text-slate-500">Estado: {STATUS_LABEL[runStatus] ?? runStatus}</p>
 
@@ -74,6 +74,15 @@ export function PlanRunView(): React.ReactElement {
                 {step.error && <pre className="mt-1 whitespace-pre-wrap text-[11px] text-red-600">{step.error}</pre>}
                 {step.output && step.status === 'completed' && (
                   <pre className="mt-1 max-h-24 overflow-y-auto whitespace-pre-wrap text-[11px] text-slate-600">{step.output}</pre>
+                )}
+                {/* Live output while the step runs — same <pre> treatment as the
+                    completed output above, with a streaming caret. Fills the gap
+                    between step_started and step_completed. */}
+                {step.status === 'running' && stepProgress[step.step_id] && (
+                  <pre className="mt-1 max-h-24 overflow-y-auto whitespace-pre-wrap text-[11px] text-slate-600">
+                    {stepProgress[step.step_id]}
+                    <span className="animate-pulse text-indigo-400">▋</span>
+                  </pre>
                 )}
               </div>
             ))}

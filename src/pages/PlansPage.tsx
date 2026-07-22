@@ -11,6 +11,7 @@ import { FilterIcon } from '../components/ui/atoms/FilterIcon.js';
 import { SortIcon } from '../components/ui/atoms/SortIcon.js';
 import { EntityCard } from '../components/ui/molecules/EntityCard.js';
 import { EmptyCard } from '../components/ui/molecules/EmptyCard.js';
+import { PlanSidePanel } from '../components/Plan/PlanSidePanel.js';
 import type { StatusBadgeTone } from '../components/ui/atoms/StatusBadge.js';
 
 const STATUS_LABEL: Record<PlanStatus, string> = {
@@ -65,6 +66,7 @@ export function PlansPage(): React.ReactElement {
   const [projectFilter, setProjectFilter] = useState<string[]>([]);
   const [plans, setPlans] = useState<PlanSummary[]>([]);
   const [busyPlanId, setBusyPlanId] = useState<string | null>(null);
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<PlanStatus[]>([]);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
@@ -111,6 +113,19 @@ export function PlansPage(): React.ReactElement {
     );
   }, [plans, statusFilter, sortOrder]);
 
+  // Polling liviano: mientras al menos un plan visible siga 'running', re-consultamos
+  // cada 6s para que el badge 'Ejecutando' se actualice cuando el run termine (no hay
+  // SSE en esta lista). El effect se re-evalúa al cambiar `hasRunningPlan`, así que en
+  // cuanto ningún plan visible queda corriendo el intervalo se limpia solo — sin poll
+  // infinito ni innecesario cuando todo está en estado terminal.
+  const hasRunningPlan = useMemo(() => visiblePlans.some((p) => p.status === 'running'), [visiblePlans]);
+
+  useEffect(() => {
+    if (!hasRunningPlan || projectIdsToLoad.length === 0) return;
+    const interval = setInterval(() => loadPlans(projectIdsToLoad), 6_000);
+    return () => clearInterval(interval);
+  }, [hasRunningPlan, projectIdsToLoad.join(','), loadPlans]);
+
   const handleLaunch = useCallback(
     async (planId: string, status: string) => {
       setBusyPlanId(planId);
@@ -147,37 +162,43 @@ export function PlansPage(): React.ReactElement {
   const createPlanProjectId = projectFilter.length === 1 ? projectFilter[0] : (projects[0]?.id ?? null);
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-6" style={{ fontSize: '16px' }}>
+    // Split de dos columnas — mismo patrón que ChatPage: contenido a la izquierda
+    // (flex-1, con scroll propio) y, cuando hay un plan seleccionado, el
+    // PlanSidePanel reutilizado a la derecha. Antes era un contenedor centrado
+    // (mx-auto max-w-6xl) sin paneles.
+    <div className="flex h-full flex-col bg-white" style={{ fontSize: '16px' }}>
       <Toast toasts={toasts} onDismiss={removeToast} />
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-900">Planes</h1>
-        <div className="flex items-center gap-2">
-          <FilterPopover
-            icon={<FilterIcon />}
-            groups={[
-              { label: 'Proyectos', options: projectOptions, selected: projectFilter, onChange: setProjectFilter },
-              { label: 'Estados', options: STATUS_FILTER_OPTIONS, selected: statusFilter, onChange: setStatusFilter },
-            ]}
-          />
-          <PillDropdown
-            value={sortOrder}
-            options={SORT_OPTIONS}
-            onChange={setSortOrder}
-            icon={<SortIcon />}
-          />
-        </div>
-      </div>
+      <div className="flex flex-1 overflow-hidden">
+        <div className="flex-1 overflow-y-auto px-6 py-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h1 className="text-xl font-semibold text-slate-900">Planes</h1>
+            <div className="flex items-center gap-2">
+              <FilterPopover
+                icon={<FilterIcon />}
+                groups={[
+                  { label: 'Proyectos', options: projectOptions, selected: projectFilter, onChange: setProjectFilter },
+                  { label: 'Estados', options: STATUS_FILTER_OPTIONS, selected: statusFilter, onChange: setStatusFilter },
+                ]}
+              />
+              <PillDropdown
+                value={sortOrder}
+                options={SORT_OPTIONS}
+                onChange={setSortOrder}
+                icon={<SortIcon />}
+              />
+            </div>
+          </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {visiblePlans.length === 0 && (
-          <EmptyCard
-            icon="pi-plus"
-            title="Crear Plan"
-            description="Proponé uno desde el chat en Modo Plan"
-            onClick={() => createPlanProjectId && navigate(`/chat/${createPlanProjectId}`)}
-          />
-        )}
-        {visiblePlans.map((plan) => {
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {visiblePlans.length === 0 && (
+              <EmptyCard
+                icon="pi-plus"
+                title="Crear Plan"
+                description="Proponé uno desde el chat en Modo Plan"
+                onClick={() => createPlanProjectId && navigate(`/chat/${createPlanProjectId}`)}
+              />
+            )}
+            {visiblePlans.map((plan) => {
           const isLaunchable = plan.status === 'draft' || plan.status === 'approved';
           return (
             <EntityCard
@@ -196,12 +217,24 @@ export function PlansPage(): React.ReactElement {
                     : 'Ver detalles'
               }
               onAction={() => {
-                if (plan.status === 'running') void handleViewProgress(plan.id);
-                else if (isLaunchable) void handleLaunch(plan.id, plan.status);
+                if (isLaunchable) void handleLaunch(plan.id, plan.status);
+                else void handleViewProgress(plan.id);
               }}
+              selected={selectedPlanId === plan.id}
+              onSelect={() => setSelectedPlanId((id) => (id === plan.id ? null : plan.id))}
             />
           );
         })}
+          </div>
+        </div>
+
+        {selectedPlanId && (
+          <PlanSidePanel
+            planId={selectedPlanId}
+            onClose={() => setSelectedPlanId(null)}
+            onLaunched={(runId) => navigate(`/plan-runs/${runId}`)}
+          />
+        )}
       </div>
     </div>
   );

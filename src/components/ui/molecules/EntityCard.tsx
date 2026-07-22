@@ -14,6 +14,9 @@ interface EntityCardProps {
   actionLabel: string;
   onAction: () => void;
   onMenu?: () => void;
+  /** Card-level click (selection). Kept separate from onAction, which stops propagation so it never fires this. */
+  onSelect?: () => void;
+  selected?: boolean;
 }
 
 /**
@@ -31,40 +34,58 @@ export function EntityCard({
   actionLabel,
   onAction,
   onMenu,
+  onSelect,
+  selected = false,
 }: EntityCardProps): React.ReactElement {
+  // Contenedor clickeable como <div> (no <button>) a propósito: la card tiene
+  // botones internos (acción, menú) y anidar <button> dentro de <button> es
+  // HTML inválido. Esos controles frenan la propagación para no seleccionar.
   return (
-    <Card className="flex flex-col gap-3">
-      <div className="flex items-start justify-between gap-2">
-        <IconTile icon={icon} className={iconClassName} />
-        <div className="flex items-center gap-2">
-          <StatusBadge label={statusLabel} tone={statusTone} />
-          {onMenu && (
-            <button
-              type="button"
-              onClick={onMenu}
-              className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-            >
-              <i className="pi pi-ellipsis-v text-sm" />
-            </button>
-          )}
+    <div
+      onClick={onSelect}
+      className={`h-full rounded-2xl ${onSelect ? 'cursor-pointer' : ''} ${
+        selected ? 'ring-2 ring-indigo-500 ring-offset-2' : ''
+      }`}
+    >
+      <Card className="flex h-full flex-col gap-3">
+        <div className="flex items-start justify-between gap-2">
+          <IconTile icon={icon} className={iconClassName} />
+          <div className="flex items-center gap-2">
+            <StatusBadge label={statusLabel} tone={statusTone} />
+            {onMenu && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onMenu();
+                }}
+                className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                <i className="pi pi-ellipsis-v text-sm" />
+              </button>
+            )}
+          </div>
         </div>
-      </div>
 
-      <div>
-        <h3 className="text-base font-semibold text-slate-900">{title}</h3>
-        {description && <p className="mt-1 line-clamp-2 text-sm text-slate-500">{description}</p>}
-      </div>
+        <div>
+          <h3 className="text-base font-semibold text-slate-900">{title}</h3>
+          {description && <p className="mt-1 line-clamp-2 text-sm text-slate-500">{description}</p>}
+        </div>
 
-      <div className="mt-auto flex items-center justify-between pt-2">
-        <span className="text-xs text-slate-400">{meta}</span>
-        <button
-          type="button"
-          onClick={onAction}
-          className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
-        >
-          {actionLabel} →
-        </button>
-      </div>
-    </Card>
+        <div className="mt-auto flex items-center justify-between pt-2">
+          <span className="text-xs text-slate-400">{meta}</span>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAction();
+            }}
+            className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+          >
+            {actionLabel} →
+          </button>
+        </div>
+      </Card>
+    </div>
   );
 }

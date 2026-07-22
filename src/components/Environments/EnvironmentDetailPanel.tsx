@@ -32,6 +32,8 @@ interface EnvironmentDetailPanelProps {
   onShutdown: () => void;
   runs: EnvironmentRunSummary[];
   onOpenRun: (runId: string) => void;
+  /** Reabre el drawer de la lista en mobile (mismo control que EnvironmentList.mobileOpen). Sin esto, al seleccionar un environment el usuario queda atrapado en el detalle. */
+  onBackToList: () => void;
 }
 
 export function EnvironmentDetailPanel({
@@ -48,13 +50,24 @@ export function EnvironmentDetailPanel({
   onShutdown,
   runs,
   onOpenRun,
+  onBackToList,
 }: EnvironmentDetailPanelProps): React.ReactElement {
   return (
     <div className="flex h-full flex-1 flex-col bg-white">
       <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-6 py-4">
-        <div>
-          <div className="text-sm font-semibold text-slate-900">{name}</div>
-          <div className="text-xs text-slate-400">{projectName}</div>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={onBackToList}
+            className="flex items-center gap-1 rounded-lg px-2 py-1 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700 md:hidden"
+          >
+            <i className="pi pi-angle-left text-base" />
+            Volver a la lista
+          </button>
+          <div>
+            <div className="text-sm font-semibold text-slate-900">{name}</div>
+            <div className="text-xs text-slate-400">{projectName}</div>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <button

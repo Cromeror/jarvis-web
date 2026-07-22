@@ -9,8 +9,8 @@ const itemInactive = 'text-slate-500 hover:bg-slate-100 hover:text-slate-700';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: 'pi-th-large', end: true },
-  { to: '/plans', label: 'Planes', icon: 'pi-list-check', end: false },
   { to: '/chat', label: 'Chat', icon: 'pi-comments', end: false },
+  { to: '/plans', label: 'Planes', icon: 'pi-list-check', end: false },
   { to: '/environments', label: 'Environments', icon: 'pi-server', end: false },
 ] as const;
 

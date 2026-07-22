@@ -18,6 +18,8 @@ interface EnvironmentListProps {
   onSelect: (item: EnvironmentListItem) => void;
   onCreate: (projectId: string) => void;
   onBack: () => void;
+  mobileOpen: boolean;
+  onMobileClose: () => void;
 }
 
 function itemKey(item: EnvironmentListItem): string {
@@ -90,12 +92,24 @@ export function EnvironmentList({
   onSelect,
   onCreate,
   onBack,
+  mobileOpen,
+  onMobileClose,
 }: EnvironmentListProps): React.ReactElement {
   const projectNameById = useMemo(() => new Map(projects.map((p) => [p.id, p.name])), [projects]);
   const projectOptions = useMemo(() => projects.map((p) => ({ label: p.name, value: p.id })), [projects]);
 
   return (
-    <div className="flex h-full w-64 shrink-0 flex-col border-r border-slate-200 bg-slate-50" style={{ fontSize: '16px' }}>
+    <>
+      {mobileOpen && (
+        <div className="fixed inset-0 z-30 bg-black/50 md:hidden" onClick={onMobileClose} />
+      )}
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 flex h-full w-64 shrink-0 flex-col border-r border-slate-200 bg-slate-50 transition-transform duration-200 md:relative md:translate-x-0 ${
+          mobileOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+        style={{ fontSize: '16px' }}
+      >
       <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-4">
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm font-semibold text-slate-900">Environments</span>
@@ -116,7 +130,10 @@ export function EnvironmentList({
           <button
             key={itemKey(item)}
             type="button"
-            onClick={() => onSelect(item)}
+            onClick={() => {
+              onSelect(item);
+              onMobileClose();
+            }}
             className={`flex w-full flex-col items-start rounded-lg px-3 py-2 text-left text-sm transition-colors ${
               itemKey(item) === activeKey ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 hover:bg-white'
             }`}
@@ -132,6 +149,7 @@ export function EnvironmentList({
           ← Dashboard
         </button>
       </div>
-    </div>
+      </aside>
+    </>
   );
 }
