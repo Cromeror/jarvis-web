@@ -19,7 +19,7 @@ export function VersionItem({ version, onRestore }: VersionItemProps): React.Rea
         <span className="version-size">{sizeKb} KB</span>
       </div>
       <Button
-        variant="ghost"
+        variant="outlined"
         onClick={() => onRestore(version.version)}
         title={`Restaurar versión del ${label}`}
       >

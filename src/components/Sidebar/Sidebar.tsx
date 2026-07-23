@@ -67,7 +67,7 @@ export function Sidebar({ activeFile, onFileSelect }: SidebarProps): React.React
       <div className="sidebar-header">
         <span className="sidebar-title">Archivos</span>
         <Button
-          variant="ghost"
+          variant="outlined"
           onClick={() => setShowModal(true)}
           title="Nuevo archivo"
           className="btn-icon"
@@ -127,7 +127,7 @@ export function Sidebar({ activeFile, onFileSelect }: SidebarProps): React.React
               </select>
             </div>
             <div className="modal-actions">
-              <Button variant="secondary" onClick={() => setShowModal(false)}>
+              <Button variant="outlined" onClick={() => setShowModal(false)}>
                 Cancelar
               </Button>
               <Button

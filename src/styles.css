@@ -89,25 +89,26 @@ html, body, #root {
 .folder-icon { font-size: 10px; color: #888; }
 .folder-name { flex: 1; }
 
-.file-item {
+.sidebar-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 8px;
+  padding: 6px 10px;
   cursor: pointer;
   user-select: none;
   font-size: 13px;
-  color: #444;
-  border-left: 2px solid transparent;
+  color: var(--sidebar-item-text);
+  background: var(--sidebar-item-bg);
+  border-radius: var(--sidebar-item-radius);
 }
-.file-item:hover { background: #f5f5f5; }
-.file-item-active {
-  background: #e8f0fe;
-  border-left-color: #0066cc;
-  color: #0055aa;
+.sidebar-item:hover { background: color-mix(in srgb, var(--sidebar-item-text) 8%, transparent); }
+.sidebar-item-selected,
+.sidebar-item-selected:hover {
+  background: var(--sidebar-item-bg-selected);
+  color: var(--sidebar-item-text-selected);
 }
-.file-icon { font-size: 12px; }
-.file-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar-item-icon { font-size: 12px; }
+.sidebar-item-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .no-results { padding: 12px; color: #888; font-size: 12px; text-align: center; }
 
@@ -362,7 +363,7 @@ html, body, #root {
 .btn {
   padding: 6px 14px;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: var(--btn-radius);
   font-size: 13px;
   cursor: pointer;
   font-weight: 500;
@@ -372,14 +373,14 @@ html, body, #root {
   white-space: nowrap;
 }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-primary { background: #0066cc; color: #fff; border-color: #0066cc; }
-.btn-primary:hover:not(:disabled) { background: #0055aa; }
-.btn-secondary { background: #f0f0f0; color: #333; border-color: #ddd; }
-.btn-secondary:hover:not(:disabled) { background: #e0e0e0; }
-.btn-danger { background: #cc0000; color: #fff; border-color: #cc0000; }
-.btn-danger:hover:not(:disabled) { background: #aa0000; }
-.btn-ghost { background: transparent; color: #555; border-color: transparent; }
-.btn-ghost:hover:not(:disabled) { background: #f0f0f0; }
+.btn-primary { background: var(--btn-primary-bg); color: var(--btn-primary-text); border-color: var(--btn-primary-border); }
+.btn-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--btn-primary-bg) 80%, black); }
+.btn-secondary { background: var(--btn-secondary-bg); color: var(--btn-secondary-text); border-color: var(--btn-secondary-border); }
+.btn-secondary:hover:not(:disabled) { background: color-mix(in srgb, var(--btn-secondary-bg) 85%, white); }
+.btn-inverted { background: var(--btn-inverted-bg); color: var(--btn-inverted-text); border-color: var(--btn-inverted-border); }
+.btn-inverted:hover:not(:disabled) { background: color-mix(in srgb, var(--btn-inverted-bg) 90%, black); }
+.btn-outlined { background: var(--btn-outlined-bg); color: var(--btn-outlined-text); border-color: var(--btn-outlined-border); }
+.btn-outlined:hover:not(:disabled) { background: color-mix(in srgb, var(--btn-outlined-border) 12%, transparent); }
 .btn-icon { padding: 4px 8px; font-size: 16px; font-weight: 700; }
 
 /* Toast */

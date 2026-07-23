@@ -1,5 +1,6 @@
 import React from 'react';
 import type { FileEntry } from '../../lib/api.js';
+import { SidebarItem } from '../ui/atoms/SidebarItem.js';
 
 interface FileTreeProps {
   files: FileEntry[];
@@ -50,20 +51,15 @@ function TreeNode({
   const [expanded, setExpanded] = React.useState(true);
 
   if (isFileEntry(node)) {
-    const isActive = node.path === activeFile;
     return (
-      <div
-        className={`file-item ${isActive ? 'file-item-active' : ''}`}
-        style={{ paddingLeft: `${depth * 12 + 8}px` }}
+      <SidebarItem
+        icon={<>&#x1F4C4;</>}
+        label={name}
+        selected={node.path === activeFile}
+        depth={depth}
         onClick={() => onFileSelect(node.path)}
         title={node.path}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => e.key === 'Enter' && onFileSelect(node.path)}
-      >
-        <span className="file-icon">&#x1F4C4;</span>
-        <span className="file-name">{name}</span>
-      </div>
+      />
     );
   }
 
@@ -123,19 +119,14 @@ export function FileTree({
     return (
       <div className="file-list-flat">
         {filtered.map((file) => (
-          <div
+          <SidebarItem
             key={file.path}
-            className={`file-item ${file.path === activeFile ? 'file-item-active' : ''}`}
-            style={{ paddingLeft: '8px' }}
+            icon={<>&#x1F4C4;</>}
+            label={file.path}
+            selected={file.path === activeFile}
             onClick={() => onFileSelect(file.path)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && onFileSelect(file.path)}
             title={file.path}
-          >
-            <span className="file-icon">&#x1F4C4;</span>
-            <span className="file-name">{file.path}</span>
-          </div>
+          />
         ))}
       </div>
     );

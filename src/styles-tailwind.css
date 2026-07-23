@@ -36,6 +36,74 @@
   }
 }
 
+:root {
+  /*
+   * Foundation — los 4 colores de marca (uno por swatch de la paleta) más
+   * blanco/negro puros. Primitivos: no los consume ningún componente
+   * directamente, son la base de la que se derivan los tokens semánticos
+   * de abajo. `--color-primary` referencia la rampa `--color-indigo-*` de
+   * arriba porque coincide (mismo hue/chroma) con el "Primary" de la
+   * paleta; el resto no coincide con ningún token de Tailwind, son
+   * valores propios.
+   */
+  --color-primary: var(--color-indigo-400);
+  --color-secondary: #7a767b;
+  --color-tertiary: #1a180b;
+  --color-neutral: #797677;
+  --color-white: #ffffff;
+  --color-black: #000000;
+
+  /*
+   * Mismo valor que usa `rounded-full` de Tailwind — no hay un token vivo
+   * al que referenciar: Tailwind solo expone variables de tema para
+   * --radius-{xs..4xl}, "full" es un valor fijo en la utilidad, no una
+   * variable. Se define acá porque, igual que con los colores, coincide
+   * con Tailwind y no queremos duplicar magia sin nombrarla.
+   */
+  --radius-full: calc(infinity * 1px);
+
+  /*
+   * Semánticos — un trío bg/text/border por variante de botón, calculado
+   * con color-mix() directo sobre el Foundation (nada de tokens -light/
+   * -dark sueltos). Patrón sacado de las 4 variantes de referencia
+   * (Primary/Secondary/Inverted/Outlined): cada variante mezcla su color
+   * de marca con blanco o negro para el fondo, y reusa ese mismo tinte
+   * como texto en la variante opuesta (p.ej. el tinte claro de Primary es
+   * el texto de Secondary y el borde de Outlined).
+   */
+  --btn-radius: var(--radius-full);
+
+  --btn-primary-bg: color-mix(in srgb, var(--color-primary) 40%, var(--color-white));
+  --btn-primary-text: var(--color-black);
+  --btn-primary-border: var(--btn-primary-bg);
+
+  --btn-secondary-bg: color-mix(in srgb, var(--color-secondary) 35%, var(--color-black));
+  --btn-secondary-text: var(--btn-primary-bg);
+  --btn-secondary-border: var(--btn-secondary-bg);
+
+  --btn-inverted-bg: color-mix(in srgb, var(--color-neutral) 20%, var(--color-white));
+  --btn-inverted-text: var(--color-black);
+  --btn-inverted-border: var(--color-neutral);
+
+  --btn-outlined-bg: transparent;
+  --btn-outlined-text: var(--color-black);
+  --btn-outlined-border: var(--btn-primary-bg);
+
+  /*
+   * Semánticos — SidebarItem (Dashboard/Projects/Pipelines/Automation en la
+   * referencia): sin seleccionar es texto sobre fondo transparente,
+   * seleccionado es una píldora negra sólida. `--sidebar-item-text`
+   * referencia `--color-indigo-500` porque coincide (mismo hue que
+   * --color-primary, un escalón más oscuro) con el gris apagado de la
+   * referencia — igual criterio que con los colores de marca.
+   */
+  --sidebar-item-bg: transparent;
+  --sidebar-item-text: var(--color-indigo-500);
+  --sidebar-item-bg-selected: var(--color-black);
+  --sidebar-item-text-selected: var(--color-white);
+  --sidebar-item-radius: var(--radius-full);
+}
+
 /*
  * html/body's font-size is fixed at 14px (styles.css), so Tailwind's rem-based
  * text-* utilities render smaller than their nominal size (text-sm = .875rem
