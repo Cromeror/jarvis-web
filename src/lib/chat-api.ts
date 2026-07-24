@@ -106,6 +106,16 @@ export async function getChatMessages(sessionId: string): Promise<ChatMessage[]>
   return handleResponse<ChatMessage[]>(res);
 }
 
+/** PATCH /api/chat/sessions/:id — rename a conversation */
+export async function renameChatSession(sessionId: string, title: string): Promise<ChatSession> {
+  const res = await fetch(`/api/chat/sessions/${encodeURIComponent(sessionId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title }),
+  });
+  return handleResponse<ChatSession>(res);
+}
+
 /** DELETE /api/chat/sessions/:id — remove a conversation */
 export async function deleteChatSession(sessionId: string): Promise<void> {
   const res = await fetch(`/api/chat/sessions/${encodeURIComponent(sessionId)}`, {

@@ -41,17 +41,17 @@
    * Foundation — los 4 colores de marca (uno por swatch de la paleta) más
    * blanco/negro puros. Primitivos: no los consume ningún componente
    * directamente, son la base de la que se derivan los tokens semánticos
-   * de abajo. `--color-primary` referencia la rampa `--color-indigo-*` de
-   * arriba porque coincide (mismo hue/chroma) con el "Primary" de la
-   * paleta; el resto no coincide con ningún token de Tailwind, son
-   * valores propios.
+   * de abajo. Valores propios — ninguno coincide con la rampa
+   * `--color-indigo-*` de arriba (esa rampa queda de la paleta anterior,
+   * todavía la usan clases Tailwind sueltas tipo `bg-indigo-600`).
    */
-  --color-primary: var(--color-indigo-400);
-  --color-secondary: #7a767b;
+  --color-primary: #1a161f;
+  --color-secondary: #615d62;
   --color-tertiary: #1a180b;
-  --color-neutral: #797677;
+  --color-neutral: #f8f9fa;
   --color-white: #ffffff;
   --color-black: #000000;
+  --color-text: var(--color-black);
 
   /*
    * Mismo valor que usa `rounded-full` de Tailwind — no hay un token vivo
@@ -90,19 +90,42 @@
   --btn-outlined-border: var(--btn-primary-bg);
 
   /*
-   * Semánticos — SidebarItem (Dashboard/Projects/Pipelines/Automation en la
-   * referencia): sin seleccionar es texto sobre fondo transparente,
-   * seleccionado es una píldora negra sólida. `--sidebar-item-text`
-   * referencia `--color-indigo-500` porque coincide (mismo hue que
-   * --color-primary, un escalón más oscuro) con el gris apagado de la
-   * referencia — igual criterio que con los colores de marca.
+   * Semánticos — SidebarItem (filas de FileTree, el explorador de docs):
+   * sin seleccionar es texto sobre fondo transparente, seleccionado es una
+   * píldora negra sólida. `--sidebar-item-text` referencia
+   * `--color-indigo-500` porque coincide (mismo hue que --color-primary,
+   * un escalón más oscuro) con el gris apagado de la referencia — igual
+   * criterio que con los colores de marca.
    */
   --sidebar-item-bg: transparent;
   --sidebar-item-text: var(--color-indigo-500);
   --sidebar-item-bg-selected: var(--color-black);
   --sidebar-item-text-selected: var(--color-white);
   --sidebar-item-radius: var(--radius-full);
+
+  /*
+   * Semánticos — SideNavItem (Dashboard/Chat/Planes/Environments, la nav
+   * global). Propios, no comparte los de SidebarItem — son componentes
+   * distintos y cada uno debe poder cambiar de tema sin afectar al otro.
+   */
+  --sidenav-item-bg: transparent;
+  --sidenav-item-text: var(--color-white);
+  --sidenav-item-bg-selected: var(--color-primary);
+  --sidenav-item-text-selected: var(--color-white);
+  --sidenav-item-radius: var(--radius-full);
 }
+
+/*
+ * SideNavItem renderiza un <a> (vía NavLink) y el preflight de Tailwind
+ * trae `a { color: inherit }` en su layer `base` — con el orden declarado
+ * arriba (`legacy, theme, base, ...`), `base` pisa a `legacy` (donde vive
+ * .sidenav-item en styles.css) sin importar la especificidad, así que el
+ * color de texto nunca llegaba a pintarse. Unlayered a propósito, mismo
+ * motivo que el bloque de --text-* de abajo: una regla sin layer gana
+ * siempre, sin importar el orden de @layer.
+ */
+.sidenav-item { color: var(--sidenav-item-text); }
+.sidenav-item-selected { color: var(--sidenav-item-text-selected); }
 
 /*
  * html/body's font-size is fixed at 14px (styles.css), so Tailwind's rem-based

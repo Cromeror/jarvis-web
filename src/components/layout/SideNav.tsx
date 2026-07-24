@@ -1,11 +1,7 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
 import { useCollapsible } from '../../hooks/useCollapsible.js';
-
-const itemBase =
-  'flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors';
-const itemActive = 'bg-indigo-600 text-white shadow-sm';
-const itemInactive = 'text-slate-500 hover:bg-slate-100 hover:text-slate-700';
+import { useAuth } from '../../hooks/useAuth.js';
+import { SideNavItem } from '../ui/atoms/SideNavItem.js';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: 'pi-th-large', end: true },
@@ -22,6 +18,10 @@ export function SideNav({
   onMobileClose: () => void;
 }): React.ReactElement {
   const [collapsed, toggle] = useCollapsible('sidenav');
+  const { user } = useAuth();
+  const navItems = user?.role === 'superadmin'
+    ? [...NAV_ITEMS, { to: '/users', label: 'Usuarios', icon: 'pi-users', end: false }]
+    : NAV_ITEMS;
 
   return (
     <>
@@ -45,20 +45,16 @@ export function SideNav({
         </div>
 
         <nav className="flex flex-1 flex-col gap-1">
-          {NAV_ITEMS.map(({ to, label, icon, end }) => (
-            <NavLink
+          {navItems.map(({ to, label, icon, end }) => (
+            <SideNavItem
               key={to}
               to={to}
+              label={label}
+              icon={icon}
               end={end}
+              collapsed={collapsed}
               onClick={onMobileClose}
-              title={collapsed ? label : undefined}
-              className={({ isActive }) =>
-                `${itemBase} ${isActive ? itemActive : itemInactive} ${collapsed ? 'md:justify-center md:px-0' : ''}`
-              }
-            >
-              <i className={`pi ${icon} text-base`} />
-              <span className={collapsed ? 'md:hidden' : ''}>{label}</span>
-            </NavLink>
+            />
           ))}
         </nav>
 
@@ -68,10 +64,10 @@ export function SideNav({
             target="_blank"
             rel="noreferrer"
             title={collapsed ? 'Soporte' : undefined}
-            className={`${itemBase} ${itemInactive} ${collapsed ? 'md:justify-center md:px-0' : ''}`}
+            className={`sidenav-item ${collapsed ? 'md:justify-center md:px-0' : ''}`}
           >
-            <i className="pi pi-question-circle text-base" />
-            <span className={collapsed ? 'md:hidden' : ''}>Soporte</span>
+            <i className="pi pi-question-circle sidenav-item-icon" />
+            <span className={`sidenav-item-label ${collapsed ? 'md:hidden' : ''}`}>Soporte</span>
           </a>
         </div>
 

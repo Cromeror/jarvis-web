@@ -11,8 +11,11 @@ import {
   deleteEnvironmentDefinition,
   runEnvironmentByName,
   shutdownEnvironmentByName,
+  runBelongsToEnvironment,
 } from '../lib/environments-api.js';
 import type { EnvironmentRunSummary } from '../lib/environments-api.js';
+import { listProjectReplicas, ROOT_REPLICA } from '../lib/project-replicas-api.js';
+import type { ProjectReplica } from '../lib/project-replicas-api.js';
 import { EnvironmentList } from '../components/Environments/EnvironmentList.js';
 import { EnvironmentDetailPanel } from '../components/Environments/EnvironmentDetailPanel.js';
 import type { EnvironmentListItem } from '../components/Environments/EnvironmentList.js';
@@ -47,6 +50,10 @@ export function EnvironmentsPage(): React.ReactElement {
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
   const [runs, setRuns] = useState<EnvironmentRunSummary[]>([]);
+  const [replicas, setReplicas] = useState<ProjectReplica[]>([]);
+  const [replicaId, setReplicaId] = useState<string>(ROOT_REPLICA);
+  // El API espera `undefined`/ausente para "root", no el sentinel de UI.
+  const apiReplicaId = replicaId === ROOT_REPLICA ? undefined : replicaId;
 
   useEffect(() => {
     listProjects().catch((err: unknown) => {
@@ -91,6 +98,7 @@ export function EnvironmentsPage(): React.ReactElement {
   const handleSelect = useCallback(
     (item: EnvironmentListItem) => {
       setActive(item);
+      setReplicaId(ROOT_REPLICA);
       getEnvironmentDefinition(item.projectId, item.name)
         .then((def) => {
           setContent(def.content);
@@ -100,10 +108,27 @@ export function EnvironmentsPage(): React.ReactElement {
           addToast(err instanceof Error ? err.message : 'Error al cargar el environment', 'error');
         });
       listEnvironmentRuns(item.projectId)
-        .then((all) => setRuns(all.filter((r) => r.name === item.name)))
+        .then((all) => setRuns(all.filter((r) => runBelongsToEnvironment(r, item.name))))
         .catch(() => setRuns([]));
+      listProjectReplicas(item.projectId)
+        .then(setReplicas)
+        .catch(() => setReplicas([]));
     },
     [addToast],
+  );
+
+  // Corre cada vez que se cambia de réplica con un environment ya seleccionado
+  // (sin esto, cambiar la réplica en el dropdown no reflejaría el historial
+  // de runs de esa réplica hasta volver a seleccionar el environment).
+  const handleReplicaChange = useCallback(
+    (nextReplicaId: string) => {
+      setReplicaId(nextReplicaId);
+      if (!active) return;
+      listEnvironmentRuns(active.projectId, nextReplicaId === ROOT_REPLICA ? undefined : nextReplicaId)
+        .then((all) => setRuns(all.filter((r) => runBelongsToEnvironment(r, active.name))))
+        .catch(() => setRuns([]));
+    },
+    [active],
   );
 
   const handleCreate = useCallback(
@@ -158,27 +183,27 @@ export function EnvironmentsPage(): React.ReactElement {
     if (!active) return;
     setRunning(true);
     try {
-      const { run_id } = await runEnvironmentByName(active.projectId, active.name);
+      const { run_id } = await runEnvironmentByName(active.projectId, active.name, apiReplicaId);
       navigate(`/pipeline/${run_id}`);
     } catch (err) {
       addToast(err instanceof Error ? err.message : 'Error al ejecutar el environment', 'error');
     } finally {
       setRunning(false);
     }
-  }, [active, addToast, navigate]);
+  }, [active, addToast, navigate, apiReplicaId]);
 
   const handleShutdown = useCallback(async () => {
     if (!active) return;
     setRunning(true);
     try {
-      const { run_id } = await shutdownEnvironmentByName(active.projectId, active.name);
+      const { run_id } = await shutdownEnvironmentByName(active.projectId, active.name, apiReplicaId);
       navigate(`/pipeline/${run_id}`);
     } catch (err) {
       addToast(err instanceof Error ? err.message : 'Error al apagar el environment', 'error');
     } finally {
       setRunning(false);
     }
-  }, [active, addToast, navigate]);
+  }, [active, addToast, navigate, apiReplicaId]);
 
   const projectNameById = new Map(projects.map((p) => [p.id, p.name]));
   const projectOptions = projects.map((p) => ({ label: p.name, value: p.id }));
@@ -251,6 +276,9 @@ export function EnvironmentsPage(): React.ReactElement {
             running={running}
             onRun={() => void handleRun()}
             onShutdown={() => void handleShutdown()}
+            replicas={replicas}
+            replicaId={replicaId}
+            onChangeReplica={handleReplicaChange}
             runs={runs}
             onOpenRun={(runId) => navigate(`/pipeline/${runId}`)}
             onBackToList={() => setMobileOpen(true)}

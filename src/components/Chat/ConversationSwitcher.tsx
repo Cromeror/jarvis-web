@@ -13,6 +13,7 @@ interface ConversationSwitcherProps {
   unreadSessionIds: Set<string>;
   onSelect: (sessionId: string) => void;
   onDelete: (sessionId: string) => void;
+  onRename: (sessionId: string, title: string) => void;
 }
 
 /** Trigger showing the active project — opens a popover to jump to any conversation, filterable by title or project. */
@@ -25,10 +26,25 @@ export function ConversationSwitcher({
   unreadSessionIds,
   onSelect,
   onDelete,
+  onRename,
 }: ConversationSwitcherProps): React.ReactElement {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
   const ref = useRef<HTMLDivElement>(null);
+
+  const startEditing = (session: ChatSession): void => {
+    setEditingSessionId(session.id);
+    setEditingTitle(session.title ?? '');
+  };
+
+  const commitEditing = (): void => {
+    const sessionId = editingSessionId;
+    const trimmed = editingTitle.trim();
+    setEditingSessionId(null);
+    if (sessionId && trimmed) onRename(sessionId, trimmed);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -40,7 +56,10 @@ export function ConversationSwitcher({
   }, [open]);
 
   useEffect(() => {
-    if (!open) setQuery('');
+    if (!open) {
+      setQuery('');
+      setEditingSessionId(null);
+    }
   }, [open]);
 
   const projectNameById = useMemo(() => new Map(projects.map((p) => [p.id, p.name])), [projects]);
@@ -85,50 +104,88 @@ export function ConversationSwitcher({
               const active = session.id === activeSessionId;
               const pending = pendingSessionIds.has(session.id);
               const unread = unreadSessionIds.has(session.id);
+              const editing = editingSessionId === session.id;
               return (
                 <div
                   key={session.id}
                   className={`group flex w-full items-center gap-1 rounded-lg ${active ? 'bg-indigo-50' : 'hover:bg-slate-50'}`}
                 >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setOpen(false);
-                      onSelect(session.id);
-                    }}
-                    className="flex min-w-0 flex-1 flex-col items-start gap-1 px-2 py-1.5 text-left"
-                  >
-                    <span className="flex w-full min-w-0 items-center gap-2">
-                      <span className="min-w-0 flex-1 truncate text-sm text-slate-700">{session.title ?? 'Nueva conversación'}</span>
-                      {pending && <Spinner />}
-                      {unread && !pending && (
-                        <span
-                          aria-label="Mensaje nuevo sin leer"
-                          title="Mensaje nuevo sin leer"
-                          className="h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-600"
-                        />
-                      )}
-                    </span>
-                    {projectName && (
-                      <span
-                        className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${toneForProject(projectName)}`}
-                      >
-                        {projectName}
+                  {editing ? (
+                    <input
+                      type="text"
+                      autoFocus
+                      value={editingTitle}
+                      onChange={(e) => setEditingTitle(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      onBlur={commitEditing}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          commitEditing();
+                        } else if (e.key === 'Escape') {
+                          e.preventDefault();
+                          setEditingSessionId(null);
+                        }
+                      }}
+                      className="min-w-0 flex-1 rounded-md border border-indigo-300 px-2 py-1.5 text-sm text-slate-700 outline-none"
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOpen(false);
+                        onSelect(session.id);
+                      }}
+                      className="flex min-w-0 flex-1 flex-col items-start gap-1 px-2 py-1.5 text-left"
+                    >
+                      <span className="flex w-full min-w-0 items-center gap-2">
+                        <span className="min-w-0 flex-1 truncate text-sm text-slate-700">{session.title ?? 'Nueva conversación'}</span>
+                        {pending && <Spinner />}
+                        {unread && !pending && (
+                          <span
+                            aria-label="Mensaje nuevo sin leer"
+                            title="Mensaje nuevo sin leer"
+                            className="h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-600"
+                          />
+                        )}
                       </span>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete(session.id);
-                    }}
-                    aria-label="Eliminar conversación"
-                    title="Eliminar conversación"
-                    className="mr-1 shrink-0 rounded px-2 py-1 text-slate-400 opacity-0 transition-opacity hover:text-red-600 group-hover:opacity-100"
-                  >
-                    ×
-                  </button>
+                      {projectName && (
+                        <span
+                          className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${toneForProject(projectName)}`}
+                        >
+                          {projectName}
+                        </span>
+                      )}
+                    </button>
+                  )}
+                  {!editing && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startEditing(session);
+                      }}
+                      aria-label="Renombrar conversación"
+                      title="Renombrar conversación"
+                      className="shrink-0 rounded px-2 py-1 text-slate-400 opacity-0 transition-opacity hover:text-indigo-600 group-hover:opacity-100"
+                    >
+                      <i className="pi pi-pencil text-xs" />
+                    </button>
+                  )}
+                  {!editing && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(session.id);
+                      }}
+                      aria-label="Eliminar conversación"
+                      title="Eliminar conversación"
+                      className="mr-1 shrink-0 rounded px-2 py-1 text-slate-400 opacity-0 transition-opacity hover:text-red-600 group-hover:opacity-100"
+                    >
+                      ×
+                    </button>
+                  )}
                 </div>
               );
             })}

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { listProjects } from '../lib/projects-api.js';
 import type { ProjectSummary } from '../lib/projects-api.js';
-import { listPlans, launchPlan, approvePlan, getLatestPlanRun } from '../lib/plans-api.js';
+import { listPlans, launchPlan, approvePlan, deletePlan, getLatestPlanRun } from '../lib/plans-api.js';
 import type { PlanSummary, PlanStatus } from '../lib/plans-api.js';
 import { Toast, useToast } from '../components/ui/atoms/Toast.js';
 import { PillDropdown } from '../components/ui/atoms/PillDropdown.js';
@@ -142,6 +142,20 @@ export function PlansPage(): React.ReactElement {
     [navigate, addToast],
   );
 
+  const handleDelete = useCallback(
+    async (plan: PlanSummary) => {
+      if (!window.confirm(`¿Eliminar el plan '${plan.title}'?`)) return;
+      try {
+        await deletePlan(plan.id);
+        setPlans((prev) => prev.filter((p) => p.id !== plan.id));
+        setSelectedPlanId((id) => (id === plan.id ? null : id));
+      } catch (err) {
+        addToast(err instanceof Error ? err.message : 'Error al eliminar el plan', 'error');
+      }
+    },
+    [addToast],
+  );
+
   const handleViewProgress = useCallback(
     async (planId: string) => {
       try {
@@ -220,6 +234,7 @@ export function PlansPage(): React.ReactElement {
                 if (isLaunchable) void handleLaunch(plan.id, plan.status);
                 else void handleViewProgress(plan.id);
               }}
+              onDelete={plan.status === 'running' ? undefined : () => void handleDelete(plan)}
               selected={selectedPlanId === plan.id}
               onSelect={() => setSelectedPlanId((id) => (id === plan.id ? null : plan.id))}
             />

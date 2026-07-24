@@ -95,6 +95,12 @@ export async function updatePlan(
   return handleResponse<PlanDetail>(res);
 }
 
+/** DELETE /api/plans/:id */
+export async function deletePlan(planId: string): Promise<void> {
+  const res = await fetch(`/api/plans/${encodeURIComponent(planId)}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+}
+
 /** POST /api/plans/:id/approve */
 export async function approvePlan(planId: string): Promise<{ plan: PlanSummary }> {
   const res = await fetch(`/api/plans/${encodeURIComponent(planId)}/approve`, { method: 'POST' });

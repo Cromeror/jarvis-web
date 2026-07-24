@@ -2,22 +2,23 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Avatar } from 'primereact/avatar';
 import { startLogin, submitLoginCode, cancelLogin } from '../../lib/login-api.js';
 import { useLoginEvents } from '../../hooks/useLoginEvents.js';
+import { useAuth } from '../../hooks/useAuth.js';
 
-const LOGGED_IN_USER = 'SuperAdmin';
 const JARVIS_CREDENTIALS_DIR = '/home/cristobal/.claude-jarvis';
 
 /**
- * User account menu for the TopNav — logged-in user is hardcoded (no auth
- * system yet). Click opens a standard account dropdown; "Configuración"
- * opens a modal that drives a real `claude auth login` against the single
- * fixed Jarvis credentials dir (see @jarvis/login-runner) and shows its
- * progress live — no more picking between saved accounts, just
- * re-authenticating this one directory.
+ * User account menu for the TopNav. Click opens a standard account
+ * dropdown; "Configuración" opens a modal that drives a real
+ * `claude auth login` against the single fixed Jarvis credentials dir (see
+ * @jarvis/login-runner) and shows its progress live — no more picking
+ * between saved accounts, just re-authenticating this one directory.
  */
 export function AccountMenu(): React.ReactElement {
+  const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const username = user?.username ?? '?';
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -37,13 +38,14 @@ export function AccountMenu(): React.ReactElement {
         onClick={() => setMenuOpen((v) => !v)}
         className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-slate-800"
       >
-        <Avatar label={LOGGED_IN_USER.charAt(0)} shape="circle" className="bg-indigo-500! text-white!" />
+        <Avatar label={username.charAt(0).toUpperCase()} shape="circle" className="bg-indigo-500! text-white!" />
       </button>
 
       {menuOpen && (
         <div className="absolute right-0 top-full z-20 mt-1 w-52 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
           <div className="mb-1 border-b border-slate-100 px-2 pb-2">
-            <p className="text-sm font-medium text-slate-900">{LOGGED_IN_USER}</p>
+            <p className="text-sm font-medium text-slate-900">{username}</p>
+            {user && <p className="text-xs text-slate-400">{user.role === 'superadmin' ? 'Superadmin' : 'Usuario'}</p>}
           </div>
           <button
             type="button"
@@ -55,6 +57,17 @@ export function AccountMenu(): React.ReactElement {
           >
             <i className="pi pi-cog text-slate-400" />
             Configuración
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMenuOpen(false);
+              logout();
+            }}
+            className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+          >
+            <i className="pi pi-sign-out text-slate-400" />
+            Cerrar sesión
           </button>
         </div>
       )}

@@ -9,8 +9,10 @@ import {
   stopChatMessage,
   getChatMessages,
   deleteChatSession,
+  renameChatSession,
 } from '../lib/chat-api.js';
 import type { ChatSession, ChatMessage, ChatAttachmentInput } from '../lib/chat-api.js';
+import { useChatStream } from '../hooks/useChatStream.js';
 import { ChatWindow } from '../components/Chat/ChatWindow.js';
 import { PlanSidePanel } from '../components/Plan/PlanSidePanel.js';
 import { ChatPlansPanel } from '../components/Chat/ChatPlansPanel.js';
@@ -83,7 +85,11 @@ export function ChatPage(): React.ReactElement {
   const loadSessions = useCallback(
     (projectIds: string[]) => {
       Promise.all(projectIds.map((id) => listChatSessions(id)))
-        .then((results) => setSessions(results.flat()))
+        .then((results) =>
+          setSessions(
+            results.flat().sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()),
+          ),
+        )
         .catch((err: unknown) => {
           addToast(err instanceof Error ? err.message : 'Error al cargar conversaciones', 'error');
         });
@@ -164,6 +170,18 @@ export function ChatPage(): React.ReactElement {
       }
     },
     [activeSessionId, loadSessions, projectIds, addToast, navigate],
+  );
+
+  const handleRenameSession = useCallback(
+    async (sessionId: string, title: string) => {
+      try {
+        const updated = await renameChatSession(sessionId, title);
+        setSessions((prev) => prev.map((s) => (s.id === sessionId ? updated : s)));
+      } catch (err) {
+        addToast(err instanceof Error ? err.message : 'Error al renombrar la conversación', 'error');
+      }
+    },
+    [addToast],
   );
 
   const handleNewSession = useCallback(
@@ -263,6 +281,23 @@ export function ChatPage(): React.ReactElement {
     });
   }, [activeSessionId, addToast]);
 
+  // Fires when the SSE stream reports the in-flight turn settled — covers
+  // the case where THIS mount never sent the message itself (navigated away
+  // mid-turn and came back, or a hard reload), so there's no local `pending`
+  // promise around to refresh messages once it resolves.
+  const handleStreamDone = useCallback(() => {
+    if (!activeSessionId) return;
+    const doneSessionId = activeSessionId;
+    getChatMessages(doneSessionId)
+      .then((fresh) => patchSession(doneSessionId, { messages: fresh, pending: false }))
+      .catch((err: unknown) => {
+        addToast(err instanceof Error ? err.message : 'Error al cargar mensajes', 'error');
+      });
+    loadSessions(projectIds);
+  }, [activeSessionId, patchSession, loadSessions, projectIds, addToast]);
+
+  const { active: streamActive, liveText } = useChatStream(activeSessionId, handleStreamDone);
+
   const activeChat = activeSessionId ? chatBySession[activeSessionId] : undefined;
   const activeProjectId = useMemo(
     () => sessions.find((s) => s.id === activeSessionId)?.project_id ?? null,
@@ -289,7 +324,8 @@ export function ChatPage(): React.ReactElement {
       <div className="flex flex-1 overflow-hidden">
         <ChatWindow
           messages={activeChat?.messages ?? []}
-          pending={activeChat?.pending ?? false}
+          pending={(activeChat?.pending ?? false) || streamActive}
+          liveText={liveText}
           onSend={handleSend}
           onStop={handleStop}
           planMode={planMode}
@@ -303,6 +339,7 @@ export function ChatPage(): React.ReactElement {
           unreadSessionIds={unreadSessionIds}
           onSelectSession={selectSessionAndNavigate}
           onDeleteSession={(sessionId) => void handleDeleteSession(sessionId)}
+          onRenameSession={(sessionId, title) => void handleRenameSession(sessionId, title)}
           projects={projects}
           onNewSession={(projectId) => void handleNewSession(projectId)}
         />

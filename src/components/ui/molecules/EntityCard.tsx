@@ -13,7 +13,7 @@ interface EntityCardProps {
   meta?: string;
   actionLabel: string;
   onAction: () => void;
-  onMenu?: () => void;
+  onDelete?: () => void;
   /** Card-level click (selection). Kept separate from onAction, which stops propagation so it never fires this. */
   onSelect?: () => void;
   selected?: boolean;
@@ -33,7 +33,7 @@ export function EntityCard({
   meta,
   actionLabel,
   onAction,
-  onMenu,
+  onDelete,
   onSelect,
   selected = false,
 }: EntityCardProps): React.ReactElement {
@@ -52,16 +52,17 @@ export function EntityCard({
           <IconTile icon={icon} className={iconClassName} />
           <div className="flex items-center gap-2">
             <StatusBadge label={statusLabel} tone={statusTone} />
-            {onMenu && (
+            {onDelete && (
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onMenu();
+                  onDelete();
                 }}
-                className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                title="Eliminar"
+                className="rounded-md p-1 text-slate-400 hover:bg-red-50 hover:text-red-500"
               >
-                <i className="pi pi-ellipsis-v text-sm" />
+                <i className="pi pi-trash text-sm" />
               </button>
             )}
           </div>

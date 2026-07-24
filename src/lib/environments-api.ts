@@ -17,6 +17,38 @@ export interface EnvironmentRunSummary {
   finished_at: string | null;
 }
 
+/**
+ * A run belongs to an environment if its name matches exactly (an `Ejecutar`
+ * run) or matches the `stop` sequence's name (`packages/http-api/src/environments/environments.controller.ts`
+ * suffixes it `"${name} (stop)"` — an `Apagar` run). Filtering by exact
+ * equality alone silently drops every shutdown run from the history.
+ */
+export function runBelongsToEnvironment(run: EnvironmentRunSummary, name: string): boolean {
+  return run.name === name || run.name === `${name} (stop)`;
+}
+
+export type EnvironmentLifecycleStatus = 'never-run' | 'running' | 'stopped' | 'failed' | 'stopping';
+
+/**
+ * Derives whether an environment is currently up, down, or mid-transition
+ * from its most recent run (runs come back newest-first). A run whose name
+ * ends in " (stop)" is a shutdown run, not a startup run — its `completed`
+ * means the stack went DOWN, the opposite of a startup run's `completed`.
+ */
+export function deriveEnvironmentStatus(runs: EnvironmentRunSummary[]): EnvironmentLifecycleStatus {
+  const latest = runs[0];
+  if (!latest) return 'never-run';
+  const isStopRun = latest.name.endsWith(' (stop)');
+  if (isStopRun) {
+    if (latest.status === 'running') return 'stopping';
+    if (latest.status === 'failed') return 'failed';
+    return 'stopped';
+  }
+  if (latest.status === 'running' || latest.status === 'completed') return 'running';
+  if (latest.status === 'failed') return 'failed';
+  return 'stopped';
+}
+
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.text();
@@ -32,9 +64,10 @@ export async function listEnvironmentDefinitions(projectId: string): Promise<str
   return names;
 }
 
-/** GET /api/projects/:id/environment-runs — recent runs for this project, newest first */
-export async function listEnvironmentRuns(projectId: string): Promise<EnvironmentRunSummary[]> {
-  const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/environment-runs`);
+/** GET /api/projects/:id/environment-runs — recent runs for this project (or one of its replicas), newest first */
+export async function listEnvironmentRuns(projectId: string, replicaId?: string | null): Promise<EnvironmentRunSummary[]> {
+  const query = replicaId ? `?replica_id=${encodeURIComponent(replicaId)}` : '';
+  const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/environment-runs${query}`);
   return handleResponse<EnvironmentRunSummary[]>(res);
 }
 
@@ -44,9 +77,14 @@ export async function listAllEnvironmentRuns(): Promise<EnvironmentRunSummary[]>
   return handleResponse<EnvironmentRunSummary[]>(res);
 }
 
-/** POST /api/projects/:id/environments/:name/run — launch an environment check, fire-and-forget */
-export async function runEnvironmentByName(projectId: string, name: string): Promise<{ ok: true; run_id: string }> {
-  const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/environments/${encodeURIComponent(name)}/run`, {
+/** POST /api/projects/:id/environments/:name/run — launch an environment check against the project's root or one of its replicas, fire-and-forget */
+export async function runEnvironmentByName(
+  projectId: string,
+  name: string,
+  replicaId?: string | null,
+): Promise<{ ok: true; run_id: string }> {
+  const query = replicaId ? `?replica_id=${encodeURIComponent(replicaId)}` : '';
+  const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/environments/${encodeURIComponent(name)}/run${query}`, {
     method: 'POST',
   });
   return handleResponse<{ ok: true; run_id: string }>(res);
@@ -58,10 +96,16 @@ export async function runEnvironmentByName(projectId: string, name: string): Pro
  * environment — 400 if it has none). Distinct from stopPipelineRun in
  * pipelines-api.ts, which cancels whatever run is currently in flight.
  */
-export async function shutdownEnvironmentByName(projectId: string, name: string): Promise<{ ok: true; run_id: string }> {
-  const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/environments/${encodeURIComponent(name)}/shutdown`, {
-    method: 'POST',
-  });
+export async function shutdownEnvironmentByName(
+  projectId: string,
+  name: string,
+  replicaId?: string | null,
+): Promise<{ ok: true; run_id: string }> {
+  const query = replicaId ? `?replica_id=${encodeURIComponent(replicaId)}` : '';
+  const res = await fetch(
+    `/api/projects/${encodeURIComponent(projectId)}/environments/${encodeURIComponent(name)}/shutdown${query}`,
+    { method: 'POST' },
+  );
   return handleResponse<{ ok: true; run_id: string }>(res);
 }
 

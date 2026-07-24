@@ -10,6 +10,8 @@ import { ConversationSwitcher } from './ConversationSwitcher.js';
 interface ChatWindowProps {
   messages: ChatMessage[];
   pending: boolean;
+  /** Partial assistant text streamed so far for the turn in flight — empty when there's nothing to show yet (e.g. Jarvis is still only running tools). */
+  liveText?: string;
   onSend: (message: string, attachments?: File[], planMode?: boolean) => void;
   /** Cancels the turn currently in flight. Absent while there's nothing to stop. */
   onStop?: () => void;
@@ -26,6 +28,7 @@ interface ChatWindowProps {
   unreadSessionIds: Set<string>;
   onSelectSession: (sessionId: string) => void;
   onDeleteSession: (sessionId: string) => void;
+  onRenameSession: (sessionId: string, title: string) => void;
   projects: ProjectSummary[];
   onNewSession: (projectId: string) => void;
 }
@@ -33,6 +36,7 @@ interface ChatWindowProps {
 export function ChatWindow({
   messages,
   pending,
+  liveText,
   onSend,
   onStop,
   planMode,
@@ -46,6 +50,7 @@ export function ChatWindow({
   unreadSessionIds,
   onSelectSession,
   onDeleteSession,
+  onRenameSession,
   projects,
   onNewSession,
 }: ChatWindowProps): React.ReactElement {
@@ -68,6 +73,7 @@ export function ChatWindow({
             unreadSessionIds={unreadSessionIds}
             onSelect={onSelectSession}
             onDelete={onDeleteSession}
+            onRename={onRenameSession}
           />
         )}
         <div className="ml-auto">
@@ -105,18 +111,21 @@ export function ChatWindow({
             />
           ))}
           {pending && (
-            <div className="flex items-center gap-2 text-sm text-slate-400">
-              <Spinner />
-              Jarvis está pensando...
-              {onStop && (
-                <button
-                  type="button"
-                  onClick={onStop}
-                  className="ml-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-500 hover:bg-slate-50"
-                >
-                  Detener
-                </button>
-              )}
+            <div className="space-y-2">
+              {liveText && <MessageBubble role="assistant" content={liveText} />}
+              <div className="flex items-center gap-2 text-sm text-slate-400">
+                <Spinner />
+                Jarvis está pensando...
+                {onStop && (
+                  <button
+                    type="button"
+                    onClick={onStop}
+                    className="ml-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-500 hover:bg-slate-50"
+                  >
+                    Detener
+                  </button>
+                )}
+              </div>
             </div>
           )}
           {proposedPlanIds?.map((planId) => (

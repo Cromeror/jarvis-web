@@ -6,7 +6,10 @@ import { ProjectMapPage } from './pages/ProjectMapPage.js';
 import { ChatPage } from './pages/ChatPage.js';
 import { PlansPage } from './pages/PlansPage.js';
 import { EnvironmentsPage } from './pages/EnvironmentsPage.js';
+import { LoginPage } from './pages/LoginPage.js';
+import { UsersPage } from './pages/UsersPage.js';
 import { AppLayout } from './components/layout/AppLayout.js';
+import { RequireAuth } from './components/layout/RequireAuth.js';
 import { PipelineRunView } from './components/Pipeline/PipelineRunView.js';
 import { PlanRunView } from './components/Plan/PlanRunView.js';
 
@@ -33,20 +36,24 @@ import { PlanRunView } from './components/Plan/PlanRunView.js';
 export default function App(): React.ReactElement {
   return (
     <Routes>
-      <Route element={<AppLayout />}>
-        <Route path="/" element={<DashboardPage />} />
-        <Route path="/chat" element={<ChatPage />} />
-        <Route path="/chat/:projectId" element={<ChatPage />} />
-        <Route path="/chat/:projectId/:sessionId" element={<ChatPage />} />
-        <Route path="/plans" element={<PlansPage />} />
-        <Route path="/plans/:projectId" element={<PlansPage />} />
-        <Route path="/environments" element={<EnvironmentsPage />} />
-        <Route path="/environments/:projectId" element={<EnvironmentsPage />} />
-        <Route path="/pipeline/:runId" element={<PipelineRunView />} />
-        <Route path="/plan-runs/:runId" element={<PlanRunView />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route element={<RequireAuth />}>
+        <Route element={<AppLayout />}>
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/chat" element={<ChatPage />} />
+          <Route path="/chat/:projectId" element={<ChatPage />} />
+          <Route path="/chat/:projectId/:sessionId" element={<ChatPage />} />
+          <Route path="/plans" element={<PlansPage />} />
+          <Route path="/plans/:projectId" element={<PlansPage />} />
+          <Route path="/environments" element={<EnvironmentsPage />} />
+          <Route path="/environments/:projectId" element={<EnvironmentsPage />} />
+          <Route path="/users" element={<UsersPage />} />
+          <Route path="/pipeline/:runId" element={<PipelineRunView />} />
+          <Route path="/plan-runs/:runId" element={<PlanRunView />} />
+        </Route>
+        <Route path="/project/:projectId" element={<ProjectMapPage />} />
+        <Route path="/editor" element={<EditorPage />} />
       </Route>
-      <Route path="/project/:projectId" element={<ProjectMapPage />} />
-      <Route path="/editor" element={<EditorPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

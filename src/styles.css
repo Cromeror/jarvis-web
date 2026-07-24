@@ -112,6 +112,28 @@ html, body, #root {
 
 .no-results { padding: 12px; color: #888; font-size: 12px; text-align: center; }
 
+.sidenav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 14px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--sidenav-item-text);
+  background: var(--sidenav-item-bg);
+  border-radius: var(--sidenav-item-radius);
+}
+.sidenav-item:hover { background: color-mix(in srgb, var(--sidenav-item-text) 8%, transparent); }
+.sidenav-item-selected,
+.sidenav-item-selected:hover {
+  background: var(--sidenav-item-bg-selected);
+  color: var(--sidenav-item-text-selected);
+}
+.sidenav-item-icon { font-size: 16px; }
+.sidenav-item-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* Modal */
 .modal-overlay {
   position: fixed;
