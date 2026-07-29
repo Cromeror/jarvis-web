@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { EnvironmentRunSummary, EnvironmentLifecycleStatus } from '../../lib/environments-api.js';
 import { deriveEnvironmentStatus } from '../../lib/environments-api.js';
 import { ROOT_REPLICA } from '../../lib/project-replicas-api.js';
@@ -8,6 +8,7 @@ import { Spinner } from '../ui/atoms/Spinner.js';
 
 const STATUS_LABEL: Record<EnvironmentRunSummary['status'], string> = {
   running: '● corriendo',
+  checking: '● verificando',
   completed: '✔ ok',
   failed: '✘ falló',
   cancelled: '⏹ detenido',
@@ -15,6 +16,7 @@ const STATUS_LABEL: Record<EnvironmentRunSummary['status'], string> = {
 
 const STATUS_CLASS: Record<EnvironmentRunSummary['status'], string> = {
   running: 'text-indigo-600',
+  checking: 'text-amber-600',
   completed: 'text-emerald-600',
   failed: 'text-red-600',
   cancelled: 'text-slate-400',
@@ -23,6 +25,8 @@ const STATUS_CLASS: Record<EnvironmentRunSummary['status'], string> = {
 const LIFECYCLE_BADGE: Record<EnvironmentLifecycleStatus, { label: string; className: string }> = {
   'never-run': { label: 'SIN EJECUTAR', className: 'bg-slate-100 text-slate-500' },
   running: { label: '● CORRIENDO', className: 'bg-emerald-100 text-emerald-700' },
+  checking: { label: '● VERIFICANDO…', className: 'bg-amber-100 text-amber-700' },
+  connected: { label: '✔ CONECTADO', className: 'bg-emerald-100 text-emerald-700' },
   stopped: { label: 'DETENIDO', className: 'bg-slate-100 text-slate-500' },
   failed: { label: 'FALLÓ', className: 'bg-red-100 text-red-700' },
   stopping: { label: 'APAGANDO…', className: 'bg-amber-100 text-amber-700' },
@@ -53,6 +57,8 @@ interface EnvironmentDetailPanelProps {
   onRun: () => void;
   /** Runs this environment's `stop` sequence — a no-op error from the backend if it doesn't define one, since content is raw YAML here (no client-side parse to know upfront). */
   onShutdown: () => void;
+  /** Runs ONLY this environment's `check` sequence on demand — a no-op error from the backend if it doesn't define one. */
+  onCheck: () => void;
   /** Réplicas del proyecto activo — vacío si no tiene ninguna, en cuyo caso el selector no se muestra. */
   replicas: ProjectReplica[];
   /** ROOT_REPLICA = correr/apagar contra el root_path del proyecto (comportamiento de siempre). */
@@ -76,6 +82,7 @@ export function EnvironmentDetailPanel({
   running,
   onRun,
   onShutdown,
+  onCheck,
   replicas,
   replicaId,
   onChangeReplica,
@@ -91,7 +98,28 @@ export function EnvironmentDetailPanel({
 
   const lifecycleStatus = deriveEnvironmentStatus(runs);
   const badge = LIFECYCLE_BADGE[lifecycleStatus];
-  const uptime = lifecycleStatus === 'running' && runs[0] ? formatElapsed(runs[0].started_at) : null;
+  const isInFlight = lifecycleStatus === 'running' || lifecycleStatus === 'checking';
+
+  // Cronómetro en vivo (a diferencia de "hace Xd Yh" de un environment ya
+  // conectado, que no necesita recalcularse cada segundo) — mientras está
+  // levantando o verificando, el usuario quiere ver el tiempo corriendo.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!isInFlight) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [isInFlight]);
+
+  const elapsedLabel =
+    isInFlight && runs[0]
+      ? (() => {
+          const totalSeconds = Math.max(0, Math.floor((now - new Date(runs[0].started_at).getTime()) / 1000));
+          const minutes = Math.floor(totalSeconds / 60);
+          const seconds = totalSeconds % 60;
+          return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+        })()
+      : null;
+  const uptime = lifecycleStatus === 'connected' && runs[0] ? formatElapsed(runs[0].started_at) : null;
 
   const handleCopy = () => {
     void navigator.clipboard.writeText(content).then(() => {
@@ -122,6 +150,7 @@ export function EnvironmentDetailPanel({
             <div className="text-xs text-slate-400">
               {projectName}
               {uptime && <> · hace {uptime}</>}
+              {elapsedLabel && <> · {elapsedLabel}</>}
             </div>
           </div>
           {replicas.length > 0 && (
@@ -151,6 +180,15 @@ export function EnvironmentDetailPanel({
           >
             {running && <Spinner className="h-3.5 w-3.5" />}
             Ejecutar
+          </button>
+          <button
+            type="button"
+            onClick={onCheck}
+            disabled={running || dirty}
+            title={dirty ? 'Guardá los cambios antes de verificar' : 'Corre el bloque "check" del YAML, si lo define'}
+            className="flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          >
+            Verificar
           </button>
           <button
             type="button"

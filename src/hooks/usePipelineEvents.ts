@@ -20,7 +20,7 @@ export interface PipelineRunSnapshot {
   project_id: string | null;
   name: string;
   yaml_path: string;
-  status: 'running' | 'completed' | 'failed' | 'cancelled';
+  status: 'running' | 'checking' | 'completed' | 'failed' | 'cancelled';
   started_at: string;
   finished_at: string | null;
 }
@@ -30,12 +30,16 @@ interface StepUpdatedEvent {
   step: PipelineStepEvent;
 }
 
+interface RunCheckingEvent {
+  event: 'run_checking';
+}
+
 interface RunFinishedEvent {
   event: 'run_finished';
   status: 'completed' | 'failed' | 'cancelled';
 }
 
-type PipelineSseEvent = StepUpdatedEvent | RunFinishedEvent;
+type PipelineSseEvent = StepUpdatedEvent | RunCheckingEvent | RunFinishedEvent;
 
 /**
  * Subscribes to real-time progress for a pipeline run via SSE
@@ -44,7 +48,8 @@ type PipelineSseEvent = StepUpdatedEvent | RunFinishedEvent;
  */
 export function usePipelineEvents(runId: string | null) {
   const [steps, setSteps] = useState<PipelineStepEvent[]>([]);
-  const [runStatus, setRunStatus] = useState<'running' | 'completed' | 'failed' | 'cancelled'>('running');
+  const [runStatus, setRunStatus] = useState<'running' | 'checking' | 'completed' | 'failed' | 'cancelled'>('running');
+  const [startedAt, setStartedAt] = useState<string | null>(null);
 
   useEffect(() => {
     if (!runId) return;
@@ -57,6 +62,7 @@ export function usePipelineEvents(runId: string | null) {
         if (cancelled || !data) return;
         setSteps(data.steps);
         setRunStatus(data.run.status);
+        setStartedAt(data.run.started_at);
       })
       .catch(() => { /* snapshot best-effort — SSE will still fill in state */ });
 
@@ -72,6 +78,8 @@ export function usePipelineEvents(runId: string | null) {
             next[idx] = data.step;
             return next;
           });
+        } else if (data.event === 'run_checking') {
+          setRunStatus('checking');
         } else if (data.event === 'run_finished') {
           setRunStatus(data.status);
           es.close();
@@ -85,5 +93,5 @@ export function usePipelineEvents(runId: string | null) {
     };
   }, [runId]);
 
-  return { steps, runStatus };
+  return { steps, runStatus, startedAt };
 }

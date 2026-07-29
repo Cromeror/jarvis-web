@@ -11,9 +11,9 @@ function readInitial(key: string): boolean {
 }
 
 /**
- * Shared collapse/expand state for side panels (SideNav, file trees, etc.),
- * persisted per `key` in localStorage so the panel stays in the state the
- * user left it across reloads and route changes.
+ * Shared collapse/expand state for side panels (AppSidebar2, file trees,
+ * etc.), persisted per `key` in localStorage so the panel stays in the
+ * state the user left it across reloads and route changes.
  */
 export function useCollapsible(key: string): [boolean, () => void] {
   const [collapsed, setCollapsed] = useState(() => readInitial(key));

@@ -12,6 +12,7 @@ import { AppLayout } from './components/layout/AppLayout.js';
 import { RequireAuth } from './components/layout/RequireAuth.js';
 import { PipelineRunView } from './components/Pipeline/PipelineRunView.js';
 import { PlanRunView } from './components/Plan/PlanRunView.js';
+import { Sidebar2PreviewPage } from './pages/Sidebar2PreviewPage.js';
 
 /**
  * Root app component. Routing uses react-router — real paths, no query
@@ -30,6 +31,10 @@ import { PlanRunView } from './components/Plan/PlanRunView.js';
  *   /project/:projectId      → ProjectMapPage
  *   /editor?file=<path>      → EditorPage (file kept as query param — it's
  *                              not a route, just which file is open)
+ *   /design-system/sidebar2  → Sidebar2PreviewPage (sandbox del design
+ *                              system nuevo portado desde Figma; fuera de
+ *                              RequireAuth a propósito — no depende de
+ *                              datos reales — y sin link en ningún nav)
  *   /pipeline/:runId         → AppLayout > PipelineRunView (real-time pipeline progress)
  *   /plan-runs/:runId        → AppLayout > PlanRunView (real-time plan progress, parallel by layer)
  */
@@ -54,6 +59,7 @@ export default function App(): React.ReactElement {
         <Route path="/project/:projectId" element={<ProjectMapPage />} />
         <Route path="/editor" element={<EditorPage />} />
       </Route>
+      <Route path="/design-system/sidebar2" element={<Sidebar2PreviewPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

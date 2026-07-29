@@ -5,7 +5,7 @@
  * checks for things that stay running, not build/deploy tasks).
  */
 
-export type EnvironmentRunStatus = 'running' | 'completed' | 'failed' | 'cancelled';
+export type EnvironmentRunStatus = 'running' | 'checking' | 'completed' | 'failed' | 'cancelled';
 
 export interface EnvironmentRunSummary {
   id: string;
@@ -19,32 +19,57 @@ export interface EnvironmentRunSummary {
 
 /**
  * A run belongs to an environment if its name matches exactly (an `Ejecutar`
- * run) or matches the `stop` sequence's name (`packages/http-api/src/environments/environments.controller.ts`
- * suffixes it `"${name} (stop)"` — an `Apagar` run). Filtering by exact
- * equality alone silently drops every shutdown run from the history.
+ * run), the `stop` sequence's name (`packages/http-api/src/environments/environments.controller.ts`
+ * suffixes it `"${name} (stop)"` — an `Apagar` run), or the standalone
+ * `check` sequence's name (`"${name} (check)"` — a `Verificar` run).
+ * Filtering by exact equality alone silently drops shutdown/check runs from
+ * the history.
  */
 export function runBelongsToEnvironment(run: EnvironmentRunSummary, name: string): boolean {
-  return run.name === name || run.name === `${name} (stop)`;
+  return run.name === name || run.name === `${name} (stop)` || run.name === `${name} (check)`;
 }
 
-export type EnvironmentLifecycleStatus = 'never-run' | 'running' | 'stopped' | 'failed' | 'stopping';
+export type EnvironmentLifecycleStatus = 'never-run' | 'running' | 'checking' | 'connected' | 'stopped' | 'failed' | 'stopping';
 
 /**
  * Derives whether an environment is currently up, down, or mid-transition
  * from its most recent run (runs come back newest-first). A run whose name
  * ends in " (stop)" is a shutdown run, not a startup run — its `completed`
  * means the stack went DOWN, the opposite of a startup run's `completed`.
+ * A run ending in " (check)" is a standalone health check (the "Verificar"
+ * button), not a startup run either.
+ *
+ * `running`/`checking` cover a startup run still going through its `steps`
+ * or `check` phase (see PipelineRunStatus in @jarvis/storage — a run sits in
+ * `checking` between `steps` succeeding and its `check` sequence finishing).
+ * `connected` is the terminal "known healthy" state: a startup or standalone
+ * check run that reached `completed` — distinct from the pre-health-check
+ * `running` naming used elsewhere so the UI can say "conectado" only once a
+ * real check passed (or, for an environment with no `check` defined, as soon
+ * as `steps` completes — completed is completed either way).
  */
 export function deriveEnvironmentStatus(runs: EnvironmentRunSummary[]): EnvironmentLifecycleStatus {
   const latest = runs[0];
   if (!latest) return 'never-run';
   const isStopRun = latest.name.endsWith(' (stop)');
+  const isCheckRun = latest.name.endsWith(' (check)');
+
   if (isStopRun) {
-    if (latest.status === 'running') return 'stopping';
+    if (latest.status === 'running' || latest.status === 'checking') return 'stopping';
     if (latest.status === 'failed') return 'failed';
     return 'stopped';
   }
-  if (latest.status === 'running' || latest.status === 'completed') return 'running';
+
+  if (isCheckRun) {
+    if (latest.status === 'checking' || latest.status === 'running') return 'checking';
+    if (latest.status === 'completed') return 'connected';
+    if (latest.status === 'failed') return 'failed';
+    return 'stopped';
+  }
+
+  if (latest.status === 'running') return 'running';
+  if (latest.status === 'checking') return 'checking';
+  if (latest.status === 'completed') return 'connected';
   if (latest.status === 'failed') return 'failed';
   return 'stopped';
 }
@@ -104,6 +129,25 @@ export async function shutdownEnvironmentByName(
   const query = replicaId ? `?replica_id=${encodeURIComponent(replicaId)}` : '';
   const res = await fetch(
     `/api/projects/${encodeURIComponent(projectId)}/environments/${encodeURIComponent(name)}/shutdown${query}`,
+    { method: 'POST' },
+  );
+  return handleResponse<{ ok: true; run_id: string }>(res);
+}
+
+/**
+ * POST /api/projects/:id/environments/:name/check — runs ONLY this
+ * environment's `check` sequence on demand (the "Verificar" button),
+ * without re-running `steps` first. 400 if the environment has no `check`
+ * defined.
+ */
+export async function checkEnvironmentByName(
+  projectId: string,
+  name: string,
+  replicaId?: string | null,
+): Promise<{ ok: true; run_id: string }> {
+  const query = replicaId ? `?replica_id=${encodeURIComponent(replicaId)}` : '';
+  const res = await fetch(
+    `/api/projects/${encodeURIComponent(projectId)}/environments/${encodeURIComponent(name)}/check${query}`,
     { method: 'POST' },
   );
   return handleResponse<{ ok: true; run_id: string }>(res);

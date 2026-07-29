@@ -9,6 +9,7 @@ const POLL_MS = 5000;
 
 const STATUS_LABEL: Record<EnvironmentRunSummary['status'], string> = {
   running: '● corriendo',
+  checking: '● verificando',
   completed: '✔ ok',
   failed: '✘ falló',
   cancelled: '⏹ detenido',
@@ -16,6 +17,7 @@ const STATUS_LABEL: Record<EnvironmentRunSummary['status'], string> = {
 
 const STATUS_CLASS: Record<EnvironmentRunSummary['status'], string> = {
   running: 'text-indigo-600',
+  checking: 'text-amber-600',
   completed: 'text-emerald-600',
   failed: 'text-red-600',
   cancelled: 'text-slate-400',
@@ -47,7 +49,7 @@ export function EnvironmentsMenu(): React.ReactElement {
     return () => clearInterval(id);
   }, [refresh]);
 
-  const runningRuns = runs.filter((r) => r.status === 'running');
+  const runningRuns = runs.filter((r) => r.status === 'running' || r.status === 'checking');
 
   return (
     <div className="relative">

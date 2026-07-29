@@ -66,12 +66,14 @@
    * Semánticos — un trío bg/text/border por variante de botón, calculado
    * con color-mix() directo sobre el Foundation (nada de tokens -light/
    * -dark sueltos). Patrón sacado de las 4 variantes de referencia
-   * (Primary/Secondary/Inverted/Outlined): cada variante mezcla su color
+   * (Primary/Secondary/Neutral/Outlined): cada variante mezcla su color
    * de marca con blanco o negro para el fondo, y reusa ese mismo tinte
    * como texto en la variante opuesta (p.ej. el tinte claro de Primary es
    * el texto de Secondary y el borde de Outlined).
    */
   --btn-radius: var(--radius-full);
+  /* Reuses the existing brand-accent ramp (see --color-indigo-* above) instead of a one-off color — same token already marks "active" elsewhere (nav, avatar). */
+  --btn-focus-ring: var(--color-indigo-500);
 
   --btn-primary-bg: color-mix(in srgb, var(--color-primary) 40%, var(--color-white));
   --btn-primary-text: var(--color-black);
@@ -81,9 +83,9 @@
   --btn-secondary-text: var(--btn-primary-bg);
   --btn-secondary-border: var(--btn-secondary-bg);
 
-  --btn-inverted-bg: color-mix(in srgb, var(--color-neutral) 20%, var(--color-white));
-  --btn-inverted-text: var(--color-black);
-  --btn-inverted-border: var(--color-neutral);
+  --btn-neutral-bg: color-mix(in srgb, var(--color-neutral) 20%, var(--color-white));
+  --btn-neutral-text: var(--color-black);
+  --btn-neutral-border: var(--color-neutral);
 
   --btn-outlined-bg: transparent;
   --btn-outlined-text: var(--color-black);
@@ -104,28 +106,241 @@
   --sidebar-item-radius: var(--radius-full);
 
   /*
-   * Semánticos — SideNavItem (Dashboard/Chat/Planes/Environments, la nav
-   * global). Propios, no comparte los de SidebarItem — son componentes
-   * distintos y cada uno debe poder cambiar de tema sin afectar al otro.
+   * Semánticos — Sidebar2 (rail "DBoard V1.1.X" de Figma, componentes
+   * nuevos bajo ui/atoms|molecules|organisms/Sidebar2*, reemplaza a
+   * SideNav/SideNavItem como nav global — ver AppSidebar2). Namespace
+   * propio, no toca --sidebar-item-* — mismo criterio de antes: cada
+   * familia de componentes cambia de tema sin afectar a las otras.
+   * Valores tomados 1:1 del frame de Figma (node 6940:83), tamaño "lg"
+   * (única variante de tamaño presente en ese frame), y re-verificados contra
+   * las Variables reales del archivo vía `get_variable_defs` (namespace
+   * `Sidebar/*`: bg-from/to, border, radius, accent-default, item/radius,
+   * item/icon-default, item/icon-active, item/icon-on-accent, item/text-default,
+   * lg/gap, lg/padding, lg/padding-v, lg/item/gap, lg/item/padding-v — todas
+   * bindeadas 1:1 abajo). `--sidebar2-item-active-bg`/`--sidebar2-item-text-active`
+   * son la excepción: ningún ítem de este frame se renderiza en estado activo,
+   * así que esas dos no aparecen bindeadas en `get_variable_defs` — quedan como
+   * valores literales (blanco/negro), consistentes con `item/icon-active`
+   * (#000000, sí confirmada) pero sin una Variable Figma propia verificada.
+   * `--sidebar2-bg-base` es agregado, no viene del frame: en Figma ese
+   * gradiente rgba(13,13,13,x) flota sobre el fondo naranja vibrante del
+   * canvas — en la app real el fondo detrás del rail es blanco, así que sin
+   * una base sólida oscura el gradiente se ve gris lavado en vez de un panel
+   * oscuro.
    */
-  --sidenav-item-bg: transparent;
-  --sidenav-item-text: var(--color-white);
-  --sidenav-item-bg-selected: var(--color-primary);
-  --sidenav-item-text-selected: var(--color-white);
-  --sidenav-item-radius: var(--radius-full);
-}
+  --sidebar2-bg-base: #0d0d0d;
+  --sidebar2-bg-from: rgba(13, 13, 13, 0.1);
+  --sidebar2-bg-to: rgba(13, 13, 13, 0.5);
+  --sidebar2-border: #0d0d0d;
+  --sidebar2-radius: 14px;
+  --sidebar2-accent-default: #f97316;
+  --sidebar2-item-radius: 8px;
+  --sidebar2-item-active-bg: var(--color-white);
+  --sidebar2-item-text-active: var(--color-black);
+  --sidebar2-item-text-default: var(--color-white);
+  --sidebar2-item-icon-default: #4d4d4d;
+  --sidebar2-item-icon-active: #000000;
+  --sidebar2-item-icon-on-accent: var(--color-white);
+  --sidebar2-lg-gap: 4px;
+  --sidebar2-lg-padding: 8px;
+  --sidebar2-lg-padding-v: 16px;
+  --sidebar2-lg-item-gap: 10px;
+  --sidebar2-lg-item-padding-v: 15px;
 
-/*
- * SideNavItem renderiza un <a> (vía NavLink) y el preflight de Tailwind
- * trae `a { color: inherit }` en su layer `base` — con el orden declarado
- * arriba (`legacy, theme, base, ...`), `base` pisa a `legacy` (donde vive
- * .sidenav-item en styles.css) sin importar la especificidad, así que el
- * color de texto nunca llegaba a pintarse. Unlayered a propósito, mismo
- * motivo que el bloque de --text-* de abajo: una regla sin layer gana
- * siempre, sin importar el orden de @layer.
- */
-.sidenav-item { color: var(--sidenav-item-text); }
-.sidenav-item-selected { color: var(--sidenav-item-text-selected); }
+  /*
+   * Semánticos — CardBase (átomo "DBoard V1.1.X" de Figma, node 7054:259).
+   * Namespace propio, mismo criterio que --sidebar2-*: la superficie de
+   * card no debe cambiar si mañana cambia el tema del sidebar. Valores
+   * tomados 1:1 del frame de Figma; el content slot que muestra el frame
+   * (388x133) es solo el tamaño de esa instancia de ejemplo, no una medida
+   * intrínseca del componente — CardBase no fija width/height.
+   */
+  /*
+   * --card-bg-base es agregado, no viene del frame — mismo motivo que
+   * --sidebar2-bg-base: el gradiente de arriba es rgba con poca opacidad
+   * (piensa un canvas de Figma neutro/blanco detrás), pero DashboardPage
+   * usa bg-slate-50 — sin una base sólida oscura debajo, el gradiente se
+   * ve gris lavado y el texto blanco/secundario queda casi ilegible.
+   */
+  --card-bg-base: #0d0d0d;
+  --card-bg-from: rgba(3, 3, 3, 0.2);
+  --card-bg-to: rgba(0, 0, 0, 0.3);
+  --card-border: rgba(255, 255, 255, 0.06);
+  --card-radius: 12px;
+  --card-gap-sm: 8px;
+  --card-padding-h: 16px;
+  --card-padding-v: 16px;
+  --card-text-secondary: #a89c94;
+
+  /*
+   * Semánticos — CardProject (molécula "DBoard V1.1.X" de Figma, node
+   * 3243:128808, ui/molecules/CardProject). Envuelve CardBase (gap "md",
+   * 12px) y agrega su propio contenido: fila de ambientes, título y meta.
+   * --card-gap es el gap de fila de CardProject, distinto de --card-gap-sm
+   * (el de CardBase / el gap interno de EnvironmentsRow y MetaRow) — ambos
+   * coexisten porque el frame de Figma los usa para separaciones distintas
+   * dentro del mismo componente. --card-env-inactive no viene del frame (el
+   * ejemplo solo muestra ambientes activos) — se alias a --card-text-secondary
+   * para no inventar un color fuera de esta paleta.
+   */
+  --card-gap: 12px;
+  --card-text-primary: var(--color-white);
+  --card-env-active: #22c55e;
+  --card-env-inactive: var(--card-text-secondary);
+  /*
+   * ChatsSection (agregado a CardProject en Figma, node 2778:70707, a
+   * pedido — reemplaza a MetaRow/integrations-skills). --card-gap cubre
+   * el espacio entre el label "N chats" y la lista (bindeado en Figma a
+   * "Card/Section/gap", que a su vez alias-ea a Card/gap: mismo token, no
+   * uno nuevo). --card-chats-gap es "spacing/2xs" (4px) de la escala
+   * Responsive del archivo — el único valor de esta sección sin un token
+   * "Card/*" propio, tomado del sistema de spacing global en vez de un
+   * número inventado.
+   */
+  --card-chats-gap: 4px;
+  /*
+   * Espacio extra entre EnvironmentsRow y ChatsSection — como ni Figma
+   * auto-layout ni CSS flex `gap` soportan un gap distinto entre un par
+   * puntual de hijos, se resuelve igual en ambos lados: un
+   * spacer/"chats-spacer" (Figma node 7165:602) insertado entre ambos, que
+   * se suma a los dos --card-gap (12px) que ya lo rodean. Ajustado a mano
+   * en Figma a 1px (desbindeado de "spacing/lg" — ya no seguía la escala,
+   * quedaba mucho): el resultado visual final es 12+1+12=25px de separación
+   * ahí vs. 12px en el resto de las filas.
+   */
+  --card-chats-section-gap: 1px;
+
+  /*
+   * Semánticos — Badge (átomo base "DBoard V1.1.X" de Figma, node 7117:206),
+   * 5 estados × 4 tamaños. Namespace propio: reemplaza a los tokens
+   * `--table2-badge-*` (Table2/RecentPipelinesTable2) y `--chatoptionsrail-badge-*`
+   * (ChatOptionsRail) — ambos terminaron siendo el mismo componente duplicado
+   * bajo namespaces distintos, confirmado 1:1 contra las Variables reales de
+   * Figma (`Badge/*`). Un solo color de texto para todos los estados/tamaños
+   * (--badge-text — coincide con --card-text-secondary, no es casualidad: es
+   * el mismo criterio "un solo color de texto" que ya usa Table2). Figma solo
+   * bindea variable de padding para el tamaño SM; XS/MD/LG son literales del
+   * frame — tokenizados igual acá por consistencia con el resto del archivo.
+   * Tamaño de fuente NO tokenizado (mismo criterio que el resto de los
+   * componentes: texto va literal en la clase Tailwind, no por variable).
+   */
+  --badge-text: #a89c94;
+  --badge-radius: 4px;
+  --badge-bg-success: #f0fdf4;
+  --badge-bg-error: #fff1f2;
+  --badge-bg-warning: #fffbeb;
+  --badge-bg-neutral: #f5f5f4;
+  --badge-bg-info: #ccd9f0;
+  --badge-xs-padding-h: 6px;
+  --badge-xs-padding-v: 2px;
+  --badge-sm-padding-h: 10px;
+  --badge-sm-padding-v: 4px;
+  --badge-md-padding-h: 12px;
+  --badge-md-padding-v: 6px;
+  --badge-lg-padding-h: 14px;
+  --badge-lg-padding-v: 8px;
+
+  /*
+   * Semánticos — Table (organismo genérico "DBoard V1.1.X" de Figma, node
+   * 7193:35628; la tabla en sí es genérica — RecentPipelinesTable2 fue solo
+   * el primer consumidor con contenido de dominio, no la razón del
+   * namespace). En Figma el token vive pulido como `Table/*` (sin sufijo de
+   * versión); el prefijo `--table2-*` quedó en código porque nació cuando
+   * todavía existía una tabla previa (el viejo DataTable, light/slate) con
+   * la que había que desambiguar — mismo criterio que --sidebar2-* y --card-*.
+   * Esa tabla vieja ya no existe: DataTable fue reemplazado por este mismo
+   * organismo (ver DataTable.tsx) y perdió el sufijo -2 al renombrarse,
+   * porque ya no hay nada con qué colisionar — el prefijo del token SÍ
+   * sigue con -2 porque también lo comparte RecentPipelinesTable2 (que
+   * mantiene su propio sufijo de componente) y renombrar el token de acá
+   * no aporta nada, solo sería más churn. Reusa --card-text-secondary para
+   * el texto de fila (así lo tiene el frame de Figma) y el átomo `Badge`
+   * para el status — ya no tokeniza su propio badge (ver bloque `--badge-*`
+   * arriba).
+   */
+  --table2-bg: rgba(34, 31, 29, 0.82);
+  --table2-border: #363230;
+  --table2-header-bg: #292524;
+  --table2-row-bg-alt: #262220;
+  --table2-row-border: #e7e5e4;
+  --table2-radius: 8px;
+  --table2-cell-padding-h: 20px;
+  --table2-header-padding-v: 10px;
+  --table2-row-padding-v: 14px;
+  --table2-cell-gap: 2px;
+
+  /*
+   * Semánticos — ChatOptionsRail (rail derecho del chat "DBoard V1.1.X" de Figma,
+   * nodes 7275:1331 expandido / 7277:35890 colapsado). Namespace propio, mismo
+   * criterio que --sidebar2-*, --card-* y --table2-*. Reusa --sidebar2-accent-default,
+   * --badge-bg-warning, --badge-bg-neutral, --card-text-secondary y
+   * --sidebar2-item-active-bg donde el valor de Figma coincide 1:1 (verificado).
+   * --chatoptionsrail-countbadge-bg-danger es el único color sin ningún equivalente
+   * en la paleta existente — el resto reusa var() o es spacing propio del frame.
+   * Ya no tokeniza su propio badge píldora (ver átomo `Badge`, bloque `--badge-*`).
+   */
+  --chatoptionsrail-bg-from: rgba(13, 13, 13, 0.1);
+  --chatoptionsrail-bg-to: rgba(13, 13, 13, 0.5);
+  --chatoptionsrail-radius: 14px;
+  --chatoptionsrail-padding-h: 12px;
+  --chatoptionsrail-padding-v: 16px;
+  --chatoptionsrail-gap: 16px;
+  --chatoptionsrail-panel-gap: 20px;
+  --chatoptionsrail-collapsed-gap: 4px;
+
+  --chatoptionsrail-header-text: rgba(255, 255, 255, 0.55);
+  --chatoptionsrail-header-text-strong: var(--color-white);
+
+  --chatoptionsrail-item-text-default: var(--color-white);
+  --chatoptionsrail-item-radius: 12px;
+  --chatoptionsrail-item-padding-h: 12px;
+  --chatoptionsrail-item-padding-v: 8px;
+  --chatoptionsrail-item-height: 33px;
+
+  --chatoptionsrail-focuscard-bg: var(--sidebar2-accent-default);
+  --chatoptionsrail-focuscard-radius: 16px;
+  --chatoptionsrail-focuscard-padding-h: 16px;
+  --chatoptionsrail-focuscard-padding-v: 12px;
+  --chatoptionsrail-focuscard-gap: 10px;
+  --chatoptionsrail-text-on-accent: rgba(255, 255, 255, 0.85);
+  --chatoptionsrail-text-on-accent-strong: var(--color-white);
+  --chatoptionsrail-timestamp-text: rgba(255, 255, 255, 0.8);
+
+  --chatoptionsrail-button-bg: var(--badge-bg-neutral);
+  --chatoptionsrail-button-border: #d6d3d1;
+  --chatoptionsrail-button-text: #1c1917;
+  --chatoptionsrail-button-radius: 8px;
+  --chatoptionsrail-button-padding-h: 8px;
+  --chatoptionsrail-button-padding-v: 6px;
+  --chatoptionsrail-button-gap: 4px;
+
+  --chatoptionsrail-row-bg-warning: var(--badge-bg-warning);
+  --chatoptionsrail-row-bg-neutral: var(--badge-bg-neutral);
+  --chatoptionsrail-row-radius: 8px;
+  --chatoptionsrail-row-padding: 10px;
+  --chatoptionsrail-row-gap: 6px;
+  --chatoptionsrail-row-text: #0f172a;
+
+  --chatoptionsrail-livequeue-bg: rgba(255, 255, 255, 0.05);
+  --chatoptionsrail-livequeue-radius: 8px;
+  --chatoptionsrail-livequeue-padding-h: 12px;
+  --chatoptionsrail-livequeue-padding-v: 10px;
+  --chatoptionsrail-livequeue-gap: 6px;
+  --chatoptionsrail-eventrow-gap: 8px;
+  --chatoptionsrail-eventrow-timestamp-text: rgba(255, 255, 255, 0.5);
+
+  --chatoptionsrail-iconbtn-size: 48px;
+  --chatoptionsrail-iconbtn-inner-size: 44px;
+  --chatoptionsrail-iconbtn-radius: 8px;
+  --chatoptionsrail-iconbtn-active-bg: var(--sidebar2-item-active-bg);
+  --chatoptionsrail-iconbtn-active-border: var(--chatoptionsrail-button-border);
+
+  --chatoptionsrail-countbadge-size: 16px;
+  --chatoptionsrail-countbadge-radius: 8px;
+  --chatoptionsrail-countbadge-bg-danger: #de3333;
+  --chatoptionsrail-countbadge-bg-accent: var(--sidebar2-accent-default);
+  --chatoptionsrail-countbadge-text: var(--color-white);
+}
 
 /*
  * html/body's font-size is fixed at 14px (styles.css), so Tailwind's rem-based

@@ -3,6 +3,12 @@
  * Spec §3.1/3.2, T8.
  */
 
+export interface ProjectRecentChat {
+  id: string;
+  title: string | null;
+  updated_at: string;
+}
+
 export interface ProjectSummary {
   id: string;
   name: string;
@@ -14,6 +20,9 @@ export interface ProjectSummary {
   skills_count: number;
   created_at: string;
   updated_at: string;
+  last_activity_at: string | null;
+  chats_count: number;
+  recent_chats: ProjectRecentChat[];
 }
 
 export type ContextFormat = 'yaml' | 'toon';

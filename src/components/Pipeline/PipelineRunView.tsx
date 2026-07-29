@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { usePipelineEvents } from '../../hooks/usePipelineEvents.js';
 import { stopPipelineRun } from '../../lib/pipelines-api.js';
@@ -6,16 +6,36 @@ import { stopPipelineRun } from '../../lib/pipelines-api.js';
 const STATUS_LABEL: Record<string, string> = {
   pending: '○ pendiente',
   running: '● corriendo',
+  checking: '● verificando',
   completed: '✔ completado',
   failed: '✘ falló',
   cancelled: '⏹ detenido',
 };
 
+/** "2m 14s" — contador en vivo, recalculado cada segundo mientras el run está en curso. */
+function formatDuration(sinceIso: string, nowMs: number): string {
+  const totalSeconds = Math.max(0, Math.floor((nowMs - new Date(sinceIso).getTime()) / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+}
+
 export function PipelineRunView(): React.ReactElement {
   const { runId } = useParams<{ runId: string }>();
-  const { steps, runStatus } = usePipelineEvents(runId ?? null);
+  const { steps, runStatus, startedAt } = usePipelineEvents(runId ?? null);
   const [stopping, setStopping] = useState(false);
   const [stopError, setStopError] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  const isInFlight = runStatus === 'running' || runStatus === 'checking';
+
+  useEffect(() => {
+    if (!isInFlight) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [isInFlight]);
+
+  const currentStep = steps.find((s) => s.status === 'running');
 
   const handleStop = (): void => {
     if (!runId) return;
@@ -40,7 +60,15 @@ export function PipelineRunView(): React.ReactElement {
       <h1 className="text-lg font-semibold text-slate-900">Pipeline run {runId}</h1>
       <p className="mt-1 flex items-center gap-3 text-sm text-slate-500">
         Estado: {STATUS_LABEL[runStatus] ?? runStatus}
-        {runStatus === 'running' && (
+        {isInFlight && startedAt && (
+          <span className="font-mono text-xs text-slate-400">{formatDuration(startedAt, now)}</span>
+        )}
+        {isInFlight && currentStep && (
+          <span className="text-xs text-slate-400">
+            paso actual: <code>{currentStep.step_id}</code>
+          </span>
+        )}
+        {isInFlight && (
           <button
             type="button"
             onClick={handleStop}

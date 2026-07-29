@@ -16,7 +16,7 @@ import { useChatStream } from '../hooks/useChatStream.js';
 import { ChatWindow } from '../components/Chat/ChatWindow.js';
 import { PlanSidePanel } from '../components/Plan/PlanSidePanel.js';
 import { ChatPlansPanel } from '../components/Chat/ChatPlansPanel.js';
-import { ChatOptionsRail } from '../components/layout/ChatOptionsRail.js';
+import { ChatOptionsRail } from '../components/ui/organisms/ChatOptionsRail.js';
 import { Toast, useToast } from '../components/ui/atoms/Toast.js';
 
 /**
@@ -199,7 +199,7 @@ export function ChatPage(): React.ReactElement {
     [loadSessions, projectIds, addToast, patchSession, navigate],
   );
 
-  // La ruta /chat/:projectId (si viene, sin sessionId) llega desde el ProjectCard del
+  // La ruta /chat/:projectId (si viene, sin sessionId) llega desde el CardProject del
   // dashboard — arranca directo una conversación nueva para ese proyecto.
   useEffect(() => {
     if (initialProjectId && !routeSessionId) void handleNewSession(initialProjectId);

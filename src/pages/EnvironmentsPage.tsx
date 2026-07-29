@@ -11,6 +11,7 @@ import {
   deleteEnvironmentDefinition,
   runEnvironmentByName,
   shutdownEnvironmentByName,
+  checkEnvironmentByName,
   runBelongsToEnvironment,
 } from '../lib/environments-api.js';
 import type { EnvironmentRunSummary } from '../lib/environments-api.js';
@@ -23,9 +24,13 @@ import { Toast, useToast } from '../components/ui/atoms/Toast.js';
 import { FilterPopover } from '../components/ui/atoms/FilterPopover.js';
 import { FilterIcon } from '../components/ui/atoms/FilterIcon.js';
 
-// `stop` es opcional a propósito — se incluye acá para que quede
-// descubrible (es la única "documentación" del formato que un usuario ve).
-const NEW_ENVIRONMENT_TEMPLATE = 'name: mi-environment\nsteps:\n  - run: docker compose ps\nstop:\n  - run: docker compose down\n';
+// `check` y `stop` son opcionales a propósito — se incluyen acá para que
+// queden descubribles (es la única "documentación" del formato que un
+// usuario ve). `check` debe salir con exit code 0 solo si el environment
+// está realmente sano — sin reintentos propios del runner, así que un
+// comando que necesite esperar debe reintentar puertas adentro.
+const NEW_ENVIRONMENT_TEMPLATE =
+  'name: mi-environment\nsteps:\n  - run: docker compose up -d\ncheck:\n  - run: docker compose ps --status running | grep -q .\nstop:\n  - run: docker compose down\n';
 
 /**
  * Environments view: definitions from every project (or a filtered subset)
@@ -205,6 +210,19 @@ export function EnvironmentsPage(): React.ReactElement {
     }
   }, [active, addToast, navigate, apiReplicaId]);
 
+  const handleCheck = useCallback(async () => {
+    if (!active) return;
+    setRunning(true);
+    try {
+      const { run_id } = await checkEnvironmentByName(active.projectId, active.name, apiReplicaId);
+      navigate(`/pipeline/${run_id}`);
+    } catch (err) {
+      addToast(err instanceof Error ? err.message : 'Error al verificar el environment', 'error');
+    } finally {
+      setRunning(false);
+    }
+  }, [active, addToast, navigate, apiReplicaId]);
+
   const projectNameById = new Map(projects.map((p) => [p.id, p.name]));
   const projectOptions = projects.map((p) => ({ label: p.name, value: p.id }));
   const activeKey = active ? `${active.projectId}/${active.name}` : null;
@@ -276,6 +294,7 @@ export function EnvironmentsPage(): React.ReactElement {
             running={running}
             onRun={() => void handleRun()}
             onShutdown={() => void handleShutdown()}
+            onCheck={() => void handleCheck()}
             replicas={replicas}
             replicaId={replicaId}
             onChangeReplica={handleReplicaChange}

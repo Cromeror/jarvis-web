@@ -26,32 +26,31 @@ export function NewSessionButton({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:border-indigo-300 hover:text-indigo-600"
+        className="rounded-md bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-200"
       >
-        <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
-          <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        </svg>
-        Nueva conversación
+        + Nuevo
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-30 mt-2 w-56 rounded-2xl border border-slate-200 bg-white p-2 shadow-lg">
-          <div className="mb-1 px-2 pt-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
+        <div className="absolute right-0 top-full z-30 mt-2 w-64 rounded-lg border border-slate-200 bg-white shadow-lg">
+          <div className="px-4 pb-1 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
             ¿En qué proyecto?
           </div>
-          {projects.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                onCreate(p.id);
-              }}
-              className="flex w-full items-center rounded-lg px-2 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50"
-            >
-              {p.name}
-            </button>
-          ))}
+          <div className="max-h-64 overflow-y-auto">
+            {projects.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  onCreate(p.id);
+                }}
+                className="flex w-full items-center border-b border-slate-100 px-4 py-2 text-left text-sm text-slate-700 last:border-b-0 hover:bg-slate-50"
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>

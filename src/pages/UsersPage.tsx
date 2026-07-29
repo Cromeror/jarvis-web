@@ -8,12 +8,12 @@ import type { UserSummary, UserRole } from '../lib/users-api.js';
 import { DataTable, type DataTableColumn } from '../components/ui/organisms/DataTable.js';
 
 function ProjectAccessBadges({ userProjectIds, projects }: { userProjectIds: string[]; projects: ProjectSummary[] }): React.ReactElement {
-  if (userProjectIds.length === 0) return <span className="text-xs text-slate-400">Sin proyectos asignados</span>;
+  if (userProjectIds.length === 0) return <span className="text-xs text-[var(--card-text-secondary)]">Sin proyectos asignados</span>;
   const names = userProjectIds.map((id) => projects.find((p) => p.id === id)?.name ?? id);
   return (
     <div className="flex flex-wrap gap-1">
       {names.map((name) => (
-        <span key={name} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+        <span key={name} className="rounded-full bg-[var(--badge-bg-neutral)] px-2 py-0.5 text-xs text-slate-600">
           {name}
         </span>
       ))}
@@ -191,12 +191,12 @@ export function UsersPage(): React.ReactElement {
   }
 
   const columns: Array<DataTableColumn<UserSummary>> = [
-    { key: 'username', header: 'Usuario', render: (u) => <span className="font-medium text-slate-900">{u.username}</span> },
+    { key: 'username', header: 'Usuario', render: (u) => <span className="font-medium text-[var(--card-text-secondary)]">{u.username}</span> },
     {
       key: 'role',
       header: 'Rol',
       render: (u) => (
-        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${u.role === 'superadmin' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}`}>
+        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${u.role === 'superadmin' ? 'bg-indigo-100 text-indigo-700' : 'bg-[var(--badge-bg-neutral)] text-slate-600'}`}>
           {u.role === 'superadmin' ? 'Superadmin' : 'Usuario'}
         </span>
       ),
@@ -204,7 +204,7 @@ export function UsersPage(): React.ReactElement {
     {
       key: 'projects',
       header: 'Proyectos',
-      render: (u) => (u.role === 'superadmin' ? <span className="text-xs text-slate-400">Todos</span> : <ProjectAccessBadges userProjectIds={u.project_ids} projects={projects} />),
+      render: (u) => (u.role === 'superadmin' ? <span className="text-xs text-[var(--card-text-secondary)]">Todos</span> : <ProjectAccessBadges userProjectIds={u.project_ids} projects={projects} />),
     },
     {
       key: 'actions',
@@ -212,10 +212,10 @@ export function UsersPage(): React.ReactElement {
       className: 'text-right',
       render: (u) => (
         <div className="flex justify-end gap-2">
-          <button type="button" onClick={() => setEditing(u)} className="rounded-lg px-2 py-1 text-xs text-slate-500 hover:bg-slate-100">
+          <button type="button" onClick={() => setEditing(u)} className="rounded-lg px-2 py-1 text-xs text-[var(--card-text-secondary)] hover:bg-white/10">
             Editar
           </button>
-          <button type="button" onClick={() => void handleDelete(u)} className="rounded-lg px-2 py-1 text-xs text-red-500 hover:bg-red-50">
+          <button type="button" onClick={() => void handleDelete(u)} className="rounded-lg px-2 py-1 text-xs text-red-400 hover:bg-red-500/10">
             Eliminar
           </button>
         </div>
