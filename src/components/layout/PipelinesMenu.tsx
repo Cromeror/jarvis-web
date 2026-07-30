@@ -4,6 +4,7 @@ import {
   listAllPipelineRuns,
   type PipelineRunSummary,
 } from '../../lib/pipelines-api.js';
+import { TopbarIconButton } from '../ui/molecules/TopbarIconButton.js';
 
 const POLL_MS = 5000;
 
@@ -22,7 +23,7 @@ const STATUS_CLASS: Record<PipelineRunSummary['status'], string> = {
 };
 
 /**
- * Pipelines button for the TopNav — always visible, shows runs across every
+ * Pipelines button for the Topbar — always visible, shows runs across every
  * project (not scoped to whichever :projectId is in the current route).
  * Hover shows a quick popover with runs currently in progress; click opens a
  * modal with the full recent run history. Polls on an interval since there's
@@ -53,19 +54,12 @@ export function PipelinesMenu(): React.ReactElement {
         onMouseEnter={() => setHovering(true)}
         onMouseLeave={() => setHovering(false)}
       >
-        <button
-          type="button"
+        <TopbarIconButton
+          icon="pipelines"
+          badgeCount={runningRuns.length}
           onClick={() => setModalOpen(true)}
           title="Pipelines"
-          className="relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
-        >
-          <i className="pi pi-bell" />
-          {runningRuns.length > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-indigo-500 px-1 text-[10px] font-semibold text-white">
-              {runningRuns.length}
-            </span>
-          )}
-        </button>
+        />
 
         {hovering && !modalOpen && (
           <div className="absolute right-0 top-full z-20 mt-1 w-64 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">

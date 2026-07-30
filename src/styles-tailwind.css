@@ -111,17 +111,20 @@
    * SideNav/SideNavItem como nav global — ver AppSidebar2). Namespace
    * propio, no toca --sidebar-item-* — mismo criterio de antes: cada
    * familia de componentes cambia de tema sin afectar a las otras.
-   * Valores tomados 1:1 del frame de Figma (node 6940:83), tamaño "lg"
-   * (única variante de tamaño presente en ese frame), y re-verificados contra
-   * las Variables reales del archivo vía `get_variable_defs` (namespace
+   * Valores tomados 1:1 del frame de Figma (node 6940:83) y re-verificados
+   * contra las Variables reales del archivo vía `get_variable_defs` (namespace
    * `Sidebar/*`: bg-from/to, border, radius, accent-default, item/radius,
    * item/icon-default, item/icon-active, item/icon-on-accent, item/text-default,
-   * lg/gap, lg/padding, lg/padding-v, lg/item/gap, lg/item/padding-v — todas
+   * item/active-bg, item/text-active, lg/gap, lg/padding, lg/padding-v, y
+   * {lg,md,sm}/item/{gap,padding-h,padding-v} — las 3 variantes de tamaño del
+   * componente `SidebarNavItem` (node 6999:248), auditado 2026-07-29, todas
    * bindeadas 1:1 abajo). `--sidebar2-item-active-bg`/`--sidebar2-item-text-active`
-   * son la excepción: ningún ítem de este frame se renderiza en estado activo,
-   * así que esas dos no aparecen bindeadas en `get_variable_defs` — quedan como
-   * valores literales (blanco/negro), consistentes con `item/icon-active`
-   * (#000000, sí confirmada) pero sin una Variable Figma propia verificada.
+   * SÍ están confirmadas contra Variables reales (`Sidebar/item/active-bg`
+   * #ffffff, `Sidebar/item/text-active` #000000) — la nota previa de "sin
+   * verificar" quedó obsoleta tras re-auditar el nodo del ítem directamente.
+   * Los paddings del estado *collapsed* (15/12/9px por lg/md/sm) no tienen
+   * Variable propia en Figma (son literales ahí también) — se resuelven como
+   * clases Tailwind condicionales en `Sidebar2IconButton`, no como CSS var.
    * `--sidebar2-bg-base` es agregado, no viene del frame: en Figma ese
    * gradiente rgba(13,13,13,x) flota sobre el fondo naranja vibrante del
    * canvas — en la app real el fondo detrás del rail es blanco, así que sin
@@ -145,7 +148,14 @@
   --sidebar2-lg-padding: 8px;
   --sidebar2-lg-padding-v: 16px;
   --sidebar2-lg-item-gap: 10px;
+  --sidebar2-lg-item-padding-h: 12px;
   --sidebar2-lg-item-padding-v: 15px;
+  --sidebar2-md-item-gap: 8px;
+  --sidebar2-md-item-padding-h: 10px;
+  --sidebar2-md-item-padding-v: 11px;
+  --sidebar2-sm-item-gap: 6px;
+  --sidebar2-sm-item-padding-h: 8px;
+  --sidebar2-sm-item-padding-v: 7px;
 
   /*
    * Semánticos — CardBase (átomo "DBoard V1.1.X" de Figma, node 7054:259).
@@ -181,12 +191,20 @@
    * coexisten porque el frame de Figma los usa para separaciones distintas
    * dentro del mismo componente. --card-env-inactive no viene del frame (el
    * ejemplo solo muestra ambientes activos) — se alias a --card-text-secondary
-   * para no inventar un color fuera de esta paleta.
+   * para no inventar un color fuera de esta paleta. --card-env-active alias-ea
+   * a --sidebar2-accent-default (naranja #f97316) — corregido desde un verde
+   * #22c55e que no coincidía con ningún fallback de Figma (el dot activo de
+   * EnvironmentsRow/EnvTags es naranja en los nodes 7057:232+ y 7501:1837+ del
+   * frame completo, node 6899:1729). El verde quedó separado como
+   * --railsemanticicon-success (ver bloque de abajo) porque RailSemanticIcon
+   * reusaba este mismo token para su ícono de éxito — un componente sin
+   * relación con ambientes que necesitaba seguir siendo verde.
    */
   --card-gap: 12px;
   --card-text-primary: var(--color-white);
-  --card-env-active: #22c55e;
+  --card-env-active: var(--sidebar2-accent-default);
   --card-env-inactive: var(--card-text-secondary);
+  --railsemanticicon-success: #22c55e;
   /*
    * ChatsSection (agregado a CardProject en Figma, node 2778:70707, a
    * pedido — reemplaza a MetaRow/integrations-skills). --card-gap cubre
@@ -258,7 +276,7 @@
    * para el status — ya no tokeniza su propio badge (ver bloque `--badge-*`
    * arriba).
    */
-  --table2-bg: rgba(34, 31, 29, 0.82);
+  --table2-bg: #221f1d;
   --table2-border: #363230;
   --table2-header-bg: #292524;
   --table2-row-bg-alt: #262220;
@@ -326,6 +344,8 @@
   --chatoptionsrail-livequeue-padding-h: 12px;
   --chatoptionsrail-livequeue-padding-v: 10px;
   --chatoptionsrail-livequeue-gap: 6px;
+  --chatoptionsrail-livequeue-empty-padding-v: 16px;
+  --chatoptionsrail-livequeue-empty-text: rgba(255, 255, 255, 0.5);
   --chatoptionsrail-eventrow-gap: 8px;
   --chatoptionsrail-eventrow-timestamp-text: rgba(255, 255, 255, 0.5);
 
@@ -340,6 +360,173 @@
   --chatoptionsrail-countbadge-bg-danger: #de3333;
   --chatoptionsrail-countbadge-bg-accent: var(--sidebar2-accent-default);
   --chatoptionsrail-countbadge-text: var(--color-white);
+
+  /*
+   * Semánticos — Topbar (barra superior "DBoard V1.1.X" de Figma, node
+   * 6963:42). Namespace propio, mismo criterio que el resto. Reusa
+   * --card-text-secondary, --sidebar2-accent-default y --table2-header-bg
+   * donde el valor de Figma coincide 1:1 (verificado con get_variable_defs).
+   */
+  --topbar-bg: rgba(13, 13, 13, 0.1);
+  --topbar-border: rgba(54, 50, 48, 0);
+  --topbar-radius: 8px;
+  --topbar-radius-top: 12px;
+  --topbar-padding-left: 32px;
+  --topbar-padding-right: 24px;
+  --topbar-gap: 8px;
+  --topbar-searchbar-bg: var(--table2-header-bg);
+  --topbar-searchbar-pad-h: 12px;
+  --topbar-text-secondary: var(--card-text-secondary);
+  --topbar-badge-fill: var(--sidebar2-accent-default);
+  --topbar-iconbtn-size: 36px;
+  --topbar-iconbtn-inner-size: 32px;
+
+  /*
+   * Semánticos — Button2 (átomo "DBoard V1.1.X" de Figma, node 7217:35730,
+   * variantes Primary MD / Secondary XS). No reemplaza a Button.tsx legado
+   * (5 consumidores activos, paleta color-mix distinta) — namespace propio.
+   */
+  --button2-primary-bg: var(--sidebar2-accent-default);
+  --button2-primary-text: var(--color-white);
+  --button2-secondary-bg: #1c1917;
+  --button2-secondary-text: var(--color-white);
+
+  /*
+   * Semánticos — Dropdown (átomo/organismo "DBoard V1.1.X" de Figma, node
+   * 2683:125159, "Dropdown" — 4 variantes de trigger Neutral/Primary/
+   * Secondary/Tertiary × 2 estados default/selected con menú abierto).
+   * primary/secondary reusan --button2-* (mismo hex, confirmado con
+   * get_variable_defs); tertiary reusa el gradiente de --buttonicon-tertiary-*
+   * (mismo violeta→rosa→naranja). neutral-bg (#e7e5e4) y text (#020819) no
+   * tenían equivalente exacto en ningún token existente — únicos literales
+   * nuevos. La fila resaltada del menú abierto ("surface-selected") reusa
+   * --sidebar2-accent-default, mismo naranja que primary-bg.
+   */
+  --dropdown-primary-bg: var(--button2-primary-bg);
+  --dropdown-primary-text: var(--button2-primary-text);
+  --dropdown-secondary-bg: var(--button2-secondary-bg);
+  --dropdown-secondary-text: var(--button2-secondary-text);
+  --dropdown-neutral-bg: #e7e5e4;
+  --dropdown-neutral-border: var(--chatoptionsrail-button-border);
+  --dropdown-neutral-text: var(--chatoptionsrail-button-text);
+  --dropdown-tertiary-from: var(--buttonicon-tertiary-from);
+  --dropdown-tertiary-via: var(--buttonicon-tertiary-via);
+  --dropdown-tertiary-to: var(--buttonicon-tertiary-to);
+  --dropdown-tertiary-text: var(--color-white);
+  --dropdown-surface: var(--color-white);
+  --dropdown-surface-selected: var(--sidebar2-accent-default);
+  --dropdown-border: var(--table2-row-border);
+  --dropdown-text: #020819;
+  --dropdown-text-on-selected: var(--color-white);
+
+  /*
+   * Semánticos — StatusDot (Table/Infraestructura → replica-dots, Figma).
+   */
+  --statusdot-secondary-active: #1c1917;
+  --statusdot-secondary-inactive: #2e2926;
+
+  /*
+   * Semánticos — EnvTag (Table/Infraestructura → tag-prod/tag-staging,
+   * Figma). Pill con dot, distinto del env-row de CardProject (sin fondo).
+   */
+  --envtag-bg: rgba(255, 255, 255, 0.08);
+
+  /*
+   * Semánticos — App (fondo raíz del shell, Figma node 6899:1729/7224:858).
+   * Global a nivel de AppLayout (sidebar + su gutter), no solo DashboardPage:
+   * el rail Sidebar2 ya es oscuro en toda ruta, así que el fondo detrás de
+   * su padding también debe serlo. Las páginas en tema claro (Chat/Planes/
+   * Environments/Usuarios) se cubren con su propio bg-white opaco — no
+   * dependen de este fondo, así que aplicarlo global no las rompe.
+   */
+  --app-bg: #262626;
+
+  /*
+   * Semánticos — Layout/App Shell (template "DBoard V1.1.X" de Figma, node
+   * 7224:858, "Layout / App Shell" — el frame genérico pensado para
+   * duplicarse por página; ver ui/templates/AppShellTemplate.tsx). Content
+   * reusa el mismo degradé que Sidebar (--sidebar2-bg-from/to, mismo valor
+   * confirmado con get_variable_defs: Layout/content-bg-from = Sidebar/bg-from,
+   * Layout/content-bg-to = Sidebar/bg-to) — alias en vez de duplicar el
+   * literal. radius-top-left/right son 0 en Figma (el Content no redondea
+   * arriba, ya lo hace Topbar) — por eso solo se tokeniza el bottom.
+   */
+  --layout-content-bg-from: var(--sidebar2-bg-from);
+  --layout-content-bg-to: var(--sidebar2-bg-to);
+  --layout-radius-bottom: 12px;
+  --layout-gap: 8px;
+  --layout-padding: 8px;
+
+  /*
+   * Semánticos — ButtonIcon (átomo "DBoard V1.1.X" de Figma, node
+   * 2673:110900, variantes Type=Primary/Tertiary/Neutral/Ghost ×
+   * Size=LG/MD/SM/XS). Hover/Focus del frame se resuelven en código con
+   * pseudo-clases CSS, no como variantes propias — por eso no hay tokens
+   * separados por estado más que default/hover. Reusa
+   * --sidebar2-accent-default (Primary bg y anillo de foco, mismo #f97316
+   * confirmado con get_variable_defs contra `border/focus`),
+   * --badge-bg-neutral (Neutral bg, mismo #f5f5f4) y
+   * --chatoptionsrail-button-border/-text (Neutral border #d6d3d1 e ícono
+   * oscuro #1c1917) — todos coinciden 1:1, no se duplican como literales
+   * nuevos. El gradiente Tertiary (violet→rose→orange) y su variante hover
+   * (mismo gradiente a 82% de opacidad) no coinciden con ningún token
+   * existente — quedan como literales propios.
+   */
+  --buttonicon-radius: 8px;
+  --buttonicon-focus-border: var(--sidebar2-accent-default);
+  --buttonicon-primary-bg: var(--sidebar2-accent-default);
+  --buttonicon-primary-bg-hover: #ea580c;
+  --buttonicon-neutral-bg: var(--badge-bg-neutral);
+  --buttonicon-neutral-bg-hover: #e7e5e4;
+  --buttonicon-neutral-border: var(--chatoptionsrail-button-border);
+  --buttonicon-icon-dark: var(--chatoptionsrail-button-text);
+  --buttonicon-tertiary-from: #a78bfa;
+  --buttonicon-tertiary-via: #fb7185;
+  --buttonicon-tertiary-to: #fb923c;
+  --buttonicon-tertiary-from-hover: rgba(167, 139, 250, 0.82);
+  --buttonicon-tertiary-via-hover: rgba(251, 113, 133, 0.82);
+  --buttonicon-tertiary-to-hover: rgba(251, 146, 60, 0.82);
+
+  /*
+   * Semánticos — Tab (átomo "DBoard V1.1.X" de Figma, node 7624:36405,
+   * variantes Size=LG/MD/SM/XS × State=Default/Hover/Selected). Hover se
+   * resuelve en código con pseudo-clase CSS (mismo criterio que ButtonIcon),
+   * no hay token de hover separado. Selected sí es una prop real (estado de
+   * contenido persistente — "cuál proyecto tengo abierto" — no una
+   * interacción de mouse), con su propio color de texto + línea de acento.
+   * --tab-text-selected/--tab-underline-selected reusan
+   * --sidebar2-accent-default (mismo naranja, confirmado en Figma vía
+   * text/action y border/action). --tab-text-default/-hover son blanco a
+   * distinta opacidad, mismo criterio que ya usa ChatOptionsRail para texto
+   * sobre fondo oscuro (rgba(255,255,255,x) en vez de una escala de grises).
+   */
+  --tab-text-default: rgba(255, 255, 255, 0.6);
+  --tab-text-hover: rgba(255, 255, 255, 0.9);
+  --tab-text-selected: var(--sidebar2-accent-default);
+  --tab-underline-selected: var(--sidebar2-accent-default);
+  --tab-underline-height: 2px;
+
+  /*
+   * Semánticos — ChatContent (organismo "DBoard V1.1.X" de Figma, node
+   * 7658:1930 — el contenedor principal del chat: TopRow con los tabs de
+   * proyecto, estado vacío, barra de escribir). Reemplaza el bg-white
+   * heredado que tenía ChatWindow.tsx — no encajaba con el resto de la app
+   * (Sidebar2/ChatOptionsRail/Topbar), que es oscura en todos lados menos
+   * acá. Mismo patrón base+gradiente que --sidebar2-bg-base/-from/-to
+   * (--chatcontent-bg-base reusa el --app-bg ya existente en vez de
+   * duplicar el literal #262626). border/surface/text-muted son blanco a
+   * baja opacidad, mismo criterio que el resto de los tokens oscuros de
+   * esta app — no hay una escala de grises separada para esto.
+   */
+  --chatcontent-bg-base: var(--app-bg);
+  --chatcontent-bg-from: var(--sidebar2-bg-from);
+  --chatcontent-bg-to: var(--sidebar2-bg-to);
+  --chatcontent-radius: 12px;
+  --chatcontent-border-subtle: rgba(255, 255, 255, 0.06);
+  --chatcontent-surface-subtle: rgba(255, 255, 255, 0.1);
+  --chatcontent-text-muted: rgba(255, 255, 255, 0.5);
+  --chatcontent-input-bg: rgba(255, 255, 255, 0.05);
+  --chatcontent-input-border: rgba(255, 255, 255, 0.12);
 }
 
 /*

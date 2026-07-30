@@ -303,9 +303,17 @@ export function ChatPage(): React.ReactElement {
     () => sessions.find((s) => s.id === activeSessionId)?.project_id ?? null,
     [sessions, activeSessionId],
   );
-  const activeProjectName = useMemo(
-    () => (activeProjectId ? projects.find((p) => p.id === activeProjectId)?.name : undefined),
-    [activeProjectId, projects],
+  // Salto de tab de proyecto: siempre a la conversación más reciente de ese
+  // proyecto — el puntero se recalcula en cada click, nunca queda fijado a
+  // un id (ver project_chat_topbar_tabstrip en memoria).
+  const handleSelectProject = useCallback(
+    (projectId: string) => {
+      const mostRecent = sessions
+        .filter((s) => s.project_id === projectId)
+        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())[0];
+      if (mostRecent) selectSessionAndNavigate(mostRecent.id, projectId);
+    },
+    [sessions, selectSessionAndNavigate],
   );
   const pendingSessionIds = new Set(
     Object.entries(chatBySession)
@@ -319,7 +327,7 @@ export function ChatPage(): React.ReactElement {
   );
 
   return (
-    <div className="flex h-full flex-col bg-white" style={{ fontSize: '16px' }}>
+    <div className="flex h-full flex-col bg-[var(--app-bg)]" style={{ fontSize: '16px' }}>
       <Toast toasts={toasts} onDismiss={removeToast} />
       <div className="flex flex-1 overflow-hidden">
         <ChatWindow
@@ -332,12 +340,13 @@ export function ChatPage(): React.ReactElement {
           onTogglePlanMode={setPlanMode}
           proposedPlanIds={activeChat?.proposedPlanIds}
           onOpenPlan={setOpenPlanId}
-          activeProjectName={activeProjectName}
+          activeProjectId={activeProjectId}
           sessions={sessions}
           activeSessionId={activeSessionId}
           pendingSessionIds={pendingSessionIds}
           unreadSessionIds={unreadSessionIds}
           onSelectSession={selectSessionAndNavigate}
+          onSelectProject={handleSelectProject}
           onDeleteSession={(sessionId) => void handleDeleteSession(sessionId)}
           onRenameSession={(sessionId, title) => void handleRenameSession(sessionId, title)}
           projects={projects}

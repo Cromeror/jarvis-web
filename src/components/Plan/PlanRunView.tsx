@@ -41,7 +41,7 @@ export function PlanRunView(): React.ReactElement {
   const layers = groupByOverlap(steps);
 
   return (
-    <div className="plan-run-view h-full overflow-y-auto mx-auto max-w-3xl px-6 py-6">
+    <div className="plan-run-view h-full overflow-y-auto bg-white mx-auto max-w-3xl px-6 py-6">
       <h1 className="text-lg font-semibold text-slate-900">Plan run {runId}</h1>
       <p className="mt-1 text-sm text-slate-500">Estado: {STATUS_LABEL[runStatus] ?? runStatus}</p>
 

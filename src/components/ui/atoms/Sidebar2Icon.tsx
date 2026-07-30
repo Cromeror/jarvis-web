@@ -1,11 +1,19 @@
 import React from 'react';
 
 export type Sidebar2IconName = 'dashboard' | 'chat' | 'plans' | 'environments' | 'users' | 'settings';
+export type Sidebar2IconSize = 'sm' | 'md' | 'lg';
 
 interface Sidebar2IconProps {
   name: Sidebar2IconName;
+  size?: Sidebar2IconSize;
   className?: string;
 }
+
+const SIZE_CLASS: Record<Sidebar2IconSize, string> = {
+  sm: 'size-[14px]',
+  md: 'size-[16px]',
+  lg: 'size-[18px]',
+};
 
 /**
  * Glifos exportados de Figma (Iconos, node 6996:266), normalizados a
@@ -28,11 +36,16 @@ interface Sidebar2IconProps {
  * database): a diferencia de Users/Settings, esos dos SÍ son rectángulos
  * placeholder sin ícono real asignado en Figma (no instancias del
  * componente Iconos), así que no hay nada más fiel a lo que alinear.
+ *
+ * `size` (sm/md/lg → 14/16/18px) auditado 2026-07-29 contra SidebarNavItem
+ * (node 6999:248): son insets/viewBox vectoriales, escalan sin distorsión
+ * al cambiar solo la clase de tamaño del contenedor.
  */
-export function Sidebar2Icon({ name, className = '' }: Sidebar2IconProps): React.ReactElement {
+export function Sidebar2Icon({ name, size = 'lg', className = '' }: Sidebar2IconProps): React.ReactElement {
+  const sizeClass = SIZE_CLASS[size];
   if (name === 'dashboard') {
     return (
-      <span className={`relative block size-[18px] shrink-0 overflow-hidden ${className}`}>
+      <span className={`relative block ${sizeClass} shrink-0 overflow-hidden ${className}`}>
         <svg
           className="absolute"
           style={{ inset: '15.63%' }}
@@ -48,7 +61,7 @@ export function Sidebar2Icon({ name, className = '' }: Sidebar2IconProps): React
 
   if (name === 'chat') {
     return (
-      <span className={`relative block size-[18px] shrink-0 overflow-hidden ${className}`}>
+      <span className={`relative block ${sizeClass} shrink-0 overflow-hidden ${className}`}>
         <svg
           className="absolute"
           style={{ top: '18.75%', right: '9.38%', bottom: '6.25%', left: '9.37%' }}
@@ -65,7 +78,7 @@ export function Sidebar2Icon({ name, className = '' }: Sidebar2IconProps): React
   if (name === 'plans') {
     return (
       <svg
-        className={`block size-[18px] shrink-0 ${className}`}
+        className={`block ${sizeClass} shrink-0 ${className}`}
         viewBox="0 0 18 18"
         fill="currentColor"
         xmlns="http://www.w3.org/2000/svg"
@@ -77,7 +90,7 @@ export function Sidebar2Icon({ name, className = '' }: Sidebar2IconProps): React
 
   if (name === 'environments') {
     return (
-      <span className={`relative block size-[18px] shrink-0 ${className}`}>
+      <span className={`relative block ${sizeClass} shrink-0 ${className}`}>
         <svg
           className="absolute inset-y-0"
           style={{ left: '0.69px', width: '16.615px' }}
@@ -94,7 +107,7 @@ export function Sidebar2Icon({ name, className = '' }: Sidebar2IconProps): React
   if (name === 'users') {
     return (
       <svg
-        className={`block size-[18px] shrink-0 ${className}`}
+        className={`block ${sizeClass} shrink-0 ${className}`}
         viewBox="0 0 18 18"
         fill="currentColor"
         xmlns="http://www.w3.org/2000/svg"
@@ -107,7 +120,7 @@ export function Sidebar2Icon({ name, className = '' }: Sidebar2IconProps): React
 
   return (
     <svg
-      className={`block size-[18px] shrink-0 ${className}`}
+      className={`block ${sizeClass} shrink-0 ${className}`}
       viewBox="0 0 18 18"
       fill="currentColor"
       fillRule="evenodd"

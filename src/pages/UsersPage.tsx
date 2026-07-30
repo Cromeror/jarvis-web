@@ -6,6 +6,7 @@ import type { ProjectSummary } from '../lib/projects-api.js';
 import { listUsers, createUser, updateUser, deleteUser } from '../lib/users-api.js';
 import type { UserSummary, UserRole } from '../lib/users-api.js';
 import { DataTable, type DataTableColumn } from '../components/ui/organisms/DataTable.js';
+import { StatusBadge } from '../components/ui/atoms/StatusBadge.js';
 
 function ProjectAccessBadges({ userProjectIds, projects }: { userProjectIds: string[]; projects: ProjectSummary[] }): React.ReactElement {
   if (userProjectIds.length === 0) return <span className="text-xs text-[var(--card-text-secondary)]">Sin proyectos asignados</span>;
@@ -13,9 +14,7 @@ function ProjectAccessBadges({ userProjectIds, projects }: { userProjectIds: str
   return (
     <div className="flex flex-wrap gap-1">
       {names.map((name) => (
-        <span key={name} className="rounded-full bg-[var(--badge-bg-neutral)] px-2 py-0.5 text-xs text-slate-600">
-          {name}
-        </span>
+        <StatusBadge key={name} label={name} tone="neutral" />
       ))}
     </div>
   );
@@ -195,11 +194,7 @@ export function UsersPage(): React.ReactElement {
     {
       key: 'role',
       header: 'Rol',
-      render: (u) => (
-        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${u.role === 'superadmin' ? 'bg-indigo-100 text-indigo-700' : 'bg-[var(--badge-bg-neutral)] text-slate-600'}`}>
-          {u.role === 'superadmin' ? 'Superadmin' : 'Usuario'}
-        </span>
-      ),
+      render: (u) => <StatusBadge label={u.role === 'superadmin' ? 'Superadmin' : 'Usuario'} tone={u.role === 'superadmin' ? 'info' : 'neutral'} />,
     },
     {
       key: 'projects',
@@ -224,7 +219,7 @@ export function UsersPage(): React.ReactElement {
   ];
 
   return (
-    <div className="h-full overflow-y-auto p-6">
+    <div className="h-full overflow-y-auto bg-white p-6">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-lg font-semibold text-slate-900">Usuarios</h1>
         <button

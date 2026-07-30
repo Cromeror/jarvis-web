@@ -84,21 +84,21 @@ export function ChatInputBar({ disabled = false, onSend, planMode = false, onTog
   };
 
   return (
-    <div className="border-t border-slate-200 bg-white p-4">
+    <div className="border-t border-[var(--chatcontent-border-subtle)] p-4">
       <div className="mx-auto max-w-3xl">
         {attachments.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-2">
             {attachments.map((file, i) => (
               <span
                 key={`${file.name}-${i}`}
-                className="flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600"
+                className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-xs text-[var(--tab-text-hover)]"
               >
                 {file.name}
-                <span className="text-slate-400">{formatFileSize(file.size)}</span>
+                <span className="text-[var(--chatcontent-text-muted)]">{formatFileSize(file.size)}</span>
                 <button
                   type="button"
                   onClick={() => removeAttachment(i)}
-                  className="text-slate-400 hover:text-slate-700"
+                  className="text-[var(--chatcontent-text-muted)] hover:text-[var(--tab-text-hover)]"
                   aria-label={`Quitar ${file.name}`}
                 >
                   ×
@@ -108,9 +108,9 @@ export function ChatInputBar({ disabled = false, onSend, planMode = false, onTog
           </div>
         )}
         <div
-          className={`relative flex items-end gap-2 rounded-3xl border bg-white p-2 shadow-sm transition-colors ${
+          className={`relative flex items-end gap-2 rounded-3xl border bg-[var(--chatcontent-input-bg)] p-2 transition-colors ${
             showExpandButton ? 'pr-10' : ''
-          } ${focused ? 'border-indigo-300 ring-1 ring-indigo-100' : 'border-slate-200'}`}
+          } ${focused ? 'border-[var(--sidebar2-accent-default)]' : 'border-[var(--chatcontent-input-border)]'}`}
         >
           {showExpandButton && (
             <button
@@ -119,7 +119,7 @@ export function ChatInputBar({ disabled = false, onSend, planMode = false, onTog
               disabled={disabled}
               title="Expandir a pantalla completa"
               aria-label="Expandir a pantalla completa"
-              className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-slate-100 hover:text-slate-500 disabled:opacity-30"
+              className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-md text-[var(--chatcontent-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--tab-text-hover)] disabled:opacity-30"
             >
               <i className="pi pi-window-maximize text-xs" />
             </button>
@@ -140,7 +140,7 @@ export function ChatInputBar({ disabled = false, onSend, planMode = false, onTog
               fileInputRef.current?.click();
             }}
             disabled={disabled}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--tab-text-default)] transition-colors hover:bg-white/10 hover:text-[var(--tab-text-hover)] disabled:opacity-30"
             aria-label="Adjuntar archivo"
           >
             <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
@@ -163,7 +163,7 @@ export function ChatInputBar({ disabled = false, onSend, planMode = false, onTog
               className={`flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors disabled:opacity-30 ${
                 planMode
                   ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                  : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'
+                  : 'text-[var(--tab-text-default)] hover:bg-white/10 hover:text-[var(--tab-text-hover)]'
               }`}
             >
               <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
@@ -180,7 +180,7 @@ export function ChatInputBar({ disabled = false, onSend, planMode = false, onTog
           )}
           <textarea
             ref={textareaRef}
-            className="max-h-[40vh] flex-1 resize-none overflow-y-auto bg-transparent px-1 py-2 text-[16px] text-slate-900 placeholder:text-slate-400 focus:outline-none disabled:opacity-50"
+            className="max-h-[40vh] flex-1 resize-none overflow-y-auto bg-transparent px-1 py-2 text-[16px] text-white placeholder:text-[var(--chatcontent-text-muted)] focus:outline-none disabled:opacity-50"
             rows={1}
             placeholder={planMode ? 'Describí qué querés planear...' : 'Escribí un mensaje...'}
             value={value}
@@ -195,7 +195,7 @@ export function ChatInputBar({ disabled = false, onSend, planMode = false, onTog
             type="button"
             onClick={handleSend}
             disabled={disabled || (!value.trim() && attachments.length === 0)}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white transition-opacity hover:bg-indigo-700 disabled:opacity-30 disabled:hover:bg-indigo-600"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--sidebar2-accent-default)] text-white transition-colors hover:bg-[var(--buttonicon-primary-bg-hover)] disabled:opacity-30"
             aria-label="Enviar mensaje"
           >
             <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
@@ -206,14 +206,17 @@ export function ChatInputBar({ disabled = false, onSend, planMode = false, onTog
       </div>
 
       {expanded && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-white" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-            <span className="text-sm font-medium text-slate-500">Escribir mensaje</span>
+        <div
+          className="fixed inset-0 z-50 flex flex-col bg-[var(--chatcontent-bg-base)] bg-gradient-to-b from-[var(--chatcontent-bg-from)] to-[var(--chatcontent-bg-to)]"
+          style={{ paddingTop: 'env(safe-area-inset-top)' }}
+        >
+          <div className="flex items-center justify-between border-b border-[var(--chatcontent-border-subtle)] px-4 py-3">
+            <span className="text-sm font-medium text-[var(--chatcontent-text-muted)]">Escribir mensaje</span>
             <button
               type="button"
               onClick={() => setExpanded(false)}
               aria-label="Minimizar"
-              className="flex h-10 items-center gap-1.5 rounded-full border border-slate-200 px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"
+              className="flex h-10 items-center gap-1.5 rounded-full border border-[var(--chatcontent-border-subtle)] px-3 text-sm font-medium text-[var(--tab-text-hover)] hover:bg-white/10"
             >
               <i className="pi pi-window-minimize text-sm" />
               Minimizar
@@ -221,7 +224,7 @@ export function ChatInputBar({ disabled = false, onSend, planMode = false, onTog
           </div>
           <textarea
             ref={expandedTextareaRef}
-            className="flex-1 resize-none bg-transparent px-4 py-3 text-[17px] leading-relaxed text-slate-900 placeholder:text-slate-400 focus:outline-none"
+            className="flex-1 resize-none bg-transparent px-4 py-3 text-[17px] leading-relaxed text-white placeholder:text-[var(--chatcontent-text-muted)] focus:outline-none"
             placeholder={planMode ? 'Describí qué querés planear...' : 'Escribí un mensaje...'}
             value={value}
             disabled={disabled}
@@ -229,11 +232,11 @@ export function ChatInputBar({ disabled = false, onSend, planMode = false, onTog
             onKeyDown={handleExpandedKeyDown}
             onPaste={handlePaste}
           />
-          <div className="flex items-center justify-end gap-2 border-t border-slate-100 px-4 py-3">
+          <div className="flex items-center justify-end gap-2 border-t border-[var(--chatcontent-border-subtle)] px-4 py-3">
             <button
               type="button"
               onClick={() => setExpanded(false)}
-              className="rounded-full px-4 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100"
+              className="rounded-full px-4 py-2 text-sm font-medium text-[var(--tab-text-default)] hover:bg-white/10"
             >
               Seguir editando
             </button>
@@ -244,7 +247,7 @@ export function ChatInputBar({ disabled = false, onSend, planMode = false, onTog
                 setExpanded(false);
               }}
               disabled={disabled || (!value.trim() && attachments.length === 0)}
-              className="rounded-full bg-indigo-600 px-5 py-2 text-sm font-medium text-white transition-opacity hover:bg-indigo-700 disabled:opacity-30"
+              className="rounded-full bg-[var(--sidebar2-accent-default)] px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--buttonicon-primary-bg-hover)] disabled:opacity-30"
             >
               Enviar
             </button>

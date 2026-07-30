@@ -18,7 +18,7 @@ const PATHS: Record<RailSemanticIconStatus, string> = {
 
 const TONE_CLASS: Record<RailSemanticIconStatus, string> = {
   info: 'text-white/70',
-  success: 'text-[var(--card-env-active)]',
+  success: 'text-[var(--railsemanticicon-success)]',
   error: 'text-[var(--chatoptionsrail-countbadge-bg-danger)]',
 };
 

@@ -4,6 +4,7 @@ import {
   listAllEnvironmentRuns,
   type EnvironmentRunSummary,
 } from '../../lib/environments-api.js';
+import { TopbarIconButton } from '../ui/molecules/TopbarIconButton.js';
 
 const POLL_MS = 5000;
 
@@ -24,7 +25,7 @@ const STATUS_CLASS: Record<EnvironmentRunSummary['status'], string> = {
 };
 
 /**
- * Environments button for the TopNav — always visible, shows checks across
+ * Environments button for the Topbar — always visible, shows checks across
  * every project (not scoped to whichever :projectId is in the current
  * route). Structural clone of PipelinesMenu, kept as a separate
  * component/system on purpose (see packages/mcp/src/api/environments.ts
@@ -57,19 +58,12 @@ export function EnvironmentsMenu(): React.ReactElement {
         onMouseEnter={() => setHovering(true)}
         onMouseLeave={() => setHovering(false)}
       >
-        <button
-          type="button"
+        <TopbarIconButton
+          icon="environments"
+          badgeCount={runningRuns.length}
           onClick={() => setModalOpen(true)}
           title="Environments"
-          className="relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
-        >
-          <i className="pi pi-server" />
-          {runningRuns.length > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-indigo-500 px-1 text-[10px] font-semibold text-white">
-              {runningRuns.length}
-            </span>
-          )}
-        </button>
+        />
 
         {hovering && !modalOpen && (
           <div className="absolute right-0 top-full z-20 mt-1 w-64 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">

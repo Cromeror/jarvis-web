@@ -1,6 +1,6 @@
 import React from 'react';
 import { Sidebar2Divider } from '../atoms/Sidebar2Divider.js';
-import { Sidebar2NavItem } from '../molecules/Sidebar2NavItem.js';
+import { Sidebar2NavItem, type Sidebar2NavItemSize } from '../molecules/Sidebar2NavItem.js';
 import type { Sidebar2IconName } from '../atoms/Sidebar2Icon.js';
 
 export interface Sidebar2NavItemData {
@@ -23,6 +23,7 @@ const DEFAULT_SECONDARY_ITEMS: Sidebar2NavItemData[] = [
 
 interface Sidebar2Props {
   collapsed?: boolean;
+  size?: Sidebar2NavItemSize;
   accentItem?: Sidebar2NavItemData | null;
   items?: Sidebar2NavItemData[];
   secondaryItems?: Sidebar2NavItemData[];
@@ -43,6 +44,7 @@ interface Sidebar2Props {
  */
 export function Sidebar2({
   collapsed = false,
+  size = 'lg',
   accentItem = DEFAULT_ACCENT_ITEM,
   items = DEFAULT_ITEMS,
   secondaryItems = DEFAULT_SECONDARY_ITEMS,
@@ -62,6 +64,7 @@ export function Sidebar2({
             icon={accentItem.icon}
             label={accentItem.label}
             tone="accent"
+            size={size}
             collapsed={collapsed}
             onClick={() => onSelect?.(accentItem.id)}
           />
@@ -75,6 +78,7 @@ export function Sidebar2({
           icon={item.icon}
           label={item.label}
           tone={item.id === activeId ? 'active' : 'default'}
+          size={size}
           collapsed={collapsed}
           onClick={() => onSelect?.(item.id)}
         />
@@ -92,6 +96,7 @@ export function Sidebar2({
               icon={item.icon}
               label={item.label}
               tone={item.id === activeId ? 'active' : 'default'}
+              size={size}
               collapsed={collapsed}
               onClick={() => onSelect?.(item.id)}
             />

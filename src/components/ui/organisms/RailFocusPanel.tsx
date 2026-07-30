@@ -73,11 +73,17 @@ export function RailFocusPanel({
 
       <div className="flex w-full flex-col items-start gap-2">
         <RailSectionHeader label="LIVE" />
-        <div className="flex w-full flex-col gap-[var(--chatoptionsrail-livequeue-gap)] rounded-[var(--chatoptionsrail-livequeue-radius)] bg-[var(--chatoptionsrail-livequeue-bg)] px-[var(--chatoptionsrail-livequeue-padding-h)] py-[var(--chatoptionsrail-livequeue-padding-v)]">
-          {liveEvents.map((event) => (
-            <RailLiveEventRow key={event.id} status={event.status} text={event.text} timestamp={event.timestamp} />
-          ))}
-        </div>
+        {liveEvents.length === 0 ? (
+          <div className="flex w-full flex-col items-center rounded-[var(--chatoptionsrail-livequeue-radius)] bg-[var(--chatoptionsrail-livequeue-bg)] px-[var(--chatoptionsrail-livequeue-padding-h)] py-[var(--chatoptionsrail-livequeue-empty-padding-v)]">
+            <p className="text-center text-xs text-[var(--chatoptionsrail-livequeue-empty-text)]">Sin actividad reciente</p>
+          </div>
+        ) : (
+          <div className="flex w-full flex-col gap-[var(--chatoptionsrail-livequeue-gap)] rounded-[var(--chatoptionsrail-livequeue-radius)] bg-[var(--chatoptionsrail-livequeue-bg)] px-[var(--chatoptionsrail-livequeue-padding-h)] py-[var(--chatoptionsrail-livequeue-padding-v)]">
+            {liveEvents.map((event) => (
+              <RailLiveEventRow key={event.id} status={event.status} text={event.text} timestamp={event.timestamp} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

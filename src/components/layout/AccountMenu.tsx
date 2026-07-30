@@ -7,7 +7,8 @@ import { useAuth } from '../../hooks/useAuth.js';
 const JARVIS_CREDENTIALS_DIR = '/home/cristobal/.claude-jarvis';
 
 /**
- * User account menu for the TopNav. Click opens a standard account
+ * User account menu, footer del Sidebar (AppSidebar2 — el Topbar de Figma no
+ * lo incluye). Click opens a standard account
  * dropdown; "Configuración" opens a modal that drives a real
  * `claude auth login` against the single fixed Jarvis credentials dir (see
  * @jarvis/login-runner) and shows its progress live — no more picking

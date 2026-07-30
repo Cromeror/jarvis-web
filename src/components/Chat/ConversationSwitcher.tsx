@@ -8,7 +8,6 @@ interface ConversationSwitcherProps {
   sessions: ChatSession[];
   projects: ProjectSummary[];
   activeSessionId: string | null;
-  activeProjectName: string;
   pendingSessionIds: Set<string>;
   unreadSessionIds: Set<string>;
   onSelect: (sessionId: string) => void;
@@ -16,12 +15,11 @@ interface ConversationSwitcherProps {
   onRename: (sessionId: string, title: string) => void;
 }
 
-/** Trigger showing the active project — opens a popover to jump to any conversation, filterable by title or project. */
+/** Trigger de búsqueda global — abre un popover para saltar a cualquier conversación de cualquier proyecto, filtrable por título o proyecto. El tab activo del ProjectTabStrip ya muestra el proyecto en foco, este trigger es solo para buscar. */
 export function ConversationSwitcher({
   sessions,
   projects,
   activeSessionId,
-  activeProjectName,
   pendingSessionIds,
   unreadSessionIds,
   onSelect,
@@ -79,10 +77,11 @@ export function ConversationSwitcher({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className={`inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold transition-opacity hover:opacity-80 ${toneForProject(activeProjectName)}`}
+        title="Buscar conversación"
+        aria-label="Buscar conversación"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--tab-text-default)] transition-colors hover:bg-white/10 hover:text-[var(--tab-text-hover)]"
       >
-        {activeProjectName}
-        <i className="pi pi-chevron-down text-[10px]" />
+        <i className="pi pi-search text-sm" />
       </button>
 
       {open && (
