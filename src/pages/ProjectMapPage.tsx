@@ -12,24 +12,21 @@ import { listProjects } from '../lib/projects-api.js';
 import type { ProjectSummary } from '../lib/projects-api.js';
 import { ProjectNode } from '../components/Map/ProjectNode.js';
 import { IntegrationNode } from '../components/Map/IntegrationNode.js';
-import { SkillNode } from '../components/Map/SkillNode.js';
 import { ContextPanel } from '../components/Map/ContextPanel.js';
 
 const NODE_TYPES = {
   project: ProjectNode,
   integration: IntegrationNode,
-  skill: SkillNode,
 };
 
 /** Column x positions for layout */
 const COL_PROJECT = 50;
 const COL_INTEGRATION = 350;
-const COL_SKILL = 650;
 const NODE_HEIGHT = 80;
 const NODE_V_GAP = 20;
 
 /**
- * ReactFlow canvas: project root node + integration nodes + skill nodes.
+ * ReactFlow canvas: project root node + integration nodes.
  * Manual layered layout (no dagre — no new deps).
  * REQ-2, REQ-3, REQ-12, SC-02/03, T11.
  */
@@ -63,7 +60,7 @@ export function ProjectMapPage(): React.ReactElement {
 
   /**
    * Build nodes and edges from project summary.
-   * Integration / skill data is derived from counts — the full context
+   * Integration data is derived from counts — the full context
    * is shown in the ContextPanel sidebar (text format).
    */
   const { nodes, edges } = useMemo<{ nodes: Node[]; edges: Edge[] }>(() => {
@@ -104,30 +101,6 @@ export function ProjectMapPage(): React.ReactElement {
         data: {
           label: `Integration ${i + 1}`,
           config: {},
-        },
-      });
-      es.push({
-        id: `e-${project.id}-${nodeId}`,
-        source: project.id,
-        target: nodeId,
-        animated: false,
-      });
-    }
-
-    // Skill placeholder nodes
-    for (let i = 0; i < project.skills_count; i++) {
-      const nodeId = `skill-${i}`;
-      ns.push({
-        id: nodeId,
-        type: 'skill',
-        position: {
-          x: COL_SKILL,
-          y: i * (NODE_HEIGHT + NODE_V_GAP),
-        },
-        data: {
-          label: `Skill ${i + 1}`,
-          scope: 'project' as const,
-          client: 'claude',
         },
       });
       es.push({

@@ -17,7 +17,6 @@ export interface ProjectSummary {
   status: string;
   sdd_enabled: boolean | null;
   integrations_count: number;
-  skills_count: number;
   created_at: string;
   updated_at: string;
   last_activity_at: string | null;

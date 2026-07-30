@@ -820,7 +820,6 @@ html, body, #root {
 }
 
 .map-node-integration { background: #fef3e2; border-color: #e6a817; }
-.map-node-skill       { background: #e6f4ea; border-color: #3a9c5a; }
 .map-node-tool        { background: #f3f0fe; border-color: #7c5cc4; }
 
 .map-node-label { font-weight: 600; color: #1a1a1a; }
