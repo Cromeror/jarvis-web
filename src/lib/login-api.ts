@@ -1,8 +1,17 @@
 /**
  * API client for the Claude Code login flow (packages/mcp/src/api/login.ts /
  * packages/http-api/src/login/login.controller.ts) — drives a real
- * `claude auth login` against the single fixed Jarvis credentials dir.
+ * `claude auth login` against the active executor's credentials dir.
  */
+
+export interface LoginAccount {
+  /** Absolute dir the login will re-authenticate — resolved server-side. */
+  dir: string;
+  /** True when nothing is configured and the CLI picks the dir itself. */
+  isCliDefault: boolean;
+  label: string | null;
+  type: string | null;
+}
 
 export type LoginAttemptStatus =
   | 'starting'
@@ -33,6 +42,17 @@ async function handleResponse<T>(res: Response): Promise<T> {
 export async function startLogin(): Promise<{ attemptId: string }> {
   const res = await fetch('/api/login', { method: 'POST' });
   return handleResponse<{ attemptId: string }>(res);
+}
+
+/**
+ * GET /api/login/account — the account a login would re-authenticate. Read
+ * from the server instead of hard-coding a path in the UI: the dir is
+ * machine-specific, and a stale copy here would promise to fix one directory
+ * while the backend fixed another.
+ */
+export async function getLoginAccount(): Promise<LoginAccount> {
+  const res = await fetch('/api/login/account');
+  return handleResponse<LoginAccount>(res);
 }
 
 /** GET /api/login/:id — snapshot of the attempt's current state */

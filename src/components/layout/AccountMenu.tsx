@@ -1,18 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Avatar } from 'primereact/avatar';
-import { startLogin, submitLoginCode, cancelLogin } from '../../lib/login-api.js';
+import { startLogin, submitLoginCode, cancelLogin, getLoginAccount, type LoginAccount } from '../../lib/login-api.js';
 import { useLoginEvents } from '../../hooks/useLoginEvents.js';
 import { useAuth } from '../../hooks/useAuth.js';
-
-const JARVIS_CREDENTIALS_DIR = '/home/cristobal/.claude-jarvis';
 
 /**
  * User account menu, footer del Sidebar (AppSidebar2 — el Topbar de Figma no
  * lo incluye). Click opens a standard account
  * dropdown; "Configuración" opens a modal that drives a real
- * `claude auth login` against the single fixed Jarvis credentials dir (see
+ * `claude auth login` against the active executor's credentials dir (see
  * @jarvis/login-runner) and shows its progress live — no more picking
- * between saved accounts, just re-authenticating this one directory.
+ * between saved accounts, just re-authenticating the one Jarvis runs as.
  */
 export function AccountMenu(): React.ReactElement {
   const { user, logout } = useAuth();
@@ -83,7 +81,16 @@ function SettingsModal({ onClose }: { onClose: () => void }): React.ReactElement
   const [error, setError] = useState<string | null>(null);
   const [codeInput, setCodeInput] = useState('');
   const [submittingCode, setSubmittingCode] = useState(false);
+  const [account, setAccount] = useState<LoginAccount | null>(null);
   const { attempt, isFinished } = useLoginEvents(attemptId);
+
+  useEffect(() => {
+    let cancelled = false;
+    getLoginAccount()
+      .then((a) => { if (!cancelled) setAccount(a); })
+      .catch(() => { /* best-effort — the modal still works, it just shows "…" */ });
+    return () => { cancelled = true; };
+  }, []);
 
   async function handleStartLogin(): Promise<void> {
     setError(null);
@@ -141,9 +148,11 @@ function SettingsModal({ onClose }: { onClose: () => void }): React.ReactElement
         </div>
 
         <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">Cuenta Claude activa</h3>
-        <p className="mb-4 rounded-xl border border-slate-200 px-3 py-2 font-mono text-sm text-slate-700">
-          {JARVIS_CREDENTIALS_DIR}
-        </p>
+        <div className="mb-4 rounded-xl border border-slate-200 px-3 py-2">
+          {account?.label && <p className="mb-0.5 text-sm font-medium text-slate-900">{account.label}</p>}
+          <p className="break-all font-mono text-sm text-slate-700">{account?.dir ?? '…'}</p>
+          {account?.isCliDefault && <p className="mt-0.5 text-xs text-slate-400">Default del CLI</p>}
+        </div>
 
         {error && (
           <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">

@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { ProjectSummary } from '../../lib/projects-api.js';
+import { Button2 } from '../ui/atoms/Button2.js';
+import { Icons } from '../ui/atoms/Icons.js';
 
 /** Inline "pick a project" popover for creating a new conversation without a fixed project in the page. */
 export function NewSessionButton({
@@ -23,14 +25,12 @@ export function NewSessionButton({
 
   return (
     <div className="relative" ref={ref}>
-      <button
-        type="button"
+      <Button2
+        label="Nuevo"
+        size="xs"
+        iconLeft={<Icons icon="Plus" size={16} />}
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1 rounded-lg bg-[var(--sidebar2-accent-default)] px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-[var(--buttonicon-primary-bg-hover)]"
-      >
-        <i className="pi pi-plus text-[10px]" />
-        Nuevo
-      </button>
+      />
 
       {open && (
         <div className="absolute right-0 top-full z-30 mt-2 w-64 rounded-lg border border-slate-200 bg-white shadow-lg">

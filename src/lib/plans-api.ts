@@ -76,6 +76,15 @@ export async function listPlans(projectId: string, status?: PlanStatus): Promise
   return handleResponse<PlanSummary[]>(res);
 }
 
+/**
+ * GET /api/plans?session_id= — the plans of ONE conversation, newest first.
+ * What the rail's Focus card needs: "the plan of this chat", not the project's.
+ */
+export async function listPlansForSession(sessionId: string): Promise<PlanSummary[]> {
+  const res = await fetch(`/api/plans?session_id=${encodeURIComponent(sessionId)}`);
+  return handleResponse<PlanSummary[]>(res);
+}
+
 /** GET /api/plans/:id — plan + full step graph */
 export async function getPlan(planId: string): Promise<PlanDetail> {
   const res = await fetch(`/api/plans/${encodeURIComponent(planId)}`);

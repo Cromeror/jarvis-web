@@ -15,8 +15,15 @@ import type { ChatSession, ChatMessage, ChatAttachmentInput } from '../lib/chat-
 import { useChatStream } from '../hooks/useChatStream.js';
 import { ChatWindow } from '../components/Chat/ChatWindow.js';
 import { PlanSidePanel } from '../components/Plan/PlanSidePanel.js';
-import { ChatPlansPanel } from '../components/Chat/ChatPlansPanel.js';
-import { ChatOptionsRail } from '../components/ui/organisms/ChatOptionsRail.js';
+import { ChatOptionsRail, type RailHoverPreviewData } from '../components/ui/organisms/ChatOptionsRail.js';
+import type { RailListPanelItem, RailListPanelData } from '../components/ui/organisms/RailListPanel.js';
+import type { BadgeStatus } from '../components/ui/atoms/Badge.js';
+import { listPlans, launchPlan, approvePlan } from '../lib/plans-api.js';
+import type { PlanSummary, PlanStatus } from '../lib/plans-api.js';
+import { timeAgo, timeAgoPrecise, activeFor } from '../lib/time-ago.js';
+import { useRailFocus } from '../hooks/useRailFocus.js';
+import { markNotificationRead, type Notification } from '../lib/notifications-api.js';
+import type { RailFocusPanelProject, RailFocusPanelAttentionItem, RailFocusPanelLiveEvent } from '../components/ui/organisms/RailFocusPanel.js';
 import { Toast, useToast } from '../components/ui/atoms/Toast.js';
 
 /**
@@ -30,6 +37,25 @@ interface SessionChatState {
   hasUnread: boolean;
   proposedPlanIds?: string[];
 }
+
+/**
+ * Cuántas filas sueltas muestra ATENCIÓN antes de resumir el resto en la fila
+ * "Ver más mensajes +N" (el diseño apila desde la 3ra, node 7493:905).
+ */
+const ATTENTION_VISIBLE_ROWS = 3;
+
+/** La cola LIVE del diseño muestra los últimos eventos, no el log completo. */
+const LIVE_VISIBLE_ROWS = 5;
+
+/** Estado del plan → badge del rail (etiqueta + tono del átomo Badge). */
+const PLAN_BADGE: Record<PlanStatus, { label: string; status: BadgeStatus }> = {
+  draft: { label: 'Borrador', status: 'info' },
+  approved: { label: 'Aprobado', status: 'success' },
+  running: { label: 'Ejecutando', status: 'running' },
+  done: { label: 'Completado', status: 'success' },
+  failed: { label: 'Falló', status: 'failed' },
+  archived: { label: 'Archivado', status: 'cancelled' },
+};
 
 /** Reads a File as a base64 string (without the data: URL prefix) for sending over JSON. */
 function fileToBase64(file: File): Promise<string> {
@@ -60,8 +86,14 @@ export function ChatPage(): React.ReactElement {
   const [planMode, setPlanMode] = useState(false);
   // Which plan is open in the side panel — null means the panel is hidden.
   const [openPlanId, setOpenPlanId] = useState<string | null>(null);
-  // Opción activa del rail derecho (null = ningún panel del rail abierto).
-  const [railOption, setRailOption] = useState<string | null>(null);
+  // Opción activa del rail derecho — Focus es un ítem más del acordeón (ver
+  // ChatOptionsRail), arranca abierto por default; null = las 4 opciones
+  // están plegadas (nada abierto, estado legítimo pero no el inicial).
+  const [railOption, setRailOption] = useState<string | null>('focus');
+  // Planes del proyecto activo — se cargan solo cuando el panel de Planes del rail está abierto.
+  const [railPlans, setRailPlans] = useState<PlanSummary[]>([]);
+  const [railPlansLoading, setRailPlansLoading] = useState(false);
+  const [railPlansError, setRailPlansError] = useState<string | null>(null);
 
   const patchSession = useCallback(
     (sessionId: string, patch: Partial<SessionChatState> | ((current: SessionChatState) => Partial<SessionChatState>)) => {
@@ -315,6 +347,384 @@ export function ChatPage(): React.ReactElement {
     },
     [sessions, selectSessionAndNavigate],
   );
+  // Los planes alimentan la opción "Planes" (todos), "Ejecuciones" (los ya
+  // lanzados) y el hover-preview de Ejecuciones en el rail colapsado — este
+  // último necesita el dato disponible aunque el acordeón no esté abierto,
+  // así que el fetch ya no depende de `railOption`, solo de haber un
+  // proyecto activo. Se recarga al cambiar de proyecto y cuando cambia el
+  // plan abierto (un turno con plan nuevo mueve `openPlanId`, así el rail no
+  // queda mostrando una lista vieja).
+  useEffect(() => {
+    if (!activeProjectId) {
+      setRailPlans([]);
+      return;
+    }
+    let cancelled = false;
+    setRailPlansLoading(true);
+    setRailPlansError(null);
+    listPlans(activeProjectId)
+      .then((data) => { if (!cancelled) setRailPlans(data); })
+      .catch((err: unknown) => { if (!cancelled) setRailPlansError(err instanceof Error ? err.message : 'Error al cargar planes'); })
+      .finally(() => { if (!cancelled) setRailPlansLoading(false); });
+    return () => { cancelled = true; };
+  }, [activeProjectId, openPlanId]);
+
+  const activeProjectName = useMemo(
+    () => projects.find((p) => p.id === activeProjectId)?.name ?? activeProjectId ?? '',
+    [projects, activeProjectId],
+  );
+
+  const railPlanItems = useMemo<RailListPanelItem[]>(
+    () =>
+      railPlans.map((plan) => ({
+        id: plan.id,
+        title: plan.title,
+        subtitle: `${activeProjectName} · ${timeAgo(plan.updated_at)}`,
+        badge: PLAN_BADGE[plan.status],
+        canAct: plan.status === 'approved',
+      })),
+    [railPlans, activeProjectName],
+  );
+
+  // "Ejecuciones" = los planes de este proyecto que ya se lanzaron al menos
+  // una vez (running/done/failed) — no hay un endpoint propio de "listar
+  // runs", así que se deriva del mismo listado de planes en vez de inventar
+  // una API nueva. Sin acción propia (ya están en curso o terminados) — solo
+  // abren el detalle del plan, igual que en "Planes".
+  const railRunItems = useMemo<RailListPanelItem[]>(
+    () =>
+      railPlans
+        .filter((plan) => plan.status === 'running' || plan.status === 'done' || plan.status === 'failed')
+        .map((plan) => ({
+          id: plan.id,
+          title: plan.title,
+          subtitle: `${activeProjectName} · ${timeAgo(plan.updated_at)}`,
+          badge: PLAN_BADGE[plan.status],
+        })),
+    [railPlans, activeProjectName],
+  );
+
+  // "Historial" = conversaciones anteriores del proyecto activo — mismos
+  // `sessions` que ya alimentan ProjectTabStrip/ConversationSwitcher, sin
+  // fetch propio. Clickear una fila salta a esa conversación.
+  const railHistoryItems = useMemo<RailListPanelItem[]>(
+    () =>
+      sessions
+        .filter((s) => s.project_id === activeProjectId)
+        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+        .map((s) => ({
+          id: s.id,
+          title: s.title ?? 'Nueva conversación',
+          subtitle: timeAgo(s.updated_at),
+        })),
+    [sessions, activeProjectId],
+  );
+
+  const handleLaunchPlan = useCallback(
+    async (planId: string) => {
+      try {
+        const { run_id } = await launchPlan(planId);
+        navigate(`/plan-runs/${run_id}`);
+      } catch (err) {
+        addToast(err instanceof Error ? err.message : 'Error al lanzar el plan', 'error');
+      }
+    },
+    [navigate, addToast],
+  );
+
+  // Mensajes de "nada que mostrar" — compartidos entre el ContentPanel
+  // expandido (RailListPanel) y la tarjeta de hover del rail colapsado
+  // (RailHoverPreview), para no tener dos redacciones distintas del mismo
+  // estado vacío.
+  const railPlansEmptyLabel = activeProjectId ? 'Este proyecto todavía no tiene planes.' : 'Elegí una conversación para ver sus planes.';
+  const railExecutionsEmptyLabel = activeProjectId ? 'Este proyecto todavía no tiene ejecuciones.' : 'Elegí una conversación para ver sus ejecuciones.';
+  const railHistoryEmptyLabel = activeProjectId ? 'Este proyecto todavía no tiene conversaciones anteriores.' : 'Elegí una conversación para ver su historial.';
+
+  // Datos de la "Lista compacta" por opción del acordeón del rail — las 3
+  // (Planes/Ejecuciones/Historial) se comportan igual sin excepción, solo
+  // cambian los datos y qué pasa al clickear una fila.
+  const railPanels = useMemo<Partial<Record<string, RailListPanelData>>>(
+    () => ({
+      plans: {
+        items: railPlanItems,
+        loading: railPlansLoading,
+        error: railPlansError,
+        emptyLabel: railPlansEmptyLabel,
+        actionLabel: 'Lanzar plan',
+        onSelectItem: setOpenPlanId,
+        onAction: (planId) => void handleLaunchPlan(planId),
+      },
+      executions: {
+        items: railRunItems,
+        loading: railPlansLoading,
+        error: railPlansError,
+        emptyLabel: railExecutionsEmptyLabel,
+        onSelectItem: setOpenPlanId,
+      },
+      history: {
+        items: railHistoryItems,
+        emptyLabel: railHistoryEmptyLabel,
+        onSelectItem: (sessionId) => selectSessionAndNavigate(sessionId, activeProjectId),
+      },
+    }),
+    [
+      railPlanItems,
+      railRunItems,
+      railHistoryItems,
+      railPlansLoading,
+      railPlansError,
+      railPlansEmptyLabel,
+      railExecutionsEmptyLabel,
+      railHistoryEmptyLabel,
+      activeProjectId,
+      handleLaunchPlan,
+      selectSessionAndNavigate,
+    ],
+  );
+
+  const handleApprovePlan = useCallback(
+    async (planId: string) => {
+      try {
+        await approvePlan(planId);
+        addToast('Plan aprobado', 'success');
+      } catch (err) {
+        addToast(err instanceof Error ? err.message : 'Error al aprobar el plan', 'error');
+      }
+    },
+    [addToast],
+  );
+
+  // --- Rail de Focus/Atención/Live -----------------------------------------
+  // Datos reales del módulo notify: el foco lo reporta el propio chat con
+  // notify_focus_update, los eventos con notify_event (ver packages/tools/notify).
+  const {
+    focus,
+    inbox,
+    liveEvents,
+    sessionPlan,
+    draftPlanIds,
+    now: railNow,
+    refresh: refreshRail,
+  } = useRailFocus(activeSessionId, activeProjectId);
+
+  const activeSession = useMemo(
+    () => sessions.find((s) => s.id === activeSessionId) ?? null,
+    [sessions, activeSessionId],
+  );
+
+  /**
+   * "Crear plan" no puede crear el plan por sí solo: plan_create exige título,
+   * contexto, arquitectura y el grafo completo de steps. Lo que hace es pedirle
+   * al chat que lo genere, usando el título sugerido como semilla.
+   */
+  const handleCreateSuggestedPlan = useCallback(
+    (suggestedTitle: string) => {
+      // Plan mode va como argumento del turno, no por el toggle: setPlanMode no
+      // habría aplicado a este envío (el estado se lee en el próximo render) y
+      // además dejaría el toggle prendido para los mensajes siguientes.
+      void handleSend(`Creá el plan "${suggestedTitle}" que propusiste para esta conversación.`, undefined, true);
+    },
+    [handleSend],
+  );
+
+  const railFocusProject = useMemo<RailFocusPanelProject | null>(() => {
+    if (!focus || !activeSession) return null;
+
+    const projectName =
+      projects.find((p) => p.id === (focus.project_id ?? activeSession.project_id))?.name ??
+      focus.project_id ??
+      activeSession.project_id ??
+      'Sin proyecto';
+
+    // Un plan `archived` ya no es el foco de la conversación; el resto de los
+    // estados sí describen en qué anda el plan de este chat.
+    const plan = sessionPlan && sessionPlan.status !== 'archived' ? sessionPlan : null;
+
+    return {
+      // Duración de la conversación, no del foco: session_focus solo guarda
+      // cuándo se actualizó por última vez, no cuándo empezó este foco.
+      durationLabel: activeFor(activeSession.created_at, railNow),
+      projectName,
+      title: focus.title,
+      description: focus.summary,
+      badge: plan ? PLAN_BADGE[plan.status] : null,
+      updatedLabel: plan ? `Actualizado ${timeAgoPrecise(plan.updated_at, railNow)}` : null,
+      // Con plan: aprobar/lanzar. Sin plan: la sugerencia del modelo y crearlo.
+      suggestedPlanTitle: plan ? null : focus.suggested_plan_title,
+      actions: plan
+        ? [
+            ...(plan.status === 'draft' ? [{ label: 'Aprobar', onClick: () => void handleApprovePlan(plan.id) }] : []),
+            ...(plan.status === 'approved' || plan.status === 'draft'
+              ? [{ label: 'Lanzar ahora', onClick: () => void handleLaunchPlan(plan.id) }]
+              : []),
+          ]
+        : focus.suggested_plan_title
+          ? [{ label: 'Crear plan', onClick: () => handleCreateSuggestedPlan(focus.suggested_plan_title!) }]
+          : [],
+    };
+  }, [focus, activeSession, projects, sessionPlan, railNow, handleApprovePlan, handleLaunchPlan, handleCreateSuggestedPlan]);
+
+  /** Silenciar: sale del Inbox, sigue en el log y en LIVE. */
+  const dismissNotification = useCallback(
+    async (id: number) => {
+      try {
+        await markNotificationRead(id);
+      } catch (err) {
+        addToast(err instanceof Error ? err.message : 'Error al silenciar la notificación', 'error');
+      } finally {
+        // Refresca igual si falló: así la fila no queda “fantasma” si otro
+        // proceso ya la había resuelto.
+        refreshRail();
+      }
+    },
+    [addToast, refreshRail],
+  );
+
+  /**
+   * Click en la fila = ir a donde está la acción Y darla por atendida, como un
+   * inbox de mail. A dónde lleva depende del target que reportó el modelo; sin
+   * target la fila es informativa y solo se silencia.
+   */
+  const openNotificationTarget = useCallback(
+    (notification: Notification) => {
+      const { target_kind: kind, target_id: targetId, session_id: sessionId, project_id: projectId } = notification;
+
+      if (kind === 'plan' && targetId) {
+        // El plan se aprueba desde su panel, que vive dentro de la conversación
+        // que lo propuso; sin sesión conocida, la lista de planes del proyecto.
+        if (sessionId) {
+          selectSessionAndNavigate(sessionId, projectId);
+          setOpenPlanId(targetId);
+        } else if (projectId) {
+          navigate(`/plans/${projectId}`);
+        }
+      } else if (kind === 'plan_run' && targetId) {
+        navigate(`/plan-runs/${targetId}`);
+      } else if (kind === 'pipeline_run' && targetId) {
+        navigate(`/pipeline/${targetId}`);
+      } else if ((kind === 'session' && targetId) || sessionId) {
+        const target = kind === 'session' && targetId ? targetId : sessionId!;
+        selectSessionAndNavigate(target, projectId);
+      }
+
+      void dismissNotification(notification.id);
+    },
+    [navigate, selectSessionAndNavigate, dismissNotification],
+  );
+
+  /** Aprobar sin moverse del rail — evita el viaje de ida y vuelta al panel del plan. */
+  const approveFromInbox = useCallback(
+    async (planId: string, notificationId: number) => {
+      await handleApprovePlan(planId);
+      // El backend ya marca leídas las notificaciones del plan al aprobarlo
+      // (plans.controller); esto solo refresca para que la fila se vaya ya.
+      void dismissNotification(notificationId);
+    },
+    [handleApprovePlan, dismissNotification],
+  );
+
+  /**
+   * ATENCIÓN vs LIVE: el criterio de Inbox es "algo pendiente de tu atención"
+   * y el de Live "qué está pasando ahora", así que `warning` no leído va a la
+   * primera y el feed completo a la segunda. Es el motivo por el que `warning`
+   * existe como status en el backend.
+   */
+  const railAttentionItems = useMemo<RailFocusPanelAttentionItem[]>(
+    () =>
+      inbox.slice(0, ATTENTION_VISIBLE_ROWS).map((n) => ({
+        id: String(n.id),
+        text: n.text,
+        action:
+          n.target_kind === 'plan' && n.target_id && draftPlanIds.has(n.target_id)
+            ? { label: 'Aprobar', onClick: () => void approveFromInbox(n.target_id!, n.id) }
+            : undefined,
+        onDismiss: () => void dismissNotification(n.id),
+      })),
+    [inbox, draftPlanIds, approveFromInbox, dismissNotification],
+  );
+
+  const railAttentionOverflow = useMemo(
+    () => Math.max(0, inbox.length - ATTENTION_VISIBLE_ROWS),
+    [inbox],
+  );
+
+  const handleAttentionItemClick = useCallback(
+    (id: string) => {
+      const target = inbox.find((n) => String(n.id) === id);
+      if (target) openNotificationTarget(target);
+    },
+    [inbox, openNotificationTarget],
+  );
+
+  const railLiveEvents = useMemo<RailFocusPanelLiveEvent[]>(
+    () =>
+      liveEvents
+        .filter((n) => n.status !== 'warning')
+        .slice(0, LIVE_VISIBLE_ROWS)
+        .map((n) => ({
+          id: String(n.id),
+          status: n.status as RailFocusPanelLiveEvent['status'],
+          text: n.text,
+          timestamp: timeAgoPrecise(n.created_at, railNow),
+        })),
+    [liveEvents, railNow],
+  );
+
+  // Hover-preview del rail colapsado (Figma ChatOptionsRail/HoverPreview) —
+  // los 4 ítems lo usan sin excepción, nunca el tooltip nativo (ver
+  // RailHoverPreview/ChatOptionsRail: sin `title` acá cae en la variante
+  // vacía de la tarjeta, no en el tooltip del browser). Focus/Ejecuciones
+  // tienen layout propio en Figma; Planes/Historial reusan el mismo layout
+  // con su ítem más reciente como resumen. "Trabajando" reusa `streamActive`
+  // (mismo activeSessionId que arma railFocusProject) en vez de inventar un
+  // estado nuevo. Ejecuciones muestra la corriendo más reciente (o la última
+  // actualizada si no hay ninguna corriendo) en una versión reducida — sin
+  // worktree/%/réplicas del frame original, esos datos no existen en el
+  // modelo de planes.
+  const focusHoverPreview = useMemo<RailHoverPreviewData>(() => {
+    if (!railFocusProject) return { headerLabel: 'FOCUS ACTUAL', emptyLabel: 'Sin foco reportado en esta conversación.' };
+    return {
+      headerLabel: 'FOCUS ACTUAL',
+      title: railFocusProject.projectName,
+      subtitle: railFocusProject.title ?? railFocusProject.description,
+      badge: railFocusProject.badge,
+      statusText: streamActive ? 'Trabajando' : null,
+    };
+  }, [railFocusProject, streamActive]);
+
+  const executionsHoverPreview = useMemo<RailHoverPreviewData>(() => {
+    if (railRunItems.length === 0) return { headerLabel: 'EJECUCIONES', emptyLabel: railExecutionsEmptyLabel };
+    const primary = railRunItems.find((r) => r.badge?.status === 'running') ?? railRunItems[0]!;
+    return {
+      headerLabel: 'EJECUCIONES',
+      title: primary.title,
+      subtitle: activeProjectName,
+      badge: primary.badge ?? null,
+    };
+  }, [railRunItems, activeProjectName, railExecutionsEmptyLabel]);
+
+  const plansHoverPreview = useMemo<RailHoverPreviewData>(() => {
+    if (railPlanItems.length === 0) return { headerLabel: 'PLANES', emptyLabel: railPlansEmptyLabel };
+    const primary = railPlanItems[0]!;
+    return { headerLabel: 'PLANES', title: primary.title, subtitle: primary.subtitle, badge: primary.badge };
+  }, [railPlanItems, railPlansEmptyLabel]);
+
+  const historyHoverPreview = useMemo<RailHoverPreviewData>(() => {
+    if (railHistoryItems.length === 0) return { headerLabel: 'HISTORIAL', emptyLabel: railHistoryEmptyLabel };
+    const primary = railHistoryItems[0]!;
+    return { headerLabel: 'HISTORIAL', title: primary.title, subtitle: primary.subtitle };
+  }, [railHistoryItems, railHistoryEmptyLabel]);
+
+  const railHoverPreviews = useMemo<Partial<Record<string, RailHoverPreviewData>>>(
+    () => ({
+      focus: focusHoverPreview,
+      executions: executionsHoverPreview,
+      plans: plansHoverPreview,
+      history: historyHoverPreview,
+    }),
+    [focusHoverPreview, executionsHoverPreview, plansHoverPreview, historyHoverPreview],
+  );
+
   const pendingSessionIds = new Set(
     Object.entries(chatBySession)
       .filter(([, state]) => state.pending)
@@ -327,9 +737,14 @@ export function ChatPage(): React.ReactElement {
   );
 
   return (
-    <div className="flex h-full flex-col bg-[var(--app-bg)]" style={{ fontSize: '16px' }}>
+    // La página vive DENTRO del Content slot del AppShell: no pinta fondo propio
+    // (antes tapaba el degradé del slot con --app-bg opaco, que es reemplazarlo,
+    // no rellenarlo). ChatContent y el rail son tarjetas adentro del slot —
+    // padding 8 + gap 8 es lo que cierra el ancho del frame de Figma:
+    // 1344 = 8 + 970 (ChatContent) + 8 + 350 (rail) + 8.
+    <div className="flex h-full flex-col" style={{ fontSize: '16px' }}>
       <Toast toasts={toasts} onDismiss={removeToast} />
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 gap-[var(--layout-gap)] overflow-hidden p-[var(--layout-padding)]">
         <ChatWindow
           messages={activeChat?.messages ?? []}
           pending={(activeChat?.pending ?? false) || streamActive}
@@ -361,17 +776,16 @@ export function ChatPage(): React.ReactElement {
             onSendToChat={(message) => void handleSend(message)}
           />
         )}
-        {railOption === 'plans' && (
-          <ChatPlansPanel
-            projectId={activeProjectId}
-            activePlanId={openPlanId}
-            onSelectPlan={setOpenPlanId}
-            onClose={() => setRailOption(null)}
-          />
-        )}
         <ChatOptionsRail
           activeOption={railOption}
           onToggleOption={(key) => setRailOption((cur) => (cur === key ? null : key))}
+          panels={railPanels}
+          hoverPreviews={railHoverPreviews}
+          focusProject={railFocusProject}
+          attentionItems={railAttentionItems}
+          onAttentionItemClick={handleAttentionItemClick}
+          moreMessagesCount={railAttentionOverflow}
+          liveEvents={railLiveEvents}
         />
       </div>
     </div>

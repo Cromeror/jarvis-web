@@ -24,7 +24,7 @@ interface TopbarProps {
 export function Topbar({ title, searchPlaceholder = 'Buscar...', actions, onMenuClick, className = '' }: TopbarProps): React.ReactElement {
   return (
     <div
-      className={`flex h-[59px] w-full shrink-0 items-center gap-4 justify-between border border-[var(--topbar-border)] bg-[var(--topbar-bg)] pl-[var(--topbar-padding-left)] pr-[var(--topbar-padding-right)] rounded-t-[var(--topbar-radius-top)] ${className}`}
+      className={`flex h-[59px] w-full shrink-0 items-center gap-4 justify-between rounded-tl-[var(--topbar-radius-top-left)] rounded-tr-[var(--topbar-radius-top-right)] rounded-bl-[var(--topbar-radius-bottom-left)] rounded-br-[var(--topbar-radius-bottom-right)] border border-[var(--topbar-border)] bg-[var(--topbar-bg)] pl-[var(--topbar-padding-left)] pr-[var(--topbar-padding-right)] ${className}`}
     >
       {onMenuClick && (
         <button

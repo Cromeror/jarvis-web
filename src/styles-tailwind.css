@@ -323,6 +323,9 @@
   --chatoptionsrail-text-on-accent: rgba(255, 255, 255, 0.85);
   --chatoptionsrail-text-on-accent-strong: var(--color-white);
   --chatoptionsrail-timestamp-text: rgba(255, 255, 255, 0.8);
+  /* Etiqueta "PLAN SUGERIDO" dentro de la card naranja (Figma node 7478:908) —
+     misma opacidad que los headers de sección del rail, pero sobre acento. */
+  --chatoptionsrail-text-on-accent-muted: rgba(255, 255, 255, 0.55);
 
   --chatoptionsrail-button-bg: var(--badge-bg-neutral);
   --chatoptionsrail-button-border: #d6d3d1;
@@ -355,6 +358,35 @@
   --chatoptionsrail-iconbtn-active-bg: var(--sidebar2-item-active-bg);
   --chatoptionsrail-iconbtn-active-border: var(--chatoptionsrail-button-border);
 
+  /*
+   * ChatOptionsRail/HoverPreview (Figma Focus 7347:1562 / Ejecuciones
+   * 7520:36274) — tarjeta flotante al pasar el mouse sobre un ícono del rail
+   * colapsado. Fondo/sombra propios (más oscuro que --chatoptionsrail-bg-*,
+   * sin gradiente) porque en Figma no son variables, son literales fijos en
+   * el propio nodo.
+   */
+  --chatoptionsrail-hoverpreview-bg: #0d0d0d;
+  --chatoptionsrail-hoverpreview-shadow: 0 4px 8px rgba(0, 0, 0, 0.35);
+
+  /*
+   * "Lista compacta" — tarjeta blanca de los ContentPanel de Planes/Ejecuciones
+   * (Figma 7531:1732 / 7531:1677). Superficie clara dentro del rail oscuro, con
+   * filas separadas por divider de 1px (mismo #e7e5e4 que --table2-row-border).
+   * El botón play de la fila reusa el naranja de acento del DS.
+   */
+  --chatoptionsrail-list-bg: var(--color-white);
+  --chatoptionsrail-list-radius: 8px;
+  --chatoptionsrail-list-padding: 10px;
+  --chatoptionsrail-list-divider: var(--table2-row-border);
+  --chatoptionsrail-listrow-padding-v: 8px;
+  --chatoptionsrail-listrow-gap: 12px;
+  --chatoptionsrail-listrow-text-gap: 2px;
+  --chatoptionsrail-listrow-title-text: var(--chatoptionsrail-row-text);
+  --chatoptionsrail-listrow-subtitle-text: #64748b;
+  --chatoptionsrail-listplay-bg: var(--sidebar2-accent-default);
+  --chatoptionsrail-listplay-radius: 8px;
+  --chatoptionsrail-listplay-padding: 8px;
+
   --chatoptionsrail-countbadge-size: 16px;
   --chatoptionsrail-countbadge-radius: 8px;
   --chatoptionsrail-countbadge-bg-danger: #de3333;
@@ -370,7 +402,17 @@
   --topbar-bg: rgba(13, 13, 13, 0.1);
   --topbar-border: rgba(54, 50, 48, 0);
   --topbar-radius: 8px;
-  --topbar-radius-top: 12px;
+  /*
+   * Un token por esquina, igual que las Variables de Figma
+   * (Topbar/radius-top-left|top-right|bottom-left|bottom-right). Antes esto
+   * era un solo --topbar-radius-top + `rounded-t`, que horneaba en la clase
+   * la decisión de "abajo siempre 0" — si el diseño cambia una esquina, el
+   * cambio tiene que ser un valor de token, no reescribir la utilidad.
+   */
+  --topbar-radius-top-left: 12px;
+  --topbar-radius-top-right: 12px;
+  --topbar-radius-bottom-left: 0px;
+  --topbar-radius-bottom-right: 0px;
   --topbar-padding-left: 32px;
   --topbar-padding-right: 24px;
   --topbar-gap: 8px;
@@ -448,12 +490,22 @@
    * reusa el mismo degradé que Sidebar (--sidebar2-bg-from/to, mismo valor
    * confirmado con get_variable_defs: Layout/content-bg-from = Sidebar/bg-from,
    * Layout/content-bg-to = Sidebar/bg-to) — alias en vez de duplicar el
-   * literal. radius-top-left/right son 0 en Figma (el Content no redondea
-   * arriba, ya lo hace Topbar) — por eso solo se tokeniza el bottom.
+   * literal. Las 4 esquinas del Content se tokenizan una por una, igual que
+   * las Variables de Figma (Layout/radius-top-left|top-right|bottom-left|
+   * bottom-right): arriba van en 0 (el Content queda al ras del Topbar, que
+   * es el que redondea) y abajo en 12. Antes había un solo
+   * --layout-radius-bottom + `rounded-b`, que dejaba el "arriba = 0" escrito
+   * en la clase en vez de en el token — no era 1-1 con el diseño.
+   * --layout-content-padding-top existe también como Variable (0) y por eso
+   * se aplica explícito, en vez de "no poner padding y que se note".
    */
   --layout-content-bg-from: var(--sidebar2-bg-from);
   --layout-content-bg-to: var(--sidebar2-bg-to);
-  --layout-radius-bottom: 12px;
+  --layout-radius-top-left: 0px;
+  --layout-radius-top-right: 0px;
+  --layout-radius-bottom-left: 12px;
+  --layout-radius-bottom-right: 12px;
+  --layout-content-padding-top: 0px;
   --layout-gap: 8px;
   --layout-padding: 8px;
 
@@ -525,8 +577,40 @@
   --chatcontent-border-subtle: rgba(255, 255, 255, 0.06);
   --chatcontent-surface-subtle: rgba(255, 255, 255, 0.1);
   --chatcontent-text-muted: rgba(255, 255, 255, 0.5);
-  --chatcontent-input-bg: rgba(255, 255, 255, 0.05);
-  --chatcontent-input-border: rgba(255, 255, 255, 0.12);
+
+  /*
+   * Semánticos — ChatInput (componente propio en Figma, anidado en
+   * ChatContent: ChatInput/bg, /border, /radius:12, /gap:8, /padding-h:8,
+   * /padding-v:8, /placeholder-text). Namespace propio en vez de compartir
+   * el de ChatContent — antes solo bg/border tenían token y radius/gap/
+   * padding/placeholder-text estaban hardcodeados como literales sueltos en
+   * ChatInputBar.tsx (rounded-3xl, gap-2, p-2), lo que hizo que el radius
+   * derivara a 24px sin que nada lo comparara contra el valor real de Figma
+   * (12px). Quedan todos acá, aunque coincidan en valor con otros tokens,
+   * para que cualquier cambio futuro del componente ChatInput en Figma tenga
+   * un lugar 1:1 donde reflejarse sin tocar otros componentes.
+   */
+  --chatinput-bg: rgba(255, 255, 255, 0.05);
+  --chatinput-border: rgba(255, 255, 255, 0.12);
+  --chatinput-radius: 12px;
+  --chatinput-gap: 8px;
+  --chatinput-padding-h: 8px;
+  --chatinput-padding-v: 8px;
+  --chatinput-placeholder-text: rgba(255, 255, 255, 0.5);
+
+  /*
+   * Semánticos — MessageList (molécula "DBoard V1.1.X" de Figma, node
+   * 7662:36531, variantes State=Empty/Messages). La burbuja de usuario y el
+   * avatar de Jarvis reusan --sidebar2-accent-default directamente (mismo
+   * naranja, sin token propio — así lo hace también Figma: MessageList/
+   * bubble-user-bg y MessageList/avatar-bg alias-ean al mismo acento). Acá
+   * solo se tokenizan los dos colores de texto que no tenían equivalente:
+   * el texto de Jarvis (blanco pleno, no atenuado — a diferencia del resto
+   * de los textos oscuros de esta app) y la metadata (tokens/contexto/
+   * duración) en blanco atenuado, mismo criterio que --chatcontent-text-muted.
+   */
+  --messagelist-text-assistant: #ffffff;
+  --messagelist-text-meta: rgba(255, 255, 255, 0.5);
 }
 
 /*

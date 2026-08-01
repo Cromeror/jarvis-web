@@ -8,6 +8,8 @@ interface RailIconButtonProps {
   badge?: { count: number; tone: RailCountBadgeTone };
   onClick?: () => void;
   title?: string;
+  /** Tarjeta rica al hacer hover (Figma ChatOptionsRail/HoverPreview) — reemplaza el tooltip nativo de `title` cuando está presente. Solo Focus/Ejecuciones la traen hoy. */
+  hoverPreview?: React.ReactNode;
   className?: string;
 }
 
@@ -19,13 +21,14 @@ interface RailIconButtonProps {
  * sin badge. Mismo espíritu que Sidebar2IconButton pero con slot de badge,
  * por eso no se reusa ese átomo (namespaces separados a propósito en el DS).
  */
-export function RailIconButton({ icon, active = false, badge, onClick, title, className = '' }: RailIconButtonProps): React.ReactElement {
+export function RailIconButton({ icon, active = false, badge, onClick, title, hoverPreview, className = '' }: RailIconButtonProps): React.ReactElement {
   return (
     <button
       type="button"
       onClick={onClick}
-      title={title}
-      className={`relative flex size-[var(--chatoptionsrail-iconbtn-size)] shrink-0 items-center justify-center ${className}`}
+      title={hoverPreview ? undefined : title}
+      aria-label={hoverPreview ? title : undefined}
+      className={`group relative flex size-[var(--chatoptionsrail-iconbtn-size)] shrink-0 items-center justify-center ${className}`}
     >
       <span
         className={`flex size-[var(--chatoptionsrail-iconbtn-inner-size)] items-center justify-center rounded-[var(--chatoptionsrail-iconbtn-radius)] ${
@@ -37,6 +40,11 @@ export function RailIconButton({ icon, active = false, badge, onClick, title, cl
         <RailIcon name={icon} size={20} />
       </span>
       {badge && <RailCountBadge count={badge.count} tone={badge.tone} />}
+      {hoverPreview && (
+        <div className="pointer-events-none absolute right-full top-0 z-40 mr-2 opacity-0 transition-opacity delay-150 duration-150 group-hover:opacity-100">
+          {hoverPreview}
+        </div>
+      )}
     </button>
   );
 }

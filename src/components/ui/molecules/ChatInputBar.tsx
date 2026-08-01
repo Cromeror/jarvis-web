@@ -108,9 +108,9 @@ export function ChatInputBar({ disabled = false, onSend, planMode = false, onTog
           </div>
         )}
         <div
-          className={`relative flex items-end gap-2 rounded-3xl border bg-[var(--chatcontent-input-bg)] p-2 transition-colors ${
+          className={`relative flex items-end gap-[var(--chatinput-gap)] rounded-[var(--chatinput-radius)] border bg-[var(--chatinput-bg)] px-[var(--chatinput-padding-h)] py-[var(--chatinput-padding-v)] transition-colors ${
             showExpandButton ? 'pr-10' : ''
-          } ${focused ? 'border-[var(--sidebar2-accent-default)]' : 'border-[var(--chatcontent-input-border)]'}`}
+          } ${focused ? 'border-[var(--sidebar2-accent-default)]' : 'border-[var(--chatinput-border)]'}`}
         >
           {showExpandButton && (
             <button
@@ -140,7 +140,7 @@ export function ChatInputBar({ disabled = false, onSend, planMode = false, onTog
               fileInputRef.current?.click();
             }}
             disabled={disabled}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--tab-text-default)] transition-colors hover:bg-white/10 hover:text-[var(--tab-text-hover)] disabled:opacity-30"
+            className="flex shrink-0 items-center justify-center rounded-[8px] p-2 text-[var(--tab-text-default)] transition-colors hover:bg-white/10 hover:text-[var(--tab-text-hover)] disabled:opacity-30"
             aria-label="Adjuntar archivo"
           >
             <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
@@ -180,7 +180,7 @@ export function ChatInputBar({ disabled = false, onSend, planMode = false, onTog
           )}
           <textarea
             ref={textareaRef}
-            className="max-h-[40vh] flex-1 resize-none overflow-y-auto bg-transparent px-1 py-2 text-[16px] text-white placeholder:text-[var(--chatcontent-text-muted)] focus:outline-none disabled:opacity-50"
+            className="max-h-[40vh] flex-1 resize-none overflow-y-auto bg-transparent px-1 py-2 text-[16px] text-white placeholder:text-[var(--chatinput-placeholder-text)] focus:outline-none disabled:opacity-50"
             rows={1}
             placeholder={planMode ? 'Describí qué querés planear...' : 'Escribí un mensaje...'}
             value={value}
@@ -195,7 +195,7 @@ export function ChatInputBar({ disabled = false, onSend, planMode = false, onTog
             type="button"
             onClick={handleSend}
             disabled={disabled || (!value.trim() && attachments.length === 0)}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--sidebar2-accent-default)] text-white transition-colors hover:bg-[var(--buttonicon-primary-bg-hover)] disabled:opacity-30"
+            className="flex shrink-0 items-center justify-center rounded-[8px] bg-[var(--sidebar2-accent-default)] p-2 text-white transition-colors hover:bg-[var(--buttonicon-primary-bg-hover)] disabled:opacity-30"
             aria-label="Enviar mensaje"
           >
             <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
