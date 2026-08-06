@@ -10,8 +10,12 @@ import {
   getChatMessages,
   deleteChatSession,
   renameChatSession,
+  cancelQueuedMessage,
+  stopBackgroundTask,
 } from '../lib/chat-api.js';
 import type { ChatSession, ChatMessage, ChatAttachmentInput } from '../lib/chat-api.js';
+import { resolveQueueStates } from '../lib/chat-queue.js';
+import type { QueuedMessageView } from '../components/ui/molecules/QueuePanel.js';
 import { useChatStream } from '../hooks/useChatStream.js';
 import { ChatWindow } from '../components/Chat/ChatWindow.js';
 import { PlanSidePanel } from '../components/Plan/PlanSidePanel.js';
@@ -80,6 +84,13 @@ export function ChatPage(): React.ReactElement {
   const activeSessionIdRef = useRef<string | null>(null);
   activeSessionIdRef.current = activeSessionId;
   const [chatBySession, setChatBySession] = useState<Record<string, SessionChatState>>({});
+  // Burbujas optimistas recién enviadas → el uuid con el que quedaron
+  // encoladas (null hasta que el POST responde). Existe por dos razones:
+  // el aviso de "estoy trabajando en esto" tiene que ser inmediato y local
+  // (esperar el `queue` del stream deja un hueco donde apretás enviar y no
+  // pasa nada visible), y una vez conocido el uuid el estado se lee del
+  // stream sin que quede ningún instante sin marca.
+  const [sentUuidByOptimisticId, setSentUuidByOptimisticId] = useState<Map<number, string | null>>(new Map());
   // Independent of any session — the user can toggle Plan Mode before a
   // conversation exists yet (empty chat, nothing sent), so it can't live
   // nested under chatBySession[activeSessionId], which wouldn't exist then.
@@ -246,6 +257,8 @@ export function ChatPage(): React.ReactElement {
         return;
       }
       const activeSessionIdForSend = sessionId;
+      const optimisticId = Date.now();
+      setSentUuidByOptimisticId((prev) => new Map(prev).set(optimisticId, null));
 
       setChatBySession((prev) => {
         const current = prev[activeSessionIdForSend] ?? { messages: [], pending: false };
@@ -256,7 +269,7 @@ export function ChatPage(): React.ReactElement {
             messages: [
               ...current.messages,
               {
-                id: Date.now(),
+                id: optimisticId,
                 session_id: activeSessionIdForSend,
                 role: 'user',
                 content: message,
@@ -269,6 +282,11 @@ export function ChatPage(): React.ReactElement {
                 attachments: attachmentFiles?.length
                   ? JSON.stringify(attachmentFiles.map((f) => ({ filename: f.name })))
                   : null,
+                // El uuid real lo asigna el backend al encolar; hasta el
+                // próximo refetch esta burbuja optimista se muestra suelta,
+                // que es exactamente lo que es: mandada y sin contestar.
+                command_uuid: null,
+                answers_command_uuids: null,
               },
             ],
           },
@@ -285,22 +303,26 @@ export function ChatPage(): React.ReactElement {
             })),
           );
         }
-        const result = await sendChatMessage(activeSessionIdForSend, message, attachments, planMode ? 'plan' : undefined);
-        const fresh = await getChatMessages(activeSessionIdForSend);
-        patchSession(activeSessionIdForSend, (current) => ({
-          messages: fresh,
-          hasUnread: activeSessionIdRef.current !== activeSessionIdForSend,
-          ...(result.plan_id
-            ? { proposedPlanIds: [...(current.proposedPlanIds ?? []), result.plan_id] }
-            : {}),
-        }));
-        if (result.plan_id) setOpenPlanId(result.plan_id);
-        if (result.cancelled) addToast('Se detuvo la respuesta de Jarvis', 'info');
+        // Returns as soon as the message is queued — the reply arrives over
+        // the conversation's SSE stream, so nothing here waits for the turn
+        // and the user can send the next message right away.
+        const queued = await sendChatMessage(activeSessionIdForSend, message, attachments, planMode ? 'plan' : undefined);
+        // Con el uuid ya se puede leer el estado real del stream ('queued' /
+        // 'started') sobre esta misma burbuja. NO se borra la entrada acá: si
+        // se borrara, entre el 202 y el primer evento del stream el mensaje
+        // quedaría sin ninguna marca, que es justo el hueco a evitar.
+        if (queued.command_uuid) {
+          setSentUuidByOptimisticId((prev) => new Map(prev).set(optimisticId, queued.command_uuid));
+        }
         loadSessions(projectIds);
       } catch (err) {
         addToast(err instanceof Error ? err.message : 'Error al enviar el mensaje', 'error');
-      } finally {
         patchSession(activeSessionIdForSend, { pending: false });
+        setSentUuidByOptimisticId((prev) => {
+          const next = new Map(prev);
+          next.delete(optimisticId);
+          return next;
+        });
       }
     },
     [activeSessionId, loadSessions, projectIds, addToast, patchSession],
@@ -313,22 +335,145 @@ export function ChatPage(): React.ReactElement {
     });
   }, [activeSessionId, addToast]);
 
-  // Fires when the SSE stream reports the in-flight turn settled — covers
-  // the case where THIS mount never sent the message itself (navigated away
-  // mid-turn and came back, or a hard reload), so there's no local `pending`
-  // promise around to refresh messages once it resolves.
-  const handleStreamDone = useCallback(() => {
+  /**
+   * Saca UN mensaje de la cola sin tocar el turno en curso.
+   *
+   * Sin `commandUuid` no hay nada que cancelar: el mensaje se mandó pero el POST
+   * todavía no volvió con su uuid, así que el CLI ni lo conoce. Es una ventana de
+   * milisegundos, pero la fila ya está en pantalla y hay que decir algo.
+   */
+  const handleRemoveQueued = useCallback(
+    (message: QueuedMessageView) => {
+      if (!activeSessionId) return;
+      if (!message.commandUuid) {
+        addToast('Todavía no se puede quitar: el mensaje se está enviando', 'info');
+        return;
+      }
+      cancelQueuedMessage(activeSessionId, message.commandUuid)
+        .then((res) => {
+          // cancelled:false = el CLI ya lo había drenado al turno. No es un
+          // error, pero el usuario tiene que saber que sigue en camino.
+          if (!res.cancelled) addToast('El mensaje ya había empezado a procesarse', 'info');
+        })
+        .catch((err: unknown) => {
+          addToast(err instanceof Error ? err.message : 'Error al quitar el mensaje de la cola', 'error');
+        });
+    },
+    [activeSessionId, addToast],
+  );
+
+  /** Vacía la cola y aborta el turno — es el mismo control que el botón Detener. */
+  const handleClearQueue = useCallback(() => {
+    if (!activeSessionId) return;
+    stopChatMessage(activeSessionId, true).catch((err: unknown) => {
+      addToast(err instanceof Error ? err.message : 'Error al vaciar la cola', 'error');
+    });
+  }, [activeSessionId, addToast]);
+
+  const handleStopBackgroundTask = useCallback(
+    (taskId: string) => {
+      if (!activeSessionId) return;
+      stopBackgroundTask(activeSessionId, taskId).catch((err: unknown) => {
+        addToast(err instanceof Error ? err.message : 'Error al detener la tarea', 'error');
+      });
+    },
+    [activeSessionId, addToast],
+  );
+
+  const handleStopAllBackgroundTasks = useCallback(() => {
+    if (!activeSessionId) return;
+    stopBackgroundTask(activeSessionId).catch((err: unknown) => {
+      addToast(err instanceof Error ? err.message : 'Error al detener las tareas', 'error');
+    });
+  }, [activeSessionId, addToast]);
+
+  // Fires on every turn the stream reports finished — the one this mount sent,
+  // and equally the one it never saw (navigated away mid-turn and came back,
+  // or a hard reload). Nothing local tracks turn completion any more: sending
+  // no longer awaits a promise, so this is the only refresh path.
+  const handleTurnEnd = useCallback(() => {
     if (!activeSessionId) return;
     const doneSessionId = activeSessionId;
     getChatMessages(doneSessionId)
-      .then((fresh) => patchSession(doneSessionId, { messages: fresh, pending: false }))
+      .then((fresh) => {
+        patchSession(doneSessionId, {
+          messages: fresh,
+          hasUnread: activeSessionIdRef.current !== doneSessionId,
+        });
+        // El historial ya trae esas filas con su uuid propio, así que las
+        // burbujas optimistas dejaron de existir: limpiar evita que el mapa
+        // crezca para siempre en una conversación larga.
+        setSentUuidByOptimisticId((prev) => (prev.size === 0 ? prev : new Map()));
+      })
       .catch((err: unknown) => {
         addToast(err instanceof Error ? err.message : 'Error al cargar mensajes', 'error');
       });
     loadSessions(projectIds);
   }, [activeSessionId, patchSession, loadSessions, projectIds, addToast]);
 
-  const { active: streamActive, liveText } = useChatStream(activeSessionId, handleStreamDone);
+  /**
+   * El stream reconectó: se tiran las burbujas optimistas.
+   *
+   * Sin esto quedaban pegadas. `sentUuidByOptimisticId` solo se limpiaba dentro
+   * del refetch de `handleTurnEnd`, o sea al cerrar un turno — y si el server se
+   * reinició, ese turno murió con el proceso y nunca hubo cierre. El síntoma era
+   * una burbuja "Enviando… hola" permanente, incluso después de recargar la
+   * página, sobre un mensaje que en la base ya tenía su respuesta.
+   *
+   * Si el mensaje sí quedó encolado de verdad, el `queue` que el server manda al
+   * conectar lo vuelve a marcar enseguida.
+   */
+  const handleReconnected = useCallback(() => {
+    setSentUuidByOptimisticId((prev) => (prev.size === 0 ? prev : new Map()));
+    if (activeSessionId) patchSession(activeSessionId, { pending: false });
+  }, [activeSessionId, patchSession]);
+
+  const handlePlanCreated = useCallback(
+    (planId: string) => {
+      if (!activeSessionId) return;
+      patchSession(activeSessionId, (current) => ({
+        proposedPlanIds: [...(current.proposedPlanIds ?? []), planId],
+      }));
+      setOpenPlanId(planId);
+    },
+    [activeSessionId, patchSession],
+  );
+
+  const handleStreamError = useCallback(
+    (message: string) => {
+      addToast(message, 'error');
+    },
+    [addToast],
+  );
+
+  const {
+    active: streamActive,
+    liveText,
+    pending: queuedCommands,
+    backgroundTasks,
+  } = useChatStream(activeSessionId, {
+    onHistoryChanged: handleTurnEnd,
+    onReconnected: handleReconnected,
+    onPlanCreated: handlePlanCreated,
+    onError: handleStreamError,
+  });
+
+  // `pending` was optimistic-only while sending awaited the turn; now the
+  // stream owns the truth. Clearing it when the stream reports idle keeps the
+  // "trabajando" indicators from sticking after everything is answered.
+  useEffect(() => {
+    if (!activeSessionId || streamActive) return;
+    patchSession(activeSessionId, { pending: false });
+  }, [activeSessionId, streamActive, patchSession]);
+
+  // Qué mensaje del historial corresponde a cada ítem de la cola: se matchea
+  // por `command_uuid`, el mismo id con el que el mensaje se encoló en el CLI
+  // y con el que después la respuesta lo referencia. Por posición o por texto
+  // sería frágil (dos mensajes iguales, "hola" y "hola", colisionan).
+  const queueStates = useMemo(() => {
+    const messages = activeSessionId ? chatBySession[activeSessionId]?.messages ?? [] : [];
+    return resolveQueueStates(messages, queuedCommands, sentUuidByOptimisticId);
+  }, [queuedCommands, sentUuidByOptimisticId, activeSessionId, chatBySession]);
 
   const activeChat = activeSessionId ? chatBySession[activeSessionId] : undefined;
   const activeProjectId = useMemo(
@@ -751,6 +896,12 @@ export function ChatPage(): React.ReactElement {
           liveText={liveText}
           onSend={handleSend}
           onStop={handleStop}
+          queueStates={queueStates}
+          onRemoveQueued={handleRemoveQueued}
+          onClearQueue={handleClearQueue}
+          backgroundTasks={backgroundTasks}
+          onStopBackgroundTask={handleStopBackgroundTask}
+          onStopAllBackgroundTasks={handleStopAllBackgroundTasks}
           planMode={planMode}
           onTogglePlanMode={setPlanMode}
           proposedPlanIds={activeChat?.proposedPlanIds}

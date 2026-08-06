@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Spinner } from '../atoms/Spinner.js';
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -11,9 +12,31 @@ interface ChatInputBarProps {
   onSend: (message: string, attachments?: File[], planMode?: boolean) => void;
   planMode?: boolean;
   onTogglePlanMode?: (next: boolean) => void;
+  /**
+   * True mientras Jarvis está contestando. Solo se usa para mostrar el stop
+   * dentro del composer expandido.
+   */
+  turnInFlight?: boolean;
+  /**
+   * Detiene el turno en curso.
+   *
+   * Hace falta acá porque el composer expandido es un `fixed inset-0` que cubre
+   * la lista de mensajes — y el único botón Detener vivía ahí adentro. Escribir
+   * en pantalla completa mientras Jarvis trabajaba dejaba al usuario sin forma
+   * de cortar: el botón no desaparecía, quedaba debajo del overlay. Se volvió
+   * fácil de encontrar desde que el input ya no se bloquea durante el turno.
+   */
+  onStop?: () => void;
 }
 
-export function ChatInputBar({ disabled = false, onSend, planMode = false, onTogglePlanMode }: ChatInputBarProps): React.ReactElement {
+export function ChatInputBar({
+  disabled = false,
+  onSend,
+  planMode = false,
+  onTogglePlanMode,
+  turnInFlight = false,
+  onStop,
+}: ChatInputBarProps): React.ReactElement {
   const [value, setValue] = useState('');
   const [focused, setFocused] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -233,6 +256,19 @@ export function ChatInputBar({ disabled = false, onSend, planMode = false, onTog
             onPaste={handlePaste}
           />
           <div className="flex items-center justify-end gap-2 border-t border-[var(--chatcontent-border-subtle)] px-4 py-3">
+            {turnInFlight && onStop && (
+              // A la izquierda del resto: el overlay tapa el Detener de la
+              // lista, así que sin esto no habría cómo cortar el turno sin
+              // salir del composer primero.
+              <button
+                type="button"
+                onClick={onStop}
+                className="mr-auto flex items-center gap-1.5 rounded-full border border-[var(--chatcontent-border-subtle)] px-4 py-2 text-sm font-medium text-[var(--tab-text-hover)] hover:bg-white/10"
+              >
+                <Spinner className="h-3 w-3" />
+                Detener
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setExpanded(false)}

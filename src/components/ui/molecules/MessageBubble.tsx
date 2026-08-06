@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Avatar } from '../atoms/Avatar.js';
+import { Spinner } from '../atoms/Spinner.js';
 
 interface MessageBubbleProps {
   role: string;
@@ -10,6 +11,14 @@ interface MessageBubbleProps {
   contextUsedPercent?: number | null;
   durationMs?: number | null;
   attachments?: string | null;
+  /**
+   * Estado de un mensaje del usuario que Jarvis todavía no contestó:
+   * 'sending' = local, apenas se apretó enviar y el server todavía no
+   * confirmó; 'queued' = ya está en la cola del CLI esperando su turno;
+   * 'started' = lo está respondiendo ahora. Ausente cuando ya fue contestado
+   * (que es el caso de todo el historial).
+   */
+  queueState?: 'sending' | 'queued' | 'started';
 }
 
 /** Parses the JSON `attachments` column into filenames, fail-soft on malformed/missing data. */
@@ -69,6 +78,7 @@ export function MessageBubble({
   contextUsedPercent,
   durationMs,
   attachments,
+  queueState,
 }: MessageBubbleProps): React.ReactElement {
   const isUser = role === 'user';
 
@@ -77,6 +87,9 @@ export function MessageBubble({
     return (
       <div className="flex justify-end">
         <div className="max-w-[75%] rounded-2xl bg-[var(--sidebar2-accent-default)] px-4 py-2.5 text-[17px] leading-relaxed text-white md:text-sm md:leading-normal">
+          {queueState === 'sending' && <div className="mb-1 text-xs text-white/70">Enviando…</div>}
+          {queueState === 'queued' && <div className="mb-1 text-xs text-white/70">En cola</div>}
+          {queueState === 'started' && <div className="mb-1 flex items-center gap-1.5 text-xs text-white/70"><Spinner />Respondiendo…</div>}
           {attachmentNames.length > 0 && (
             <div className="mb-1.5 flex flex-wrap gap-1.5">
               {attachmentNames.map((name, i) => (

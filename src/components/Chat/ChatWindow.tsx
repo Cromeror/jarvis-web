@@ -2,6 +2,9 @@ import React from 'react';
 import type { ChatMessage, ChatSession } from '../../lib/chat-api.js';
 import type { ProjectSummary } from '../../lib/projects-api.js';
 import { MessageList } from '../ui/molecules/MessageList.js';
+import type { QueuedMessageView } from '../ui/molecules/QueuePanel.js';
+import type { BackgroundTaskView } from '../ui/molecules/BackgroundTasksBar.js';
+import type { QueueState } from '../../lib/chat-queue.js';
 import { ChatContent } from './ChatContent.js';
 
 interface ChatWindowProps {
@@ -12,6 +15,16 @@ interface ChatWindowProps {
   onSend: (message: string, attachments?: File[], planMode?: boolean) => void;
   /** Cancels the turn currently in flight. Absent while there's nothing to stop. */
   onStop?: () => void;
+  /** Estado de cola por id de mensaje del usuario — marca cuál está respondiendo Jarvis y cuáles esperan. */
+  queueStates?: Map<number, QueueState>;
+  /** Saca un mensaje puntual de la cola. */
+  onRemoveQueued?: (message: QueuedMessageView) => void;
+  /** Vacía la cola entera — también aborta el turno en curso. */
+  onClearQueue?: () => void;
+  /** Tareas que Jarvis dejó corriendo; sobreviven al turno, van en su propia barra. */
+  backgroundTasks?: BackgroundTaskView[];
+  onStopBackgroundTask?: (taskId: string) => void;
+  onStopAllBackgroundTasks?: () => void;
   planMode?: boolean;
   onTogglePlanMode?: (next: boolean) => void;
   /** Plans proposed during this session's turns — rendered as a small banner that opens the side panel. */
@@ -37,6 +50,12 @@ export function ChatWindow({
   liveText,
   onSend,
   onStop,
+  queueStates,
+  onRemoveQueued,
+  onClearQueue,
+  backgroundTasks,
+  onStopBackgroundTask,
+  onStopAllBackgroundTasks,
   planMode,
   onTogglePlanMode,
   proposedPlanIds,
@@ -69,13 +88,20 @@ export function ChatWindow({
       onSend={onSend}
       planMode={planMode}
       onTogglePlanMode={onTogglePlanMode}
-      inputDisabled={pending}
+      turnInFlight={pending}
+      onStop={onStop}
+      backgroundTasks={backgroundTasks}
+      onStopBackgroundTask={onStopBackgroundTask}
+      onStopAllBackgroundTasks={onStopAllBackgroundTasks}
     >
       <MessageList
         messages={messages}
         pending={pending}
         liveText={liveText}
         onStop={onStop}
+        queueStates={queueStates}
+        onRemoveQueued={onRemoveQueued}
+        onClearQueue={onClearQueue}
         proposedPlanIds={proposedPlanIds}
         onOpenPlan={onOpenPlan}
       />

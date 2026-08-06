@@ -5,6 +5,7 @@ import { ProjectTabStrip } from './ProjectTabStrip.js';
 import { ConversationSwitcher } from './ConversationSwitcher.js';
 import { NewSessionButton } from './NewSessionButton.js';
 import { ChatInputBar } from '../ui/molecules/ChatInputBar.js';
+import { BackgroundTasksBar, type BackgroundTaskView } from '../ui/molecules/BackgroundTasksBar.js';
 
 interface ChatContentProps {
   sessions: ChatSession[];
@@ -21,7 +22,24 @@ interface ChatContentProps {
   onSend: (message: string, attachments?: File[], planMode?: boolean) => void;
   planMode?: boolean;
   onTogglePlanMode?: (next: boolean) => void;
-  inputDisabled: boolean;
+  /**
+   * Bloquea la barra de escribir. Por default NO se bloquea mientras Jarvis
+   * trabaja: el CLI acepta mensajes en pleno turno (los funde en el turno en
+   * curso o los encola detrás), así que deshabilitar el input sería una
+   * restricción nuestra, no del motor.
+   */
+  inputDisabled?: boolean;
+  /** True mientras Jarvis contesta — habilita el Detener dentro del composer expandido. */
+  turnInFlight?: boolean;
+  /** Detiene el turno en curso. Llega hasta el composer porque en pantalla completa tapa el Detener de la lista. */
+  onStop?: () => void;
+  /**
+   * Tareas que Jarvis dejó corriendo. La barra vive acá y no dentro de la lista
+   * de mensajes: tiene que quedar visible sin scrollear.
+   */
+  backgroundTasks?: BackgroundTaskView[];
+  onStopBackgroundTask?: (taskId: string) => void;
+  onStopAllBackgroundTasks?: () => void;
   /** Área de contenido (mensajes o estado vacío) — la arma quien use ChatContent, acá solo se envuelve. */
   children: React.ReactNode;
 }
@@ -50,7 +68,12 @@ export function ChatContent({
   onSend,
   planMode,
   onTogglePlanMode,
-  inputDisabled,
+  inputDisabled = false,
+  turnInFlight,
+  onStop,
+  backgroundTasks,
+  onStopBackgroundTask,
+  onStopAllBackgroundTasks,
   children,
 }: ChatContentProps): React.ReactElement {
   return (
@@ -72,7 +95,29 @@ export function ChatContent({
         </div>
       </div>
       <div className="flex-1 overflow-y-auto">{children}</div>
-      <ChatInputBar disabled={inputDisabled} onSend={onSend} planMode={planMode} onTogglePlanMode={onTogglePlanMode} />
+      {/*
+        La barra va acá, HERMANA del área que scrollea y no adentro.
+        Adentro de `overflow-y-auto` el panel se desplegaba hacia abajo, fuera
+        del viewport: había que scrollear para ver las tareas y el auto-scroll al
+        fondo tardaba en reacomodarse. Como hermana del input queda siempre
+        visible y crece hacia arriba comiendo alto de la conversación, que es lo
+        que uno espera de una barra de estado.
+      */}
+      {backgroundTasks && backgroundTasks.length > 0 && (
+        <BackgroundTasksBar
+          tasks={backgroundTasks}
+          onStopTask={onStopBackgroundTask}
+          onStopAll={onStopAllBackgroundTasks}
+        />
+      )}
+      <ChatInputBar
+        disabled={inputDisabled}
+        onSend={onSend}
+        planMode={planMode}
+        onTogglePlanMode={onTogglePlanMode}
+        turnInFlight={turnInFlight}
+        onStop={onStop}
+      />
     </div>
   );
 }

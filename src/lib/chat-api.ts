@@ -23,6 +23,10 @@ export interface ChatMessage {
   context_used_percent: number | null;
   duration_ms: number | null;
   attachments: string | null;
+  /** Mensajes del usuario: el uuid con el que se encoló en el CLI. Null si nunca pasó por la cola (historial viejo). */
+  command_uuid: string | null;
+  /** Respuestas: qué mensajes encolados contesta, en el orden en que el usuario los mandó. Un turno puede contestar varios. */
+  answers_command_uuids: string[] | null;
 }
 
 /** An attachment (image, document) about to be sent with a chat turn — filename + base64 content. */
@@ -49,22 +53,21 @@ export async function startChatSession(projectId: string): Promise<{ session_id:
   return handleResponse<{ session_id: string }>(res);
 }
 
-/** POST /api/chat/sessions/:id/messages — send a message, run one turn */
+/**
+ * POST /api/chat/sessions/:id/messages — queue a message.
+ *
+ * Returns 202 as soon as the engine accepted it, WITHOUT waiting for the
+ * reply: Claude Code either folds the message into the turn it's running or
+ * queues it right behind, so the user can keep typing. The answer, the queue
+ * state and any failure arrive over the conversation's SSE stream
+ * (see useChatStream), never in this response.
+ */
 export async function sendChatMessage(
   sessionId: string,
   message: string,
   attachments?: ChatAttachmentInput[],
   mode?: 'plan',
-): Promise<{
-  text: string;
-  session_id: string;
-  input_tokens?: number;
-  output_tokens?: number;
-  context_used_percent?: number;
-  duration_ms?: number;
-  plan_id?: string;
-  cancelled?: boolean;
-}> {
+): Promise<{ queued: boolean; session_id: string; command_uuid: string | null }> {
   const res = await fetch(`/api/chat/sessions/${encodeURIComponent(sessionId)}/messages`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -74,22 +77,65 @@ export async function sendChatMessage(
       ...(mode ? { mode } : {}),
     }),
   });
-  return handleResponse<{
-    text: string;
-    session_id: string;
-    input_tokens?: number;
-    output_tokens?: number;
-    context_used_percent?: number;
-    duration_ms?: number;
-    plan_id?: string;
-    cancelled?: boolean;
-  }>(res);
+  return handleResponse<{ queued: boolean; session_id: string; command_uuid: string | null }>(res);
 }
 
-/** POST /api/chat/sessions/:id/stop — cancel the turn currently in flight, if any */
-export async function stopChatMessage(sessionId: string): Promise<{ stopped: boolean }> {
+/**
+ * POST /api/chat/sessions/:id/stop — cancel the turn in flight and, by
+ * default, everything queued behind it. Pass cancelQueued=false to abort only
+ * what's running and let the queue keep draining.
+ */
+export async function stopChatMessage(sessionId: string, cancelQueued = true): Promise<{ stopped: boolean }> {
   const res = await fetch(`/api/chat/sessions/${encodeURIComponent(sessionId)}/stop`, {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cancel_queued: cancelQueued }),
+  });
+  return handleResponse<{ stopped: boolean }>(res);
+}
+
+/**
+ * DELETE /api/chat/sessions/:id/queue/:commandUuid — saca UN mensaje de la cola.
+ *
+ * Mapea al `control_request` `cancel_async_message` del CLI. Verificado contra
+ * el CLI real 2.1.220: el mensaje pasa de `queued` a `cancelled` sin ejecutarse
+ * y el turno en curso sigue intacto. `cancelled: false` significa que ya había
+ * salido de la cola (o nunca estuvo), y es un no-op benigno, no un error.
+ *
+ * OJO: el endpoint todavía NO existe en http-api — falta wirear
+ * `cancelAsyncMessage()` en PersistentClaudeSession. Hasta entonces esto
+ * devuelve 404 y la UI lo trata como un fallo de cancelación.
+ */
+export async function cancelQueuedMessage(
+  sessionId: string,
+  commandUuid: string,
+): Promise<{ cancelled: boolean }> {
+  const res = await fetch(
+    `/api/chat/sessions/${encodeURIComponent(sessionId)}/queue/${encodeURIComponent(commandUuid)}`,
+    { method: 'DELETE' },
+  );
+  return handleResponse<{ cancelled: boolean }>(res);
+}
+
+/**
+ * POST /api/chat/sessions/:id/background-tasks/stop — detiene tareas en background.
+ *
+ * Sin `task_id` detiene todas. En el CLI `stop_task` es SIEMPRE por task_id (el
+ * schema lo tiene requerido, no hay variante "todas"), así que "todas" se
+ * resuelve del lado del server como N llamadas. No confundir con
+ * `POST :id/stop`: ese manda `interrupt` y corta el TURNO, sin tocar estas
+ * tareas — que justamente sobreviven al turno.
+ *
+ * OJO: el endpoint todavía NO existe en http-api.
+ */
+export async function stopBackgroundTask(
+  sessionId: string,
+  taskId?: string,
+): Promise<{ stopped: boolean }> {
+  const res = await fetch(`/api/chat/sessions/${encodeURIComponent(sessionId)}/background-tasks/stop`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(taskId ? { task_id: taskId } : {}),
   });
   return handleResponse<{ stopped: boolean }>(res);
 }

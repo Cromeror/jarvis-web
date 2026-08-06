@@ -18,6 +18,13 @@
         "configFile": "packages/web-app/vite.config.ts"
       },
       "cache": false
+    },
+    "test": {
+      "command": "vitest run",
+      "options": {
+        "cwd": "packages/web-app"
+      },
+      "cache": true
     }
   }
 }
