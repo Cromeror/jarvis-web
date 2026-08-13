@@ -35,10 +35,11 @@ export default defineConfig(({ mode }) => {
       },
     },
     build: {
-      // Output to packages/mcp/web-app/dist so the HTTP server can serve it.
-      // The http-server.ts resolves distDir relative to its compiled location:
-      //   packages/mcp/dist/http-server.js → ../../web-app/dist = packages/mcp/web-app/dist
-      outDir: resolve(__dirname, '../mcp/web-app/dist'),
+      // El build vive dentro del propio paquete; http-api lo sirve desde acá
+      // (packages/http-api/src/static.ts → ../../web-app/dist). Antes salía a
+      // packages/mcp/web-app/dist, cuando el daemon MCP era quien lo servía —
+      // el MCP se eliminó.
+      outDir: resolve(__dirname, 'dist'),
       emptyOutDir: true,
       // Mermaid weighs ~650KB and is loaded lazily; the default 500KB warning is
       // not actionable for our case.
