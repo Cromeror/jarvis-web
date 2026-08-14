@@ -105,6 +105,12 @@ export function ChatPage(): React.ReactElement {
   const [railPlans, setRailPlans] = useState<PlanSummary[]>([]);
   const [railPlansLoading, setRailPlansLoading] = useState(false);
   const [railPlansError, setRailPlansError] = useState<string | null>(null);
+  // Se incrementa al terminar cada turno para recargar la lista de planes. El
+  // evento `plan_created` sigue siendo el camino preciso (abre el panel del
+  // plan nuevo), pero depende de poder atribuir la ejecución de `plan_create` a
+  // esta sesión; esto es el piso: después de cualquier turno la lista está
+  // fresca, haya llegado el evento o no.
+  const [railPlansToken, setRailPlansToken] = useState(0);
 
   const patchSession = useCallback(
     (sessionId: string, patch: Partial<SessionChatState> | ((current: SessionChatState) => Partial<SessionChatState>)) => {
@@ -409,6 +415,9 @@ export function ChatPage(): React.ReactElement {
         addToast(err instanceof Error ? err.message : 'Error al cargar mensajes', 'error');
       });
     loadSessions(projectIds);
+    // Un turno pudo haber creado, editado o aprobado un plan — el rail se
+    // revalida siempre al cerrar el turno, no solo cuando llega `plan_created`.
+    setRailPlansToken((n) => n + 1);
   }, [activeSessionId, patchSession, loadSessions, projectIds, addToast]);
 
   /**
@@ -498,7 +507,9 @@ export function ChatPage(): React.ReactElement {
   // así que el fetch ya no depende de `railOption`, solo de haber un
   // proyecto activo. Se recarga al cambiar de proyecto y cuando cambia el
   // plan abierto (un turno con plan nuevo mueve `openPlanId`, así el rail no
-  // queda mostrando una lista vieja).
+  // queda mostrando una lista vieja), y al cerrar cada turno vía
+  // `railPlansToken` — que es lo que cubre el turno que creó un plan sin que
+  // llegara el evento `plan_created`.
   useEffect(() => {
     if (!activeProjectId) {
       setRailPlans([]);
@@ -512,7 +523,7 @@ export function ChatPage(): React.ReactElement {
       .catch((err: unknown) => { if (!cancelled) setRailPlansError(err instanceof Error ? err.message : 'Error al cargar planes'); })
       .finally(() => { if (!cancelled) setRailPlansLoading(false); });
     return () => { cancelled = true; };
-  }, [activeProjectId, openPlanId]);
+  }, [activeProjectId, openPlanId, railPlansToken]);
 
   const activeProjectName = useMemo(
     () => projects.find((p) => p.id === activeProjectId)?.name ?? activeProjectId ?? '',

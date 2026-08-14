@@ -113,16 +113,27 @@ export function PlansPage(): React.ReactElement {
     );
   }, [plans, statusFilter, sortOrder]);
 
-  // Polling liviano: mientras al menos un plan visible siga 'running', re-consultamos
-  // cada 6s para que el badge 'Ejecutando' se actualice cuando el run termine (no hay
-  // SSE en esta lista). El effect se re-evalúa al cambiar `hasRunningPlan`, así que en
-  // cuanto ningún plan visible queda corriendo el intervalo se limpia solo — sin poll
-  // infinito ni innecesario cuando todo está en estado terminal.
+  // Polling liviano, en dos velocidades. Rápido (6s) mientras haya un plan
+  // 'running', para que el badge 'Ejecutando' se actualice cuando el run
+  // termine. Lento (20s) el resto del tiempo: esta lista no es de una sola
+  // conversación — un plan puede nacer en el chat, en otra pestaña o en otra
+  // sesión, y sin este piso la página se quedaba con la foto del montaje hasta
+  // que el usuario cambiara un filtro.
+  //
+  // Por qué no SSE acá: el stream de planes que ya existe es por RUN
+  // (usePlanRunEvents), algo que el server empuja paso a paso; "los planes de
+  // estos proyectos" no tiene productor de eventos y montarlo pediría un canal
+  // nuevo por proyecto más su fan-out. Un GET barato cada 20s, pausado cuando
+  // la pestaña no se ve, compra lo mismo. Revisar si aparece una vista donde la
+  // latencia sub-segundo importe.
   const hasRunningPlan = useMemo(() => visiblePlans.some((p) => p.status === 'running'), [visiblePlans]);
 
   useEffect(() => {
-    if (!hasRunningPlan || projectIdsToLoad.length === 0) return;
-    const interval = setInterval(() => loadPlans(projectIdsToLoad), 6_000);
+    if (projectIdsToLoad.length === 0) return;
+    const interval = setInterval(() => {
+      if (document.hidden) return;
+      loadPlans(projectIdsToLoad);
+    }, hasRunningPlan ? 6_000 : 20_000);
     return () => clearInterval(interval);
   }, [hasRunningPlan, projectIdsToLoad.join(','), loadPlans]);
 
