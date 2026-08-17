@@ -8,6 +8,8 @@ export interface RailListPanelItem {
   id: string;
   title: string;
   subtitle: string;
+  /** Estado efímero, en la misma línea que el subtítulo (en Historial: 'Respondiendo…' junto al tiempo). */
+  status?: string;
   badge?: { label: string; status: BadgeStatus };
   /** true → la fila muestra el botón de acción (en Planes, solo el plan aprobado puede lanzarse). */
   canAct?: boolean;
@@ -22,6 +24,11 @@ export interface RailListPanelData {
   actionLabel?: string;
   onSelectItem?: (id: string) => void;
   onAction?: (id: string) => void;
+  /** Ítem marcado como seleccionado (borde de acento a la izquierda). En Historial, la conversación abierta. */
+  selectedId?: string | null;
+  /** Habilita la acción destructiva por fila. Ausente = la opción no permite borrar. */
+  onDeleteItem?: (id: string) => void;
+  deleteLabel?: string;
 }
 
 interface RailListPanelProps extends RailListPanelData {
@@ -54,6 +61,9 @@ export function RailListPanel({
   onToggle,
   onSelectItem,
   onAction,
+  selectedId = null,
+  onDeleteItem,
+  deleteLabel,
   className = '',
 }: RailListPanelProps): React.ReactElement {
   const placeholder = error ?? (loading ? 'Cargando…' : items.length === 0 ? emptyLabel : null);
@@ -76,10 +86,14 @@ export function RailListPanel({
               <RailListRow
                 title={item.title}
                 subtitle={item.subtitle}
+                status={item.status}
                 badge={item.badge}
                 onClick={onSelectItem ? () => onSelectItem(item.id) : undefined}
                 onPlay={item.canAct && onAction ? () => onAction(item.id) : undefined}
                 playLabel={actionLabel}
+                selected={item.id === selectedId}
+                onDelete={onDeleteItem ? () => onDeleteItem(item.id) : undefined}
+                deleteLabel={deleteLabel}
               />
             </React.Fragment>
           ))

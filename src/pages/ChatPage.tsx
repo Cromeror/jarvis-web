@@ -61,6 +61,25 @@ const PLAN_BADGE: Record<PlanStatus, { label: string; status: BadgeStatus }> = {
   archived: { label: 'Archivado', status: 'cancelled' },
 };
 
+/**
+ * Los campos de `ChatSession` que el rail y el tab strip realmente pintan. Se
+ * comparan para no reemplazar el array en cada refresco cuando nada cambió —
+ * ver `loadSessions`. `busy` entra en la comparación: es justo el campo que
+ * cambia sin que cambie `updated_at`.
+ */
+function sameSessionList(a: ChatSession[], b: ChatSession[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((session, i) => {
+    const other = b[i];
+    return (
+      session.id === other.id &&
+      session.title === other.title &&
+      session.updated_at === other.updated_at &&
+      (session.busy ?? false) === (other.busy ?? false)
+    );
+  });
+}
+
 /** Reads a File as a base64 string (without the data: URL prefix) for sending over JSON. */
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolvePromise, reject) => {
@@ -132,14 +151,20 @@ export function ChatPage(): React.ReactElement {
   }, [addToast]);
 
   const loadSessions = useCallback(
-    (projectIds: string[]) => {
+    // `silent` existe para el refresco periódico del rail: un server caído
+    // haría que ese intervalo escupiera un toast cada pocos segundos, así que
+    // ahí el error se traga (la carga inicial sí avisa, es la que importa).
+    (projectIds: string[], opts?: { silent?: boolean }) => {
       Promise.all(projectIds.map((id) => listChatSessions(id)))
-        .then((results) =>
-          setSessions(
-            results.flat().sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()),
-          ),
-        )
+        .then((results) => {
+          const next = results.flat().sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+          // Sin esto el refresco cada pocos segundos reemplaza el array por uno
+          // nuevo aunque no haya cambiado nada, y vuelve a renderizar todo lo
+          // que depende de `sessions` (tab strip, switcher, rail) de gratis.
+          setSessions((prev) => (sameSessionList(prev, next) ? prev : next));
+        })
         .catch((err: unknown) => {
+          if (opts?.silent) return;
           addToast(err instanceof Error ? err.message : 'Error al cargar conversaciones', 'error');
         });
     },
@@ -151,6 +176,17 @@ export function ChatPage(): React.ReactElement {
   useEffect(() => {
     if (projectIds.length > 0) loadSessions(projectIds);
   }, [projectIds.join(','), loadSessions]);
+
+  // El `busy` de cada conversación es un snapshot del momento del fetch, no un
+  // stream: el SSE es de UNA conversación (la abierta), así que para las demás
+  // no hay evento que avise que arrancaron o terminaron. De ahí el refresco
+  // periódico, y solo mientras el Historial está abierto — es el único panel
+  // que lo muestra, no tiene sentido pollear cuando no se ve.
+  useEffect(() => {
+    if (railOption !== 'history' || projectIds.length === 0) return;
+    const timer = window.setInterval(() => loadSessions(projectIds, { silent: true }), 5000);
+    return () => window.clearInterval(timer);
+  }, [railOption, projectIds.join(','), loadSessions]);
 
   const handleSelectSession = useCallback(
     (sessionId: string) => {
@@ -572,8 +608,12 @@ export function ChatPage(): React.ReactElement {
           id: s.id,
           title: s.title ?? 'Nueva conversación',
           subtitle: timeAgo(s.updated_at),
+          // Para la conversación abierta manda el stream, no el `busy` de la
+          // lista: es instantáneo y no espera al próximo refresco (y si los dos
+          // discrepan, el que tiene el evento en vivo es el que sabe).
+          status: (s.id === activeSessionId ? streamActive : (s.busy ?? false)) ? 'Respondiendo…' : undefined,
         })),
-    [sessions, activeProjectId],
+    [sessions, activeProjectId, activeSessionId, streamActive],
   );
 
   const handleLaunchPlan = useCallback(
@@ -621,6 +661,11 @@ export function ChatPage(): React.ReactElement {
         items: railHistoryItems,
         emptyLabel: railHistoryEmptyLabel,
         onSelectItem: (sessionId) => selectSessionAndNavigate(sessionId, activeProjectId),
+        // Misma acción que el botón de borrar del sidebar izquierdo: pide
+        // confirmación, y si la que se borra es la abierta, vuelve a /chat.
+        onDeleteItem: (sessionId) => void handleDeleteSession(sessionId),
+        deleteLabel: 'Eliminar conversación',
+        selectedId: activeSessionId,
       },
     }),
     [
@@ -633,7 +678,9 @@ export function ChatPage(): React.ReactElement {
       railExecutionsEmptyLabel,
       railHistoryEmptyLabel,
       activeProjectId,
+      activeSessionId,
       handleLaunchPlan,
+      handleDeleteSession,
       selectSessionAndNavigate,
     ],
   );

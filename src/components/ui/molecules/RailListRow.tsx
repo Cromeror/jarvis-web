@@ -5,12 +5,29 @@ import { Badge, type BadgeStatus } from '../atoms/Badge.js';
 interface RailListRowProps {
   title: string;
   subtitle: string;
+  /**
+   * Estado efímero de la fila ('Respondiendo…'), alineado a la derecha en la
+   * MISMA línea que el subtítulo (que en Historial es el tiempo) — de ahí el
+   * justify-between. Comparte la tipografía del subtítulo a propósito: es
+   * metadata de la fila, no un badge. Ausente = nada que informar, y esa
+   * ausencia es justamente la señal de "ya terminó".
+   */
+  status?: string;
   badge?: { label: string; status: BadgeStatus };
   /** Fila clickeable (abre el detalle). Sin handler la fila queda como texto plano. */
   onClick?: () => void;
   /** Acción de lanzar — solo algunas filas la traen (en Figma, la del plan aprobado). */
   onPlay?: () => void;
   playLabel?: string;
+  /**
+   * Fila actualmente abierta en el chat — se marca con un borde de acento del
+   * lado izquierdo. El borde se dibuja SIEMPRE (transparente cuando no está
+   * seleccionada) para que marcarla no corra el texto de las demás.
+   */
+  selected?: boolean;
+  /** Acción destructiva opcional (en Historial, eliminar la conversación). */
+  onDelete?: () => void;
+  deleteLabel?: string;
   className?: string;
 }
 
@@ -24,15 +41,22 @@ interface RailListRowProps {
 export function RailListRow({
   title,
   subtitle,
+  status,
   badge,
   onClick,
   onPlay,
   playLabel = 'Lanzar',
+  selected = false,
+  onDelete,
+  deleteLabel = 'Eliminar',
   className = '',
 }: RailListRowProps): React.ReactElement {
   return (
     <div
-      className={`flex w-full items-center gap-[var(--chatoptionsrail-listrow-gap)] py-[var(--chatoptionsrail-listrow-padding-v)] ${className}`}
+      aria-current={selected ? 'true' : undefined}
+      className={`flex w-full items-center gap-[var(--chatoptionsrail-listrow-gap)] border-l-2 py-[var(--chatoptionsrail-listrow-padding-v)] pl-2 ${
+        selected ? 'border-[var(--chatoptionsrail-listrow-selected-border)]' : 'border-transparent'
+      } ${className}`}
     >
       <button
         type="button"
@@ -41,7 +65,10 @@ export function RailListRow({
         className="flex min-w-0 flex-1 flex-col items-start gap-[var(--chatoptionsrail-listrow-text-gap)] text-left disabled:cursor-default"
       >
         <span className="w-full text-[13px] font-semibold text-[var(--chatoptionsrail-listrow-title-text)]">{title}</span>
-        <span className="w-full text-[11px] text-[var(--chatoptionsrail-listrow-subtitle-text)]">{subtitle}</span>
+        <span className="flex w-full items-center justify-between gap-2 text-[11px] text-[var(--chatoptionsrail-listrow-subtitle-text)]">
+          <span className="min-w-0 truncate">{subtitle}</span>
+          {status && <span className="shrink-0 text-[var(--chatoptionsrail-listrow-status-text)]">{status}</span>}
+        </span>
       </button>
 
       {badge && <Badge label={badge.label} status={badge.status} size="sm" />}
@@ -55,6 +82,18 @@ export function RailListRow({
           className="flex shrink-0 items-center justify-center rounded-[var(--chatoptionsrail-listplay-radius)] bg-[var(--chatoptionsrail-listplay-bg)] p-[var(--chatoptionsrail-listplay-padding)] text-white transition-opacity hover:opacity-90"
         >
           <RailIcon name="play-circle" size={16} />
+        </button>
+      )}
+
+      {onDelete && (
+        <button
+          type="button"
+          onClick={onDelete}
+          title={deleteLabel}
+          aria-label={deleteLabel}
+          className="flex shrink-0 items-center justify-center rounded-md p-1 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
+        >
+          <i className="pi pi-trash text-sm" />
         </button>
       )}
     </div>

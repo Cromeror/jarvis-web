@@ -9,6 +9,13 @@ export interface ChatSession {
   native_session_id: string | null;
   created_at: string;
   updated_at: string;
+  /**
+   * Hay un turno sin contestar y un proceso vivo que lo está contestando. Lo
+   * calcula el server contra el pool en cada `list()` — no es una columna, así
+   * que solo es fresco al momento del fetch. Opcional a propósito: fail-soft
+   * si la respuesta viene de un server viejo.
+   */
+  busy?: boolean;
 }
 
 export interface ChatMessage {
@@ -35,10 +42,28 @@ export interface ChatAttachmentInput {
   content_base64: string;
 }
 
+/**
+ * Convierte una respuesta de error en un mensaje legible para el usuario (va a
+ * un toast). El server manda JSON `{ message, limit }` en los errores que
+ * controla —p.ej. 413 por adjuntos que superan el límite del body— y ahí
+ * preferimos ese texto antes que el `HTTP 413` crudo. Fail-soft: si el body no
+ * es ese JSON, cae a un genérico (y un 413 sin JSON igual se explica).
+ */
+function errorMessage(status: number, body: string): string {
+  try {
+    const parsed = JSON.parse(body) as { message?: unknown };
+    if (typeof parsed?.message === 'string' && parsed.message) return parsed.message;
+  } catch {
+    // body no era JSON — seguimos con los fallbacks de abajo
+  }
+  if (status === 413) return 'Los adjuntos superan el límite del servidor. Mandá menos fotos, o más chicas.';
+  return `HTTP ${status}: ${body}`;
+}
+
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`HTTP ${res.status}: ${body}`);
+    throw new Error(errorMessage(res.status, body));
   }
   return res.json() as Promise<T>;
 }
@@ -169,6 +194,6 @@ export async function deleteChatSession(sessionId: string): Promise<void> {
   });
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`HTTP ${res.status}: ${body}`);
+    throw new Error(errorMessage(res.status, body));
   }
 }

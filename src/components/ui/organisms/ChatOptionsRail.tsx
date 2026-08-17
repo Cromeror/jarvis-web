@@ -211,6 +211,9 @@ export function ChatOptionsRail({
                 onToggle={() => onToggleOption(item.id)}
                 onSelectItem={panel.onSelectItem}
                 onAction={panel.onAction}
+                selectedId={panel.selectedId}
+                onDeleteItem={panel.onDeleteItem}
+                deleteLabel={panel.deleteLabel}
               />
             ) : (
               <RailNavItem

@@ -1,5 +1,6 @@
 @layer legacy, theme, base, primereact, components, utilities;
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 @import "./styles.css" layer(legacy);
 @import "primereact/resources/themes/lara-light-blue/theme.css" layer(primereact);
 @import "primereact/resources/primereact.min.css" layer(primereact);
@@ -383,6 +384,12 @@
   --chatoptionsrail-listrow-text-gap: 2px;
   --chatoptionsrail-listrow-title-text: var(--chatoptionsrail-row-text);
   --chatoptionsrail-listrow-subtitle-text: #64748b;
+  /* Estado efímero de la fila ("Respondiendo…"): misma tipografía que el
+     subtítulo/tiempo, con el naranja de acento como única diferencia — si
+     compartiera también el color quedaría indistinguible del tiempo, que es
+     justo lo que hay que poder distinguir de un vistazo. */
+  --chatoptionsrail-listrow-status-text: var(--sidebar2-accent-default);
+  --chatoptionsrail-listrow-selected-border: var(--sidebar2-accent-default);
   --chatoptionsrail-listplay-bg: var(--sidebar2-accent-default);
   --chatoptionsrail-listplay-radius: 8px;
   --chatoptionsrail-listplay-padding: 8px;
