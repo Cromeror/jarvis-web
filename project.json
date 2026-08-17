@@ -6,16 +6,17 @@
   "sourceRoot": "packages/web-app/src",
   "targets": {
     "build": {
-      "executor": "@nx/vite:build",
+      "command": "vite build",
       "options": {
-        "configFile": "packages/web-app/vite.config.ts"
+        "cwd": "packages/web-app"
       },
+      "outputs": ["{projectRoot}/dist"],
       "cache": true
     },
     "dev": {
-      "executor": "@nx/vite:dev-server",
+      "command": "vite",
       "options": {
-        "configFile": "packages/web-app/vite.config.ts"
+        "cwd": "packages/web-app"
       },
       "cache": false
     },
