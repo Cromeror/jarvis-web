@@ -12,6 +12,7 @@ import { SortIcon } from '../components/ui/atoms/SortIcon.js';
 import { EntityCard } from '../components/ui/molecules/EntityCard.js';
 import { EmptyCard } from '../components/ui/molecules/EmptyCard.js';
 import { PlanSidePanel } from '../components/Plan/PlanSidePanel.js';
+import { PlanLaunchDialog } from '../components/Plan/PlanLaunchDialog.js';
 import type { StatusBadgeTone } from '../components/ui/atoms/StatusBadge.js';
 
 const STATUS_LABEL: Record<PlanStatus, string> = {
@@ -67,6 +68,8 @@ export function PlansPage(): React.ReactElement {
   const [plans, setPlans] = useState<PlanSummary[]>([]);
   const [busyPlanId, setBusyPlanId] = useState<string | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  /** Plan esperando que se elija dónde corre — el launch pasa por PlanLaunchDialog. */
+  const [launchTarget, setLaunchTarget] = useState<PlanSummary | null>(null);
   const [statusFilter, setStatusFilter] = useState<PlanStatus[]>([]);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
@@ -138,11 +141,12 @@ export function PlansPage(): React.ReactElement {
   }, [hasRunningPlan, projectIdsToLoad.join(','), loadPlans]);
 
   const handleLaunch = useCallback(
-    async (planId: string, status: string) => {
+    async (planId: string, status: string, replicaId?: string) => {
       setBusyPlanId(planId);
+      setLaunchTarget(null);
       try {
         if (status === 'draft') await approvePlan(planId);
-        const { run_id } = await launchPlan(planId);
+        const { run_id } = await launchPlan(planId, replicaId);
         navigate(`/plan-runs/${run_id}`);
       } catch (err) {
         addToast(err instanceof Error ? err.message : 'Error al lanzar el plan', 'error');
@@ -242,7 +246,7 @@ export function PlansPage(): React.ReactElement {
                     : 'Ver detalles'
               }
               onAction={() => {
-                if (isLaunchable) void handleLaunch(plan.id, plan.status);
+                if (isLaunchable) setLaunchTarget(plan);
                 else void handleViewProgress(plan.id);
               }}
               onDelete={plan.status === 'running' ? undefined : () => void handleDelete(plan)}
@@ -253,6 +257,15 @@ export function PlansPage(): React.ReactElement {
         })}
           </div>
         </div>
+
+        {launchTarget && (
+          <PlanLaunchDialog
+            planTitle={launchTarget.title}
+            projectId={launchTarget.project_id}
+            onCancel={() => setLaunchTarget(null)}
+            onConfirm={(replicaId) => void handleLaunch(launchTarget.id, launchTarget.status, replicaId)}
+          />
+        )}
 
         {selectedPlanId && (
           <PlanSidePanel

@@ -1,7 +1,10 @@
 /**
  * API client for project replicas (packages/http-api/src/project-replicas).
- * Read-only from the web-app side for now — creation/removal happens via
- * jarvis_run_tool, not the UI.
+ *
+ * El backend expone el CRUD completo desde siempre; acá había solo el listado,
+ * así que crear una réplica requería una tool y elegirla al lanzar un plan era
+ * literalmente inalcanzable desde la web (`POST /api/plans/:id/launch` acepta
+ * `replica_id` y el front nunca lo mandaba). Ver PlanLaunchDialog.
  */
 
 /**
@@ -37,4 +40,28 @@ export async function listProjectReplicas(projectId: string): Promise<ProjectRep
   const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/replicas`);
   const { replicas } = await handleResponse<{ replicas: ProjectReplica[] }>(res);
   return replicas;
+}
+
+/**
+ * POST /api/projects/:id/replicas — crea el worktree y corre el init hook, así
+ * que tarda: el llamador tiene que mostrar estado de espera. El `slug` es
+ * lowercase alfanumérico + guiones (lo valida el backend).
+ */
+export async function createProjectReplica(projectId: string, slug: string): Promise<ProjectReplica> {
+  const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/replicas`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slug }),
+  });
+  const { replica } = await handleResponse<{ replica: ProjectReplica }>(res);
+  return replica;
+}
+
+/** DELETE /api/projects/:id/replicas/:replicaId — borra el worktree. */
+export async function removeProjectReplica(projectId: string, replicaId: string): Promise<void> {
+  const res = await fetch(
+    `/api/projects/${encodeURIComponent(projectId)}/replicas/${encodeURIComponent(replicaId)}`,
+    { method: 'DELETE' },
+  );
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
 }

@@ -59,6 +59,11 @@ export function usePlanRunEvents(runId: string | null) {
   const [runStatus, setRunStatus] = useState<'running' | 'completed' | 'failed'>('running');
   const [activeStepIds, setActiveStepIds] = useState<string[]>([]);
   const [stepProgress, setStepProgress] = useState<Record<string, string>>({});
+  /**
+   * Réplica contra la que corre, del snapshot inicial. No viaja en los eventos
+   * SSE (es fijo para toda la corrida) y null = el root del proyecto.
+   */
+  const [replicaId, setReplicaId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!runId) return;
@@ -68,10 +73,11 @@ export function usePlanRunEvents(runId: string | null) {
 
     fetch(`/api/plan-runs/${runId}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((data: { run: { status: 'running' | 'completed' | 'failed' }; steps: PlanRunStepSnapshot[] } | null) => {
+      .then((data: { run: { status: 'running' | 'completed' | 'failed'; replica_id: string | null }; steps: PlanRunStepSnapshot[] } | null) => {
         if (cancelled || !data) return;
         setSteps(data.steps);
         setRunStatus(data.run.status);
+        setReplicaId(data.run.replica_id ?? null);
       })
       .catch(() => { /* snapshot best-effort — SSE will still fill in state */ });
 
@@ -104,5 +110,5 @@ export function usePlanRunEvents(runId: string | null) {
     };
   }, [runId]);
 
-  return { steps, runStatus, activeStepIds, stepProgress };
+  return { steps, runStatus, activeStepIds, stepProgress, replicaId };
 }

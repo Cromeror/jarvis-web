@@ -3,6 +3,7 @@ import { getPlan, approvePlan, launchPlan } from '../../lib/plans-api.js';
 import type { PlanDetail } from '../../lib/plans-api.js';
 import { useCollapsible } from '../../hooks/useCollapsible.js';
 import { PlanMarkdown } from './PlanMarkdown.js';
+import { PlanLaunchDialog } from './PlanLaunchDialog.js';
 import { PlanFullscreenModal } from './PlanFullscreenModal.js';
 
 interface PlanSidePanelProps {
@@ -39,6 +40,8 @@ export function PlanSidePanel({ planId, onClose, onLaunched, activeSessionId, on
   const [detail, setDetail] = useState<PlanDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Diálogo "¿dónde corre?" abierto — el launch pasa por ahí para poder elegir réplica. */
+  const [askingWhere, setAskingWhere] = useState(false);
   const [collapsed, toggle] = useCollapsible('plan-side-panel');
   const [openSteps, setOpenSteps] = useState<Set<string>>(new Set());
   const [fullscreen, setFullscreen] = useState(false);
@@ -75,11 +78,12 @@ export function PlanSidePanel({ planId, onClose, onLaunched, activeSessionId, on
     }
   }
 
-  async function handleLaunch(): Promise<void> {
+  async function handleLaunch(replicaId?: string): Promise<void> {
     setBusy(true);
+    setAskingWhere(false);
     try {
       if (detail?.plan.status === 'draft') await approvePlan(planId);
-      const { run_id } = await launchPlan(planId);
+      const { run_id } = await launchPlan(planId, replicaId);
       const fresh = await getPlan(planId);
       setDetail(fresh);
       onLaunched?.(run_id);
@@ -215,7 +219,7 @@ export function PlanSidePanel({ planId, onClose, onLaunched, activeSessionId, on
               {(detail.plan.status === 'draft' || detail.plan.status === 'approved') && (
                 <button
                   type="button"
-                  onClick={() => void handleLaunch()}
+                  onClick={() => setAskingWhere(true)}
                   disabled={busy}
                   className="rounded-full bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-40"
                 >
@@ -235,6 +239,14 @@ export function PlanSidePanel({ planId, onClose, onLaunched, activeSessionId, on
           onClose={() => setFullscreen(false)}
           activeSessionId={activeSessionId ?? null}
           onSendToChat={onSendToChat}
+        />
+      )}
+      {askingWhere && detail && (
+        <PlanLaunchDialog
+          planTitle={detail.plan.title}
+          projectId={detail.plan.project_id}
+          onCancel={() => setAskingWhere(false)}
+          onConfirm={(replicaId) => void handleLaunch(replicaId)}
         />
       )}
     </div>

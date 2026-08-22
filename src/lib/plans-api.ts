@@ -39,6 +39,8 @@ export interface PlanDetail {
 export interface PlanRunSnapshot {
   id: string;
   plan_id: string;
+  /** Réplica contra la que corrió. Null = el root_path del proyecto. */
+  replica_id: string | null;
   status: 'running' | 'completed' | 'failed';
   started_at: string;
   finished_at: string | null;
@@ -116,9 +118,20 @@ export async function approvePlan(planId: string): Promise<{ plan: PlanSummary }
   return handleResponse<{ plan: PlanSummary }>(res);
 }
 
-/** POST /api/plans/:id/launch — fire-and-forget, returns immediately with the runId */
-export async function launchPlan(planId: string): Promise<{ ok: true; run_id: string }> {
-  const res = await fetch(`/api/plans/${encodeURIComponent(planId)}/launch`, { method: 'POST' });
+/**
+ * POST /api/plans/:id/launch — fire-and-forget, returns immediately with the runId.
+ *
+ * `replicaId` undefined = corre contra el root_path del proyecto (el
+ * comportamiento de siempre); con réplica corre contra su worktree, que es la
+ * única forma de que una corrida y el chat del mismo proyecto no se pisen los
+ * archivos. La réplica sobrevive a la corrida.
+ */
+export async function launchPlan(planId: string, replicaId?: string): Promise<{ ok: true; run_id: string }> {
+  const res = await fetch(`/api/plans/${encodeURIComponent(planId)}/launch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(replicaId ? { replica_id: replicaId } : {}),
+  });
   return handleResponse<{ ok: true; run_id: string }>(res);
 }
 

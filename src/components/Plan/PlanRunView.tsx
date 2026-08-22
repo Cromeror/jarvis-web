@@ -37,13 +37,19 @@ function groupByOverlap(steps: PlanRunStepSnapshot[]): PlanRunStepSnapshot[][] {
 
 export function PlanRunView(): React.ReactElement {
   const { runId } = useParams<{ runId: string }>();
-  const { steps, runStatus, stepProgress } = usePlanRunEvents(runId ?? null);
+  const { steps, runStatus, stepProgress, replicaId } = usePlanRunEvents(runId ?? null);
   const layers = groupByOverlap(steps);
 
   return (
     <div className="plan-run-view h-full overflow-y-auto bg-white mx-auto max-w-3xl px-6 py-6">
       <h1 className="text-lg font-semibold text-slate-900">Plan run {runId}</h1>
-      <p className="mt-1 text-sm text-slate-500">Estado: {STATUS_LABEL[runStatus] ?? runStatus}</p>
+      <p className="mt-1 text-sm text-slate-500">
+        Estado: {STATUS_LABEL[runStatus] ?? runStatus}
+        {' · '}
+        {/* Dónde corrió: sin réplica es el working tree del proyecto, el mismo
+            que usa el chat. Con réplica, su worktree — nadie se pisa. */}
+        {replicaId ? 'en una réplica' : 'en el proyecto'}
+      </p>
 
       <div className="mt-4 space-y-3">
         {layers.map((layer, i) => (

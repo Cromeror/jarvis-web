@@ -19,6 +19,7 @@ import type { QueuedMessageView } from '../components/ui/molecules/QueuePanel.js
 import { useChatStream } from '../hooks/useChatStream.js';
 import { ChatWindow } from '../components/Chat/ChatWindow.js';
 import { PlanSidePanel } from '../components/Plan/PlanSidePanel.js';
+import { PlanLaunchDialog } from '../components/Plan/PlanLaunchDialog.js';
 import { ChatOptionsRail, type RailHoverPreviewData } from '../components/ui/organisms/ChatOptionsRail.js';
 import type { RailListPanelItem, RailListPanelData } from '../components/ui/organisms/RailListPanel.js';
 import type { BadgeStatus } from '../components/ui/atoms/Badge.js';
@@ -286,8 +287,19 @@ export function ChatPage(): React.ReactElement {
 
   // La ruta /chat/:projectId (si viene, sin sessionId) llega desde el CardProject del
   // dashboard — arranca directo una conversación nueva para ese proyecto.
+  //
+  // El ref no es decorativo: este efecto corriendo dos veces (StrictMode en dev,
+  // o cualquier re-mount) hacía DOS POST a milisegundos uno del otro. Una de las
+  // dos sesiones se usaba y la otra quedaba para siempre vacía y sin título, o
+  // sea una "Nueva conversación" fantasma en el Historial (había cuatro pares así
+  // en la base). `handleNewSession` navega con replace, así que la dep no cambia
+  // y no alcanza para frenar el segundo disparo.
+  const autoStartedForProject = useRef<string | null>(null);
   useEffect(() => {
-    if (initialProjectId && !routeSessionId) void handleNewSession(initialProjectId);
+    if (!initialProjectId || routeSessionId) return;
+    if (autoStartedForProject.current === initialProjectId) return;
+    autoStartedForProject.current = initialProjectId;
+    void handleNewSession(initialProjectId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialProjectId]);
 
@@ -616,10 +628,18 @@ export function ChatPage(): React.ReactElement {
     [sessions, activeProjectId, activeSessionId, streamActive],
   );
 
+  // Plan esperando que se elija dónde corre. Guarda SOLO el id: el título y el
+  // proyecto se resuelven al renderizar el diálogo, donde ya está todo en
+  // scope — `sessionPlan` se destructura más abajo que los dos puntos de launch
+  // del rail, así que resolverlo acá sería un TDZ en el primer render.
+  const [launchPlanId, setLaunchPlanId] = useState<string | null>(null);
+  const requestLaunchPlan = useCallback((planId: string) => setLaunchPlanId(planId), []);
+
   const handleLaunchPlan = useCallback(
-    async (planId: string) => {
+    async (planId: string, replicaId?: string) => {
+      setLaunchPlanId(null);
       try {
-        const { run_id } = await launchPlan(planId);
+        const { run_id } = await launchPlan(planId, replicaId);
         navigate(`/plan-runs/${run_id}`);
       } catch (err) {
         addToast(err instanceof Error ? err.message : 'Error al lanzar el plan', 'error');
@@ -648,7 +668,7 @@ export function ChatPage(): React.ReactElement {
         emptyLabel: railPlansEmptyLabel,
         actionLabel: 'Lanzar plan',
         onSelectItem: setOpenPlanId,
-        onAction: (planId) => void handleLaunchPlan(planId),
+        onAction: requestLaunchPlan,
       },
       executions: {
         items: railRunItems,
@@ -758,14 +778,14 @@ export function ChatPage(): React.ReactElement {
         ? [
             ...(plan.status === 'draft' ? [{ label: 'Aprobar', onClick: () => void handleApprovePlan(plan.id) }] : []),
             ...(plan.status === 'approved' || plan.status === 'draft'
-              ? [{ label: 'Lanzar ahora', onClick: () => void handleLaunchPlan(plan.id) }]
+              ? [{ label: 'Lanzar ahora', onClick: () => requestLaunchPlan(plan.id) }]
               : []),
           ]
         : focus.suggested_plan_title
           ? [{ label: 'Crear plan', onClick: () => handleCreateSuggestedPlan(focus.suggested_plan_title!) }]
           : [],
     };
-  }, [focus, activeSession, projects, sessionPlan, railNow, handleApprovePlan, handleLaunchPlan, handleCreateSuggestedPlan]);
+  }, [focus, activeSession, projects, sessionPlan, railNow, handleApprovePlan, requestLaunchPlan, handleCreateSuggestedPlan]);
 
   /** Silenciar: sale del Inbox, sigue en el log y en LIVE. */
   const dismissNotification = useCallback(
@@ -997,6 +1017,18 @@ export function ChatPage(): React.ReactElement {
           liveEvents={railLiveEvents}
         />
       </div>
+      {launchPlanId && (() => {
+        const plan = railPlans.find((p) => p.id === launchPlanId)
+          ?? (sessionPlan?.id === launchPlanId ? sessionPlan : null);
+        return (
+          <PlanLaunchDialog
+            planTitle={plan?.title ?? 'Plan'}
+            projectId={plan?.project_id ?? activeProjectId}
+            onCancel={() => setLaunchPlanId(null)}
+            onConfirm={(replicaId) => void handleLaunchPlan(launchPlanId, replicaId)}
+          />
+        );
+      })()}
     </div>
   );
 }
