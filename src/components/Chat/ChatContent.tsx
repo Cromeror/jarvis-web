@@ -91,7 +91,7 @@ export function ChatContent({
             onDelete={onDeleteSession}
             onRename={onRenameSession}
           />
-          <NewSessionButton projects={projects} onCreate={onNewSession} />
+          <NewSessionButton projects={projects} activeProjectId={activeProjectId} onCreate={onNewSession} />
         </div>
       </div>
       <div className="flex-1 overflow-y-auto">{children}</div>

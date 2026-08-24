@@ -11,7 +11,7 @@ interface PlanRunSnapshotEvent {
   run_status: 'running' | 'completed' | 'failed';
 }
 
-/** Fine-grained mid-turn output from a running 'note' step. */
+/** Fine-grained mid-turn output from a running 'turn' step. */
 interface PlanStepProgressEvent {
   event: 'step_progress';
   run_id: string;
@@ -49,7 +49,7 @@ function clearFinished(prev: Record<string, string>, steps: PlanRunStepSnapshot[
  * than reconstructing it from incremental deltas.
  *
  * The same SSE stream also carries fine-grained `step_progress` events (partial
- * assistant text / tool activity from a running 'note' step). Those never touch
+ * assistant text / tool activity from a running 'turn' step). Those never touch
  * the step grid — they only accumulate into `stepProgress`, a per-active-step_id
  * live-text buffer that is reset once the step reaches a terminal status
  * (completed/failed/skipped), so a finished step never shows stale live text.

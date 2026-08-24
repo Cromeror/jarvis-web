@@ -58,7 +58,7 @@ export function MessageBubble({
     const attachmentNames = parseAttachmentNames(attachments);
     return (
       <div className="flex justify-end">
-        <div className="max-w-[75%] rounded-2xl bg-[var(--sidebar2-accent-default)] px-4 py-2.5 text-[17px] leading-relaxed text-white md:text-sm md:leading-normal">
+        <div className="max-w-[75%] whitespace-pre-wrap rounded-2xl bg-[var(--sidebar2-accent-default)] px-4 py-2.5 text-[17px] leading-relaxed text-white md:text-sm md:leading-normal">
           {queueState === 'sending' && <div className="mb-1 text-xs text-white/70">Enviando…</div>}
           {queueState === 'queued' && <div className="mb-1 text-xs text-white/70">En cola</div>}
           {queueState === 'started' && <div className="mb-1 flex items-center gap-1.5 text-xs text-white/70"><Spinner />Respondiendo…</div>}

@@ -3,7 +3,7 @@
  */
 
 export type PlanStatus = 'draft' | 'approved' | 'running' | 'done' | 'failed' | 'archived';
-export type PlanStepKind = 'note' | 'tool_call';
+export type PlanStepKind = 'turn' | 'tool_call';
 
 export interface PlanSummary {
   id: string;

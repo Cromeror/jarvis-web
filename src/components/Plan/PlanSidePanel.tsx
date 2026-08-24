@@ -18,7 +18,7 @@ interface PlanSidePanelProps {
 }
 
 const KIND_LABEL: Record<string, string> = {
-  note: 'Nota',
+  turn: 'Turno',
   tool_call: 'Tool',
 };
 
@@ -193,7 +193,7 @@ export function PlanSidePanel({ planId, onClose, onLaunched, activeSessionId, on
                         </button>
                         {isOpen && (
                           <div className="border-t border-slate-100 px-3 py-2">
-                            <PlanMarkdown className={step.kind === 'note' ? 'italic text-slate-500' : 'text-slate-700'}>{step.description}</PlanMarkdown>
+                            <PlanMarkdown className={step.kind === 'turn' ? 'italic text-slate-500' : 'text-slate-700'}>{step.description}</PlanMarkdown>
                             {step.dependsOn.length > 0 && (
                               <p className="mt-1.5 text-[11px] text-slate-400">depende de: {step.dependsOn.join(', ')}</p>
                             )}

@@ -95,6 +95,7 @@ export function ChatWindow({
       onStopAllBackgroundTasks={onStopAllBackgroundTasks}
     >
       <MessageList
+        sessionId={activeSessionId}
         messages={messages}
         pending={pending}
         liveText={liveText}

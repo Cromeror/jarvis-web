@@ -7,6 +7,14 @@ import { Spinner } from '../atoms/Spinner.js';
 import { Icons } from '../atoms/Icons.js';
 
 interface MessageListProps {
+  /**
+   * Sesión dueña de `messages` — sirve para distinguir "entré/cambié de
+   * conversación" (debe quedar asentado en el fondo sin animación) de "llegó
+   * un mensaje nuevo en la conversación que ya estoy mirando" (ahí sí tiene
+   * sentido el scroll suave). Sin esto no hay forma de saber por qué cambió
+   * `messages.length`: el componente no se remonta al cambiar de sesión.
+   */
+  sessionId?: string | null;
   messages: ChatMessage[];
   pending: boolean;
   /** Partial assistant text streamed so far for the turn in flight — empty when there's nothing to show yet (e.g. Jarvis is still only running tools). */
@@ -41,6 +49,7 @@ interface MessageListProps {
  * en Figma son variantes hermanas solo porque `State` es un enum.
  */
 export function MessageList({
+  sessionId,
   messages,
   pending,
   liveText,
@@ -71,10 +80,13 @@ export function MessageList({
   }, [messages, queueStates]);
   const isEmpty = messages.length === 0 && !pending;
   const bottomRef = useRef<HTMLDivElement>(null);
+  const lastSessionIdRef = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length, pending]);
+    const sessionChanged = lastSessionIdRef.current !== sessionId;
+    lastSessionIdRef.current = sessionId;
+    bottomRef.current?.scrollIntoView({ behavior: sessionChanged ? 'auto' : 'smooth' });
+  }, [messages.length, pending, sessionId]);
 
   return (
     <div
@@ -145,7 +157,9 @@ export function MessageList({
               </button>
             )}
           </div>
-          <QueuePanel messages={queuedMessages} onRemove={onRemoveQueued} onClearAll={onClearQueue} />
+          {queuedCount > 0 && (
+            <QueuePanel messages={queuedMessages} onRemove={onRemoveQueued} onClearAll={onClearQueue} />
+          )}
         </div>
       )}
       {/*
@@ -153,7 +167,7 @@ export function MessageList({
         al turno que la lanzó, así que la barra tiene que seguir visible con el
         turno ya cerrado.
       */}
-      {!pending && queuedMessages.length > 0 && (
+      {!pending && queuedCount > 0 && (
         <QueuePanel messages={queuedMessages} onRemove={onRemoveQueued} onClearAll={onClearQueue} />
       )}
       {proposedPlanIds?.map((planId) => (

@@ -319,7 +319,7 @@ export function PlanFullscreenModal({ planId, onClose, activeSessionId, onSendTo
                             {step.tool_name && <span className="font-mono text-indigo-600">{step.tool_name}</span>}
                           </div>
                           <div data-anchor-kind="step" data-anchor-step-id={step.step_id} className="mt-1">
-                            <PlanMarkdown className={step.kind === 'note' ? 'italic text-slate-500' : 'text-slate-700'}>
+                            <PlanMarkdown className={step.kind === 'turn' ? 'italic text-slate-500' : 'text-slate-700'}>
                               {step.description}
                             </PlanMarkdown>
                           </div>
