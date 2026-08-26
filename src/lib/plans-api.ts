@@ -96,7 +96,14 @@ export async function getPlan(planId: string): Promise<PlanDetail> {
 /** PATCH /api/plans/:id — edit title/context/architecture/status/steps */
 export async function updatePlan(
   planId: string,
-  patch: Partial<{ title: string; context: string; architecture: string; status: PlanStatus; steps: unknown[] }>,
+  patch: Partial<{
+    title: string;
+    context: string;
+    architecture: string;
+    status: PlanStatus;
+    steps: unknown[];
+    session_id: string | null;
+  }>,
 ): Promise<PlanDetail> {
   const res = await fetch(`/api/plans/${encodeURIComponent(planId)}`, {
     method: 'PATCH',
