@@ -24,6 +24,7 @@ import { ChatOptionsRail, type RailHoverPreviewData } from '../components/ui/org
 import type { RailListPanelItem, RailListPanelData } from '../components/ui/organisms/RailListPanel.js';
 import type { BadgeStatus } from '../components/ui/atoms/Badge.js';
 import { listPlans, launchPlan, approvePlan } from '../lib/plans-api.js';
+import { selectRailPlans, hasPlansHiddenFromRail } from '../lib/plan-filters.js';
 import type { PlanSummary, PlanStatus } from '../lib/plans-api.js';
 import { timeAgo, timeAgoPrecise, activeFor } from '../lib/time-ago.js';
 import { useRailFocus } from '../hooks/useRailFocus.js';
@@ -578,15 +579,20 @@ export function ChatPage(): React.ReactElement {
     [projects, activeProjectId],
   );
 
+  // Solo borradores y aprobados — lo ya ejecutado tiene su propia opción
+  // ("Ejecuciones", railRunItems más abajo). Es un filtro de vista y no del
+  // fetch a propósito: las dos opciones derivan de este mismo `railPlans`, así
+  // que pedirle al backend solo draft+approved dejaría Ejecuciones vacío.
   const railPlanItems = useMemo<RailListPanelItem[]>(
     () =>
-      railPlans.map((plan) => ({
-        id: plan.id,
-        title: plan.title,
-        subtitle: `${activeProjectName} · ${timeAgo(plan.updated_at)}`,
-        badge: PLAN_BADGE[plan.status],
-        canAct: plan.status === 'approved',
-      })),
+      selectRailPlans(railPlans)
+        .map((plan) => ({
+          id: plan.id,
+          title: plan.title,
+          subtitle: `${activeProjectName} · ${timeAgo(plan.updated_at)}`,
+          badge: PLAN_BADGE[plan.status],
+          canAct: plan.status === 'approved',
+        })),
     [railPlans, activeProjectName],
   );
 
@@ -652,7 +658,14 @@ export function ChatPage(): React.ReactElement {
   // expandido (RailListPanel) y la tarjeta de hover del rail colapsado
   // (RailHoverPreview), para no tener dos redacciones distintas del mismo
   // estado vacío.
-  const railPlansEmptyLabel = activeProjectId ? 'Este proyecto todavía no tiene planes.' : 'Elegí una conversación para ver sus planes.';
+  // Con el filtro de estados, "vacío" ya no significa "no hay planes" — puede
+  // haber varios, todos ejecutados. El texto lo dice para que no parezca que se
+  // perdieron; están en Ejecuciones.
+  const railPlansEmptyLabel = !activeProjectId
+    ? 'Elegí una conversación para ver sus planes.'
+    : hasPlansHiddenFromRail(railPlans)
+      ? 'No hay borradores ni planes aprobados — los ya ejecutados están en Ejecuciones.'
+      : 'Este proyecto todavía no tiene planes.';
   const railExecutionsEmptyLabel = activeProjectId ? 'Este proyecto todavía no tiene ejecuciones.' : 'Elegí una conversación para ver sus ejecuciones.';
   const railHistoryEmptyLabel = activeProjectId ? 'Este proyecto todavía no tiene conversaciones anteriores.' : 'Elegí una conversación para ver su historial.';
 

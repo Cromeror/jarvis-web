@@ -4,6 +4,7 @@ import { listProjects } from '../lib/projects-api.js';
 import type { ProjectSummary } from '../lib/projects-api.js';
 import { listPlans, launchPlan, approvePlan, deletePlan, getLatestPlanRun } from '../lib/plans-api.js';
 import type { PlanSummary, PlanStatus } from '../lib/plans-api.js';
+import { filterPlansByStatus } from '../lib/plan-filters.js';
 import { Toast, useToast } from '../components/ui/atoms/Toast.js';
 import { PillDropdown } from '../components/ui/atoms/PillDropdown.js';
 import { FilterPopover } from '../components/ui/atoms/FilterPopover.js';
@@ -109,7 +110,7 @@ export function PlansPage(): React.ReactElement {
   );
 
   const visiblePlans = useMemo(() => {
-    const filtered = statusFilter.length > 0 ? plans.filter((p) => statusFilter.includes(p.status)) : plans;
+    const filtered = filterPlansByStatus(plans, statusFilter);
     const sign = sortOrder === 'desc' ? -1 : 1;
     return [...filtered].sort(
       (a, b) => sign * (new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime()),

@@ -70,10 +70,17 @@ async function handleResponse<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-/** GET /api/plans?project_id=&status= */
-export async function listPlans(projectId: string, status?: PlanStatus): Promise<PlanSummary[]> {
+/**
+ * GET /api/plans?project_id=&status=
+ *
+ * `status` acepta uno o varios estados; varios viajan como CSV
+ * (`status=draft,approved`), que es lo que parsea el controller. Sin `status`
+ * (o con lista vacía) vuelve el listado completo del proyecto.
+ */
+export async function listPlans(projectId: string, status?: PlanStatus | PlanStatus[]): Promise<PlanSummary[]> {
   const params = new URLSearchParams({ project_id: projectId });
-  if (status) params.set('status', status);
+  const statuses = status === undefined ? [] : Array.isArray(status) ? status : [status];
+  if (statuses.length > 0) params.set('status', statuses.join(','));
   const res = await fetch(`/api/plans?${params.toString()}`);
   return handleResponse<PlanSummary[]>(res);
 }
