@@ -11,8 +11,6 @@ import {
   reopenPlanAnnotation,
 } from '../../lib/plans-api.js';
 import type { PlanDetail, PlanAnnotation, PlanAnnotationAnchorKind } from '../../lib/plans-api.js';
-import { listChatSessions } from '../../lib/chat-api.js';
-import type { ChatSession } from '../../lib/chat-api.js';
 import { PlanMarkdown } from './PlanMarkdown.js';
 import { Toast, useToast } from '../ui/atoms/Toast.js';
 
@@ -120,10 +118,11 @@ export function PlanFullscreenModal({ planId, onClose, activeSessionId, onSendTo
   const [composing, setComposing] = useState(false);
   const [draftComment, setDraftComment] = useState('');
   const contentRef = useRef<HTMLDivElement | null>(null);
-  // Picker de "¿a qué conversación pertenece este plan?" — se muestra cuando
-  // la sesión guardada ya no es la que está abierta (o no existe más) y hay
-  // anotaciones esperando poder mandarse al chat.
-  const [sessionPicker, setSessionPicker] = useState<{ sessions: ChatSession[] } | null>(null);
+  // Vincula el plan a la conversación que ya está abierta — no hace falta
+  // elegir de una lista: si está abierta, es la que cumple la condición de
+  // canSendToChat en cuanto se guarda. El server valida que sea del mismo
+  // proyecto del plan (PATCH /api/plans/:id), así que un mismatch se resuelve
+  // con el error que devuelve, no con un chequeo duplicado acá.
   const [reassigning, setReassigning] = useState(false);
 
   async function refresh(): Promise<void> {
@@ -132,28 +131,14 @@ export function PlanFullscreenModal({ planId, onClose, activeSessionId, onSendTo
     setAnnotations(a);
   }
 
-  async function openSessionPicker(): Promise<void> {
-    const projectId = detail?.plan.project_id;
-    if (!projectId) {
-      addToast('Este plan no tiene proyecto asociado — no se puede elegir conversación', 'error');
-      return;
-    }
-    try {
-      const sessions = await listChatSessions(projectId);
-      setSessionPicker({ sessions });
-    } catch (err) {
-      addToast(err instanceof Error ? err.message : 'Error al listar conversaciones', 'error');
-    }
-  }
-
-  async function handleReassignSession(sessionId: string): Promise<void> {
+  async function handleLinkActiveSession(): Promise<void> {
+    if (!activeSessionId) return;
     setReassigning(true);
     try {
-      await updatePlan(planId, { session_id: sessionId });
-      setSessionPicker(null);
+      await updatePlan(planId, { session_id: activeSessionId });
       await refresh();
     } catch (err) {
-      addToast(err instanceof Error ? err.message : 'Error al asignar la conversación', 'error');
+      addToast(err instanceof Error ? err.message : 'Error al vincular la conversación', 'error');
     } finally {
       setReassigning(false);
     }
@@ -390,32 +375,19 @@ export function PlanFullscreenModal({ planId, onClose, activeSessionId, onSendTo
                 <p className="text-[11px] text-amber-700">
                   Esta anotación no tiene la conversación del plan abierta — no se puede enviar al chat todavía.
                 </p>
-                {!sessionPicker ? (
+                {activeSessionId ? (
                   <button
                     type="button"
-                    onClick={() => void openSessionPicker()}
-                    className="mt-1.5 text-[11px] font-medium text-amber-800 underline hover:text-amber-900"
+                    disabled={reassigning}
+                    onClick={() => void handleLinkActiveSession()}
+                    className="mt-1.5 text-[11px] font-medium text-amber-800 underline hover:text-amber-900 disabled:opacity-40"
                   >
-                    Elegir conversación para este plan
+                    Vincular esta conversación al plan
                   </button>
                 ) : (
-                  <div className="mt-1.5 max-h-40 overflow-y-auto rounded border border-amber-200 bg-white">
-                    {sessionPicker.sessions.length === 0 ? (
-                      <p className="px-2 py-1.5 text-[11px] text-slate-500">Este proyecto no tiene conversaciones.</p>
-                    ) : (
-                      sessionPicker.sessions.map((s) => (
-                        <button
-                          key={s.id}
-                          type="button"
-                          disabled={reassigning}
-                          onClick={() => void handleReassignSession(s.id)}
-                          className="block w-full truncate px-2 py-1.5 text-left text-[11px] text-slate-700 hover:bg-amber-100 disabled:opacity-40"
-                        >
-                          {s.title ?? `Conversación ${s.id.slice(0, 8)}`}
-                        </button>
-                      ))
-                    )}
-                  </div>
+                  <p className="mt-1.5 text-[11px] text-slate-500">
+                    Abrí una conversación de este proyecto para poder vincularla.
+                  </p>
                 )}
               </div>
             )}
