@@ -10,6 +10,7 @@ import {
   getChatMessages,
   deleteChatSession,
   renameChatSession,
+  moveChatSessionToReplica,
   cancelQueuedMessage,
   stopBackgroundTask,
 } from '../lib/chat-api.js';
@@ -20,14 +21,23 @@ import { useChatStream } from '../hooks/useChatStream.js';
 import { ChatWindow } from '../components/Chat/ChatWindow.js';
 import { PlanSidePanel } from '../components/Plan/PlanSidePanel.js';
 import { PlanLaunchDialog } from '../components/Plan/PlanLaunchDialog.js';
-import { ChatOptionsRail, type RailHoverPreviewData } from '../components/ui/organisms/ChatOptionsRail.js';
+import { SessionWorkspaceDialog } from '../components/Chat/SessionWorkspaceDialog.js';
+import { listProjectReplicas, type ProjectReplica } from '../lib/project-replicas-api.js';
+import { indexReplicasById } from '../lib/session-workspace.js';
+import { ChatOptionsRail, type RailHoverPreviewData, type ChatOptionsRailNavItem } from '../components/ui/organisms/ChatOptionsRail.js';
 import type { RailListPanelItem, RailListPanelData } from '../components/ui/organisms/RailListPanel.js';
 import type { BadgeStatus } from '../components/ui/atoms/Badge.js';
 import { listPlans, launchPlan, approvePlan } from '../lib/plans-api.js';
-import { selectRailPlans, hasPlansHiddenFromRail } from '../lib/plan-filters.js';
+import {
+  selectRailPlans,
+  hasPlansHiddenFromRail,
+  selectRailExecutions,
+  countRailExecutionsNeedingAttention,
+} from '../lib/plan-filters.js';
 import type { PlanSummary, PlanStatus } from '../lib/plans-api.js';
 import { timeAgo, timeAgoPrecise, activeFor } from '../lib/time-ago.js';
 import { useRailFocus } from '../hooks/useRailFocus.js';
+import { useSeenExecutions } from '../hooks/useSeenExecutions.js';
 import { markNotificationRead, type Notification } from '../lib/notifications-api.js';
 import type { RailFocusPanelProject, RailFocusPanelAttentionItem, RailFocusPanelLiveEvent } from '../components/ui/organisms/RailFocusPanel.js';
 import { Toast, useToast } from '../components/ui/atoms/Toast.js';
@@ -77,6 +87,9 @@ function sameSessionList(a: ChatSession[], b: ChatSession[]): boolean {
       session.id === other.id &&
       session.title === other.title &&
       session.updated_at === other.updated_at &&
+      // El workspace se pinta en la lista, así que un cambio de réplica tiene
+      // que romper la igualdad o el badge se queda con el valor viejo.
+      (session.replica_id ?? null) === (other.replica_id ?? null) &&
       (session.busy ?? false) === (other.busy ?? false)
     );
   });
@@ -132,6 +145,13 @@ export function ChatPage(): React.ReactElement {
   // esta sesión; esto es el piso: después de cualquier turno la lista está
   // fresca, haya llegado el evento o no.
   const [railPlansToken, setRailPlansToken] = useState(0);
+  // Réplicas por proyecto — para traducir el `replica_id` de cada conversación
+  // a un nombre y para saber si hay a dónde moverse. Se cargan una vez por
+  // proyecto visible: son pocas y cambian poco, a diferencia de las sesiones,
+  // que se refrescan en intervalo.
+  const [replicasByProject, setReplicasByProject] = useState<Record<string, ProjectReplica[]>>({});
+  const [workspaceDialogOpen, setWorkspaceDialogOpen] = useState(false);
+  const [movingWorkspace, setMovingWorkspace] = useState(false);
 
   const patchSession = useCallback(
     (sessionId: string, patch: Partial<SessionChatState> | ((current: SessionChatState) => Partial<SessionChatState>)) => {
@@ -178,6 +198,22 @@ export function ChatPage(): React.ReactElement {
   useEffect(() => {
     if (projectIds.length > 0) loadSessions(projectIds);
   }, [projectIds.join(','), loadSessions]);
+
+  // Un proyecto sin réplicas es el caso normal y responde `[]`: no hay error
+  // que mostrar ni estado vacío que pintar — simplemente no aparece la opción
+  // de moverse. Por eso el fallo se traga por proyecto en vez de cortar todo.
+  useEffect(() => {
+    if (projectIds.length === 0) return;
+    let cancelled = false;
+    Promise.all(
+      projectIds.map((id) => listProjectReplicas(id).then((replicas) => [id, replicas] as const).catch(() => [id, []] as const)),
+    ).then((entries) => {
+      if (!cancelled) setReplicasByProject(Object.fromEntries(entries));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectIds.join(',')]);
 
   // El `busy` de cada conversación es un snapshot del momento del fetch, no un
   // stream: el SSE es de UNA conversación (la abierta), así que para las demás
@@ -269,6 +305,33 @@ export function ChatPage(): React.ReactElement {
       }
     },
     [addToast],
+  );
+
+  /**
+   * Mover la conversación abierta a otro workspace.
+   *
+   * El backend tira el proceso vivo para que el turno siguiente se recree en el
+   * directorio nuevo, así que el `notice` que devuelve se muestra tal cual: es
+   * la explicación de por qué el próximo mensaje va a tardar más. Recargar las
+   * sesiones no es opcional — el badge de la lista y el del header salen de esa
+   * misma fila.
+   */
+  const handleMoveSessionWorkspace = useCallback(
+    async (sessionId: string, replicaId: string | null) => {
+      setMovingWorkspace(true);
+      try {
+        const result = await moveChatSessionToReplica(sessionId, replicaId);
+        setSessions((prev) => prev.map((s) => (s.id === sessionId ? { ...s, ...result.session } : s)));
+        setWorkspaceDialogOpen(false);
+        if (result.moved && result.notice) addToast(result.notice, 'info');
+        loadSessions(projectIds, { silent: true });
+      } catch (err) {
+        addToast(err instanceof Error ? err.message : 'No pude mover la conversación', 'error');
+      } finally {
+        setMovingWorkspace(false);
+      }
+    },
+    [addToast, loadSessions, projectIds],
   );
 
   const handleNewSession = useCallback(
@@ -601,17 +664,26 @@ export function ChatPage(): React.ReactElement {
   // runs", así que se deriva del mismo listado de planes en vez de inventar
   // una API nueva. Sin acción propia (ya están en curso o terminados) — solo
   // abren el detalle del plan, igual que en "Planes".
+  // Qué ejecuciones ya miró el usuario — baja la prioridad de un `failed` una
+  // vez abierto, así el rail deja de insistir con algo ya visto.
+  const { seenIds: seenExecutionIds, markSeen: markExecutionSeen } = useSeenExecutions(activeProjectId);
+
+  // El criterio de qué entra (y qué queda apilado) vive en plan-filters, al
+  // lado del de "Planes" y con spec propia. Acá solo se le da forma de fila.
+  const railExecutions = useMemo(
+    () => selectRailExecutions(railPlans, { seenIds: seenExecutionIds }),
+    [railPlans, seenExecutionIds],
+  );
+
   const railRunItems = useMemo<RailListPanelItem[]>(
     () =>
-      railPlans
-        .filter((plan) => plan.status === 'running' || plan.status === 'done' || plan.status === 'failed')
-        .map((plan) => ({
-          id: plan.id,
-          title: plan.title,
-          subtitle: `${activeProjectName} · ${timeAgo(plan.updated_at)}`,
-          badge: PLAN_BADGE[plan.status],
-        })),
-    [railPlans, activeProjectName],
+      railExecutions.items.map((plan) => ({
+        id: plan.id,
+        title: plan.title,
+        subtitle: `${activeProjectName} · ${timeAgo(plan.updated_at)}`,
+        badge: PLAN_BADGE[plan.status],
+      })),
+    [railExecutions, activeProjectName],
   );
 
   // "Historial" = conversaciones anteriores del proyecto activo — mismos
@@ -688,7 +760,22 @@ export function ChatPage(): React.ReactElement {
         loading: railPlansLoading,
         error: railPlansError,
         emptyLabel: railExecutionsEmptyLabel,
-        onSelectItem: setOpenPlanId,
+        // Abrir el detalle ES el acuse de recibo: no hay un botón aparte de
+        // "visto" porque mirarlo es exactamente lo que se pide.
+        onSelectItem: (planId) => {
+          markExecutionSeen(planId);
+          setOpenPlanId(planId);
+        },
+        // Lo que no entró en el tope no se pierde ni se scrollea acá dentro:
+        // se apila en una fila que lleva a /plans, que tiene ancho para
+        // inventario. Sin proyecto activo no hay a dónde ir, así que no va.
+        footer:
+          railExecutions.hiddenCount > 0 && activeProjectId
+            ? {
+                label: `Ver las ${railExecutions.hiddenCount} restantes`,
+                onClick: () => navigate(`/plans/${activeProjectId}`),
+              }
+            : null,
       },
       history: {
         items: railHistoryItems,
@@ -710,6 +797,9 @@ export function ChatPage(): React.ReactElement {
       railPlansEmptyLabel,
       railExecutionsEmptyLabel,
       railHistoryEmptyLabel,
+      railExecutions.hiddenCount,
+      markExecutionSeen,
+      navigate,
       activeProjectId,
       activeSessionId,
       handleLaunchPlan,
@@ -746,6 +836,22 @@ export function ChatPage(): React.ReactElement {
   const activeSession = useMemo(
     () => sessions.find((s) => s.id === activeSessionId) ?? null,
     [sessions, activeSessionId],
+  );
+
+  /**
+   * Todas las réplicas de todos los proyectos visibles, por id. La lista de
+   * conversaciones cruza proyectos (el buscador global las muestra juntas), así
+   * que un índice por proyecto no alcanzaría para traducir el `replica_id` de
+   * una fila cualquiera.
+   */
+  const replicasById = useMemo(
+    () => indexReplicasById(Object.values(replicasByProject).flat()),
+    [replicasByProject],
+  );
+
+  const activeSessionReplicas = useMemo(
+    () => (activeSession?.project_id ? replicasByProject[activeSession.project_id] ?? [] : []),
+    [activeSession, replicasByProject],
   );
 
   /**
@@ -951,6 +1057,32 @@ export function ChatPage(): React.ReactElement {
     return { headerLabel: 'HISTORIAL', title: primary.title, subtitle: primary.subtitle };
   }, [railHistoryItems, railHistoryEmptyLabel]);
 
+  /**
+   * Nav items del rail con el badge de Ejecuciones calculado. Sin esto el rail
+   * caía en `DEFAULT_NAV_ITEMS` (ChatOptionsRail.tsx), que trae `badgeCount: 3`
+   * como ejemplo del diseño de Figma: el único indicador de atención de la
+   * barra decía "3" siempre, sin mirar ningún dato.
+   *
+   * Cuenta lo que PIDE algo (corriendo, o falló y no lo viste), no cuántas
+   * filas hay: un `done` es información, no un pendiente. Cero se muestra como
+   * ausencia de badge — que el silencio se vea es la mitad del valor.
+   */
+  const railNavItems = useMemo<ChatOptionsRailNavItem[]>(() => {
+    const needsAttention = countRailExecutionsNeedingAttention(railPlans, seenExecutionIds);
+    const hasUnseenFailure = railPlans.some((p) => p.status === 'failed' && !seenExecutionIds.has(p.id));
+    return [
+      { id: 'plans', label: 'Planes', icon: 'list-checks' },
+      {
+        id: 'executions',
+        label: 'Ejecuciones',
+        icon: 'play-circle',
+        badgeCount: needsAttention > 0 ? needsAttention : undefined,
+        badgeTone: hasUnseenFailure ? 'danger' : 'accent',
+      },
+      { id: 'history', label: 'Historial', icon: 'history' },
+    ];
+  }, [railPlans, seenExecutionIds]);
+
   const railHoverPreviews = useMemo<Partial<Record<string, RailHoverPreviewData>>>(
     () => ({
       focus: focusHoverPreview,
@@ -1008,6 +1140,9 @@ export function ChatPage(): React.ReactElement {
           onRenameSession={(sessionId, title) => void handleRenameSession(sessionId, title)}
           projects={projects}
           onNewSession={(projectId) => void handleNewSession(projectId)}
+          replicasById={replicasById}
+          activeSessionReplicas={activeSessionReplicas}
+          onOpenWorkspaceDialog={() => setWorkspaceDialogOpen(true)}
         />
         {openPlanId && (
           <PlanSidePanel
@@ -1022,6 +1157,7 @@ export function ChatPage(): React.ReactElement {
           activeOption={railOption}
           onToggleOption={(key) => setRailOption((cur) => (cur === key ? null : key))}
           panels={railPanels}
+          navItems={railNavItems}
           hoverPreviews={railHoverPreviews}
           focusProject={railFocusProject}
           attentionItems={railAttentionItems}
@@ -1030,6 +1166,16 @@ export function ChatPage(): React.ReactElement {
           liveEvents={railLiveEvents}
         />
       </div>
+      {workspaceDialogOpen && activeSession && (
+        <SessionWorkspaceDialog
+          sessionTitle={activeSession.title ?? 'Nueva conversación'}
+          replicas={activeSessionReplicas}
+          currentReplicaId={activeSession.replica_id ?? null}
+          moving={movingWorkspace}
+          onCancel={() => setWorkspaceDialogOpen(false)}
+          onConfirm={(replicaId) => void handleMoveSessionWorkspace(activeSession.id, replicaId)}
+        />
+      )}
       {launchPlanId && (() => {
         const plan = railPlans.find((p) => p.id === launchPlanId)
           ?? (sessionPlan?.id === launchPlanId ? sessionPlan : null);

@@ -1,6 +1,9 @@
 import React from 'react';
 import type { ChatSession } from '../../lib/chat-api.js';
 import type { ProjectSummary } from '../../lib/projects-api.js';
+import type { ProjectReplica } from '../../lib/project-replicas-api.js';
+import { sessionWorkspace, canChooseWorkspace } from '../../lib/session-workspace.js';
+import { WorkspaceBadge } from './WorkspaceBadge.js';
 import { ProjectTabStrip } from './ProjectTabStrip.js';
 import { ConversationSwitcher } from './ConversationSwitcher.js';
 import { NewSessionButton } from './NewSessionButton.js';
@@ -40,6 +43,11 @@ interface ChatContentProps {
   backgroundTasks?: BackgroundTaskView[];
   onStopBackgroundTask?: (taskId: string) => void;
   onStopAllBackgroundTasks?: () => void;
+  /** Réplicas de todos los proyectos visibles, por id. Sin esto no se pinta ningún workspace. */
+  replicasById?: Map<string, ProjectReplica>;
+  /** Réplicas del proyecto de la conversación abierta — decide si se ofrece moverla. */
+  activeSessionReplicas?: ProjectReplica[];
+  onOpenWorkspaceDialog?: () => void;
   /** Área de contenido (mensajes o estado vacío) — la arma quien use ChatContent, acá solo se envuelve. */
   children: React.ReactNode;
 }
@@ -74,13 +82,30 @@ export function ChatContent({
   backgroundTasks,
   onStopBackgroundTask,
   onStopAllBackgroundTasks,
+  replicasById,
+  activeSessionReplicas,
+  onOpenWorkspaceDialog,
   children,
 }: ChatContentProps): React.ReactElement {
+  const activeSession = sessions.find((s) => s.id === activeSessionId) ?? null;
+  // Sin el índice de réplicas cargado no se pinta nada: un badge que dijera
+  // "Base" mientras todavía no sabemos sería peor que no mostrarlo.
+  const workspace = activeSession && replicasById ? sessionWorkspace(activeSession, replicasById) : null;
+  // La opción no aparece si no hay a dónde ir — un diálogo con una sola opción,
+  // la que ya estás usando, es una decisión vacía.
+  const canChoose = canChooseWorkspace(activeSession, activeSessionReplicas ?? []);
+
   return (
     <div className="relative flex h-full min-w-0 flex-1 flex-col overflow-hidden rounded-[var(--chatcontent-radius)] bg-[var(--chatcontent-bg-base)] bg-gradient-to-b from-[var(--chatcontent-bg-from)] to-[var(--chatcontent-bg-to)]">
       <div className="flex items-center gap-2 border-b border-[var(--chatcontent-border-subtle)] px-3 py-2">
         <ProjectTabStrip sessions={sessions} projects={projects} activeProjectId={activeProjectId} onSelectProject={onSelectProject} />
         <div className="ml-auto flex items-center gap-1">
+          {workspace && (
+            <WorkspaceBadge
+              workspace={workspace}
+              onClick={canChoose && onOpenWorkspaceDialog ? onOpenWorkspaceDialog : undefined}
+            />
+          )}
           <ConversationSwitcher
             sessions={sessions}
             projects={projects}
@@ -90,6 +115,7 @@ export function ChatContent({
             onSelect={onSelectSession}
             onDelete={onDeleteSession}
             onRename={onRenameSession}
+            replicasById={replicasById}
           />
           <NewSessionButton projects={projects} activeProjectId={activeProjectId} onCreate={onNewSession} />
         </div>

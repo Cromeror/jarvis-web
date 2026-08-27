@@ -10,6 +10,13 @@ export interface ChatSession {
   created_at: string;
   updated_at: string;
   /**
+   * En qué workspace corre esta conversación: null = el root_path del
+   * proyecto (la base), un id = la réplica a la que se la movió. Opcional
+   * para no romper contra un server viejo que no lo mande — ausente se lee
+   * igual que null, que es lo que era antes de que esto existiera.
+   */
+  replica_id?: string | null;
+  /**
    * Hay un turno sin contestar y un proceso vivo que lo está contestando. Lo
    * calcula el server contra el pool en cada `list()` — no es una columna, así
    * que solo es fresco al momento del fetch. Opcional a propósito: fail-soft
@@ -185,6 +192,31 @@ export async function renameChatSession(sessionId: string, title: string): Promi
     body: JSON.stringify({ title }),
   });
   return handleResponse<ChatSession>(res);
+}
+
+/**
+ * PATCH /api/chat/sessions/:id/replica — mueve la conversación a otra réplica,
+ * o de vuelta al root del proyecto con `null`.
+ *
+ * `null` es un valor con significado propio acá (volver a la base), así que se
+ * manda siempre el campo: un body sin `replica_id` lo rechaza el backend en
+ * vez de adivinar.
+ *
+ * El backend tira el proceso vivo de la conversación para que el turno
+ * siguiente lo recree en el directorio nuevo — de ahí el `notice`, que trae el
+ * aviso de que ese turno va a arrancar más lento. `moved: false` significa que
+ * ya estaba ahí y no se pagó nada.
+ */
+export async function moveChatSessionToReplica(
+  sessionId: string,
+  replicaId: string | null,
+): Promise<{ session: ChatSession; moved: boolean; process_disposed: boolean; notice?: string }> {
+  const res = await fetch(`/api/chat/sessions/${encodeURIComponent(sessionId)}/replica`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ replica_id: replicaId }),
+  });
+  return handleResponse<{ session: ChatSession; moved: boolean; process_disposed: boolean; notice?: string }>(res);
 }
 
 /** DELETE /api/chat/sessions/:id — remove a conversation */

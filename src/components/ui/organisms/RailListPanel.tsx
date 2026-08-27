@@ -26,6 +26,13 @@ export interface RailListPanelData {
   onAction?: (id: string) => void;
   /** Ítem marcado como seleccionado (borde de acento a la izquierda). En Historial, la conversación abierta. */
   selectedId?: string | null;
+  /**
+   * Fila apilada al final de la lista, para lo que quedó afuera de lo que
+   * la opción decide mostrar (en Ejecuciones: las que no entran en el tope
+   * de 5). No es un item — es un acceso a la vista completa, de ahí que no
+   * sea una RailListRow. Ausente = la tarjeta termina en el último item.
+   */
+  footer?: { label: string; onClick?: () => void } | null;
   /** Habilita la acción destructiva por fila. Ausente = la opción no permite borrar. */
   onDeleteItem?: (id: string) => void;
   deleteLabel?: string;
@@ -62,6 +69,7 @@ export function RailListPanel({
   onSelectItem,
   onAction,
   selectedId = null,
+  footer = null,
   onDeleteItem,
   deleteLabel,
   className = '',
@@ -97,6 +105,19 @@ export function RailListPanel({
               />
             </React.Fragment>
           ))
+        )}
+        {footer && placeholder === null && (
+          <>
+            <div className="h-px w-full shrink-0 bg-[var(--chatoptionsrail-list-divider)]" />
+            <button
+              type="button"
+              onClick={footer.onClick}
+              disabled={!footer.onClick}
+              className="w-full py-[var(--chatoptionsrail-listrow-padding-v)] pl-2 text-left text-[11px] font-medium leading-[14px] text-[var(--chatoptionsrail-listrow-status-text)] transition-opacity hover:opacity-80 disabled:cursor-default disabled:opacity-100"
+            >
+              {footer.label}
+            </button>
+          </>
         )}
       </div>
     </div>

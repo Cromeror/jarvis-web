@@ -61,9 +61,16 @@ const EXAMPLE_LIVE_EVENTS: RailFocusPanelLiveEvent[] = [
   { id: 'e3', status: 'success', text: 'jarvis-agent: docs actualizados', timestamp: 'hace 21s' },
 ];
 
+/**
+ * Los nav items no traen badge: el contador de Ejecuciones es un dato, no una
+ * constante del diseño. Tenía `badgeCount: 3` copiado de Figma, y como ChatPage
+ * no pasaba `navItems`, el único indicador de atención de la barra decía "3"
+ * siempre — con cero ejecuciones también. El número real lo calcula ChatPage
+ * (`railNavItems`, vía `countRailExecutionsNeedingAttention`) y lo pasa por prop.
+ */
 const DEFAULT_NAV_ITEMS: ChatOptionsRailNavItem[] = [
   { id: 'plans', label: 'Planes', icon: 'list-checks' },
-  { id: 'executions', label: 'Ejecuciones', icon: 'play-circle', badgeCount: 3, badgeTone: 'accent' },
+  { id: 'executions', label: 'Ejecuciones', icon: 'play-circle' },
   { id: 'history', label: 'Historial', icon: 'history' },
 ];
 
@@ -212,6 +219,7 @@ export function ChatOptionsRail({
                 onSelectItem={panel.onSelectItem}
                 onAction={panel.onAction}
                 selectedId={panel.selectedId}
+                footer={panel.footer}
                 onDeleteItem={panel.onDeleteItem}
                 deleteLabel={panel.deleteLabel}
               />

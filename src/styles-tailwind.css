@@ -380,6 +380,11 @@
   --chatoptionsrail-list-padding: 10px;
   --chatoptionsrail-list-divider: var(--table2-row-border);
   --chatoptionsrail-listrow-padding-v: 8px;
+  /* Alto FIJO de una fila de la lista compacta: 8+8 de padding, 18 de
+     título, 2 de gap, 14 de subtítulo. Fijo y no `min-h` para que un
+     título largo elipse en vez de estirar la fila — con el tope de 5
+     items, es lo que hace predecible el alto del panel. */
+  --chatoptionsrail-listrow-height: 50px;
   --chatoptionsrail-listrow-gap: 12px;
   --chatoptionsrail-listrow-text-gap: 2px;
   --chatoptionsrail-listrow-title-text: var(--chatoptionsrail-row-text);

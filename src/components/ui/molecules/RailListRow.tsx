@@ -54,7 +54,7 @@ export function RailListRow({
   return (
     <div
       aria-current={selected ? 'true' : undefined}
-      className={`flex w-full items-center gap-[var(--chatoptionsrail-listrow-gap)] border-l-2 py-[var(--chatoptionsrail-listrow-padding-v)] pl-2 ${
+      className={`flex h-[var(--chatoptionsrail-listrow-height)] w-full items-center gap-[var(--chatoptionsrail-listrow-gap)] overflow-hidden border-l-2 pl-2 ${
         selected ? 'border-[var(--chatoptionsrail-listrow-selected-border)]' : 'border-transparent'
       } ${className}`}
     >
@@ -62,10 +62,20 @@ export function RailListRow({
         type="button"
         onClick={onClick}
         disabled={!onClick}
+        // El texto completo va en el tooltip: la fila tiene alto fijo, así
+        // que el título se elipsa y sin esto la información elidida no
+        // tendría ningún recurso.
+        title={title}
         className="flex min-w-0 flex-1 flex-col items-start gap-[var(--chatoptionsrail-listrow-text-gap)] text-left disabled:cursor-default"
       >
-        <span className="w-full text-[13px] font-semibold text-[var(--chatoptionsrail-listrow-title-text)]">{title}</span>
-        <span className="flex w-full items-center justify-between gap-2 text-[11px] text-[var(--chatoptionsrail-listrow-subtitle-text)]">
+        {/* Una línea, elipsada. Los títulos de plan son largos de verdad
+            ("DECISIONES (no implementa): las 9 abiertas del paralelismo…"),
+            así que sin truncate una sola fila ocupaba 3-4 líneas y el tope
+            de items no alcanzaba para acotar el alto del panel. */}
+        <span className="w-full truncate text-[13px] font-semibold leading-[18px] text-[var(--chatoptionsrail-listrow-title-text)]">
+          {title}
+        </span>
+        <span className="flex w-full items-center justify-between gap-2 text-[11px] leading-[14px] text-[var(--chatoptionsrail-listrow-subtitle-text)]">
           <span className="min-w-0 truncate">{subtitle}</span>
           {status && <span className="shrink-0 text-[var(--chatoptionsrail-listrow-status-text)]">{status}</span>}
         </span>

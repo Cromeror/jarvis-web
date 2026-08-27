@@ -1,6 +1,7 @@
 import React from 'react';
 import type { ChatMessage, ChatSession } from '../../lib/chat-api.js';
 import type { ProjectSummary } from '../../lib/projects-api.js';
+import type { ProjectReplica } from '../../lib/project-replicas-api.js';
 import { MessageList } from '../ui/molecules/MessageList.js';
 import type { QueuedMessageView } from '../ui/molecules/QueuePanel.js';
 import type { BackgroundTaskView } from '../ui/molecules/BackgroundTasksBar.js';
@@ -42,6 +43,11 @@ interface ChatWindowProps {
   onRenameSession: (sessionId: string, title: string) => void;
   projects: ProjectSummary[];
   onNewSession: (projectId: string) => void;
+  /** Réplicas de todos los proyectos visibles, por id — traduce el `replica_id` de cada conversación. */
+  replicasById?: Map<string, ProjectReplica>;
+  /** Réplicas del proyecto de la conversación abierta — vacío = no hay a dónde moverse. */
+  activeSessionReplicas?: ProjectReplica[];
+  onOpenWorkspaceDialog?: () => void;
 }
 
 export function ChatWindow({
@@ -71,6 +77,9 @@ export function ChatWindow({
   onRenameSession,
   projects,
   onNewSession,
+  replicasById,
+  activeSessionReplicas,
+  onOpenWorkspaceDialog,
 }: ChatWindowProps): React.ReactElement {
   return (
     <ChatContent
@@ -93,6 +102,9 @@ export function ChatWindow({
       backgroundTasks={backgroundTasks}
       onStopBackgroundTask={onStopBackgroundTask}
       onStopAllBackgroundTasks={onStopAllBackgroundTasks}
+      replicasById={replicasById}
+      activeSessionReplicas={activeSessionReplicas}
+      onOpenWorkspaceDialog={onOpenWorkspaceDialog}
     >
       <MessageList
         sessionId={activeSessionId}

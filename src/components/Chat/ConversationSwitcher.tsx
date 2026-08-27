@@ -2,6 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChatSession } from '../../lib/chat-api.js';
 import type { ProjectSummary } from '../../lib/projects-api.js';
 import { toneForProject } from '../../lib/project-tone.js';
+import type { ProjectReplica } from '../../lib/project-replicas-api.js';
+import { sessionWorkspace } from '../../lib/session-workspace.js';
+import { WorkspaceBadge } from './WorkspaceBadge.js';
 import { Spinner } from '../ui/atoms/Spinner.js';
 
 interface ConversationSwitcherProps {
@@ -13,6 +16,13 @@ interface ConversationSwitcherProps {
   onSelect: (sessionId: string) => void;
   onDelete: (sessionId: string) => void;
   onRename: (sessionId: string, title: string) => void;
+  /**
+   * Réplicas de todos los proyectos, por id. Con esto cada fila muestra en qué
+   * workspace corre — el dato que dice si dos conversaciones están aisladas o
+   * compartiendo disco, que es justo lo que no se puede comparar mirando una
+   * sola. Opcional: sin el índice, las filas se ven como antes.
+   */
+  replicasById?: Map<string, ProjectReplica>;
 }
 
 /** Trigger de búsqueda global — abre un popover para saltar a cualquier conversación de cualquier proyecto, filtrable por título o proyecto. El tab activo del ProjectTabStrip ya muestra el proyecto en foco, este trigger es solo para buscar. */
@@ -25,6 +35,7 @@ export function ConversationSwitcher({
   onSelect,
   onDelete,
   onRename,
+  replicasById,
 }: ConversationSwitcherProps): React.ReactElement {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -148,13 +159,18 @@ export function ConversationSwitcher({
                           />
                         )}
                       </span>
-                      {projectName && (
-                        <span
-                          className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${toneForProject(projectName)}`}
-                        >
-                          {projectName}
-                        </span>
-                      )}
+                      <span className="flex w-full min-w-0 flex-wrap items-center gap-1">
+                        {projectName && (
+                          <span
+                            className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${toneForProject(projectName)}`}
+                          >
+                            {projectName}
+                          </span>
+                        )}
+                        {replicasById && (
+                          <WorkspaceBadge workspace={sessionWorkspace(session, replicasById)} size="xs" />
+                        )}
+                      </span>
                     </button>
                   )}
                   {!editing && (

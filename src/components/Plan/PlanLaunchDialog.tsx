@@ -7,6 +7,7 @@ import {
 } from '../../lib/project-replicas-api.js';
 import { Button } from '../ui/atoms/Button.js';
 import { Spinner } from '../ui/atoms/Spinner.js';
+import { ReplicaChoiceList } from '../ui/molecules/ReplicaChoiceList.js';
 
 interface PlanLaunchDialogProps {
   planTitle: string;
@@ -107,38 +108,12 @@ export function PlanLaunchDialog({
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 p-3 hover:bg-slate-50">
-              <input
-                type="radio"
-                className="mt-1"
-                checked={selected === ROOT_REPLICA}
-                onChange={() => setSelected(ROOT_REPLICA)}
-              />
-              <span className="text-sm">
-                <span className="font-medium text-slate-900">El proyecto</span>
-                <span className="block text-slate-500">
-                  Mismo working tree que el chat — si los dos editan el mismo archivo a la vez, se pisan.
-                </span>
-              </span>
-            </label>
-
-            {replicas.map((replica) => (
-              <label
-                key={replica.id}
-                className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 p-3 hover:bg-slate-50"
-              >
-                <input
-                  type="radio"
-                  className="mt-1"
-                  checked={selected === replica.id}
-                  onChange={() => setSelected(replica.id)}
-                />
-                <span className="text-sm">
-                  <span className="font-medium text-slate-900">{replica.slug}</span>
-                  <span className="block text-slate-500">{replica.branch}</span>
-                </span>
-              </label>
-            ))}
+            <ReplicaChoiceList
+              replicas={replicas}
+              value={selected}
+              onChange={setSelected}
+              rootHint="Mismo working tree que el chat — si los dos editan el mismo archivo a la vez, se pisan."
+            />
 
             <div className="flex items-center gap-2 pt-1">
               <input
