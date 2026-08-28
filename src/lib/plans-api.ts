@@ -4,6 +4,7 @@
 
 export type PlanStatus = 'draft' | 'approved' | 'running' | 'done' | 'failed' | 'archived';
 export type PlanStepKind = 'turn' | 'tool_call';
+export type PlanStepRunIf = 'on_success' | 'on_failure' | 'always';
 
 export interface PlanSummary {
   id: string;
@@ -24,6 +25,7 @@ export interface PlanStepWithDependencies {
   step_id: string;
   step_index: number;
   kind: PlanStepKind;
+  run_if: PlanStepRunIf;
   description: string;
   tool_name: string | null;
   tool_input: string | null;

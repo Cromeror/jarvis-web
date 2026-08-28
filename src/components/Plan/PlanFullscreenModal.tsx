@@ -401,7 +401,17 @@ export function PlanFullscreenModal({ planId, onClose, activeSessionId, onSendTo
                             </PlanMarkdown>
                           </div>
                           {step.dependsOn.length > 0 && (
-                            <p className="mt-1 text-[11px] text-slate-400">depende de: {step.dependsOn.join(', ')}</p>
+                            <p className="mt-1 text-[11px] text-slate-400">
+                              {/* Sin esto un remediador se ve idéntico a un paso normal, y la
+                                  diferencia es justamente cuándo corre. Sólo se muestra lo que
+                                  NO es el default: marcar "on_success" en cada paso sería ruido. */}
+                              {step.run_if === 'on_failure'
+                                ? 'corre si falla: '
+                                : step.run_if === 'always'
+                                  ? 'corre siempre, después de: '
+                                  : 'depende de: '}
+                              {step.dependsOn.join(', ')}
+                            </p>
                           )}
                         </li>
                       ))}
