@@ -15,6 +15,7 @@ const ACCENT_ROUTE: NavRoute = { id: 'dashboard', to: '/', label: 'Dashboard', i
 const NAV_ROUTES: NavRoute[] = [
   { id: 'chat', to: '/chat', label: 'Chat', icon: 'chat', end: false },
   { id: 'plans', to: '/plans', label: 'Planes', icon: 'plans', end: false },
+  { id: 'workspaces', to: '/workspaces', label: 'Workspaces', icon: 'workspaces', end: false },
   { id: 'environments', to: '/environments', label: 'Environments', icon: 'environments', end: false },
 ];
 

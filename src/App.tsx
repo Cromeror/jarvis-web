@@ -6,6 +6,7 @@ import { ProjectMapPage } from './pages/ProjectMapPage.js';
 import { ChatPage } from './pages/ChatPage.js';
 import { PlansPage } from './pages/PlansPage.js';
 import { EnvironmentsPage } from './pages/EnvironmentsPage.js';
+import { WorkspacesPage } from './pages/WorkspacesPage.js';
 import { LoginPage } from './pages/LoginPage.js';
 import { UsersPage } from './pages/UsersPage.js';
 import { AppLayout } from './components/layout/AppLayout.js';
@@ -28,6 +29,19 @@ import { Sidebar2PreviewPage } from './pages/Sidebar2PreviewPage.js';
  *   /plans/:projectId        → AppLayout > PlansPage
  *   /environments            → AppLayout > EnvironmentsPage (project picker)
  *   /environments/:projectId → AppLayout > EnvironmentsPage
+ *   /workspaces              → AppLayout > WorkspacesPage (project picker)
+ *   /workspaces/:projectId   → AppLayout > WorkspacesPage (vista raíz del apartado)
+ *   /workspaces/:projectId/:workspaceId → idem, con un espacio de trabajo
+ *                              elegido. El workspace es un SEGMENTO DE PATH y
+ *                              no un query param porque de él cuelgan las demás
+ *                              vistas del apartado (explorador, cambios,
+ *                              grafo): fija el contexto de todas, y así el link
+ *                              es compartible y sobrevive a un reload.
+ *   /workspaces/:projectId/:workspaceId/changes?file=<path> → panel de cambios.
+ *                              El archivo abierto va como query param y no como
+ *                              segmento, igual que en /editor: no es una ruta,
+ *                              es qué archivo está abierto — y así un path con
+ *                              barras no necesita escaparse dentro de la ruta.
  *   /project/:projectId      → ProjectMapPage
  *   /editor?file=<path>      → EditorPage (file kept as query param — it's
  *                              not a route, just which file is open)
@@ -52,6 +66,10 @@ export default function App(): React.ReactElement {
           <Route path="/plans/:projectId" element={<PlansPage />} />
           <Route path="/environments" element={<EnvironmentsPage />} />
           <Route path="/environments/:projectId" element={<EnvironmentsPage />} />
+          <Route path="/workspaces" element={<WorkspacesPage />} />
+          <Route path="/workspaces/:projectId" element={<WorkspacesPage />} />
+          <Route path="/workspaces/:projectId/:workspaceId" element={<WorkspacesPage />} />
+          <Route path="/workspaces/:projectId/:workspaceId/:view" element={<WorkspacesPage />} />
           <Route path="/users" element={<UsersPage />} />
           <Route path="/pipeline/:runId" element={<PipelineRunView />} />
           <Route path="/plan-runs/:runId" element={<PlanRunView />} />

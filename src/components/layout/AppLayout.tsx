@@ -14,6 +14,7 @@ const PAGE_TITLES: Record<string, string> = {
   'chat': 'Chat',
   'plans': 'Planes',
   'environments': 'Environments',
+  'workspaces': 'Workspaces',
 };
 
 function usePageTitle(): string {
