@@ -12,7 +12,7 @@ import { FilterIcon } from '../components/ui/atoms/FilterIcon.js';
 import { SortIcon } from '../components/ui/atoms/SortIcon.js';
 import { EntityCard } from '../components/ui/molecules/EntityCard.js';
 import { EmptyCard } from '../components/ui/molecules/EmptyCard.js';
-import { PlanSidePanel } from '../components/Plan/PlanSidePanel.js';
+import { PlanFullscreenModal } from '../components/Plan/PlanFullscreenModal.js';
 import { PlanLaunchDialog } from '../components/Plan/PlanLaunchDialog.js';
 import type { StatusBadgeTone } from '../components/ui/atoms/StatusBadge.js';
 
@@ -192,10 +192,12 @@ export function PlansPage(): React.ReactElement {
   const createPlanProjectId = projectFilter.length === 1 ? projectFilter[0] : (projects[0]?.id ?? null);
 
   return (
-    // Split de dos columnas — mismo patrón que ChatPage: contenido a la izquierda
-    // (flex-1, con scroll propio) y, cuando hay un plan seleccionado, el
-    // PlanSidePanel reutilizado a la derecha. Antes era un contenedor centrado
-    // (mx-auto max-w-6xl) sin paneles.
+    // Una sola columna de contenido (flex-1, con scroll propio); el detalle de un
+    // plan seleccionado ya no es un panel a la derecha sino el modal fullscreen,
+    // que al ser `fixed` no ocupa lugar en el layout — mismo patrón que ChatPage.
+    // El flex sobrevive a la segunda columna a propósito: es lo que le da al
+    // contenido su alto acotado y su propio scroll (`flex-1 overflow-hidden`),
+    // que era lo que antes evitaba el contenedor centrado (mx-auto max-w-6xl).
     <div className="flex h-full flex-col bg-white" style={{ fontSize: '16px' }}>
       <Toast toasts={toasts} onDismiss={removeToast} />
       <div className="flex flex-1 overflow-hidden">
@@ -268,11 +270,17 @@ export function PlansPage(): React.ReactElement {
           />
         )}
 
+        {/*
+          * `activeSessionId={null}` y sin `onSendToChat`: acá no hay una
+          * conversación abierta, así que las anotaciones se pueden crear pero no
+          * enviar — el propio modal lo dice y ofrece abrir el chat del proyecto.
+          */}
         {selectedPlanId && (
-          <PlanSidePanel
+          <PlanFullscreenModal
             planId={selectedPlanId}
             onClose={() => setSelectedPlanId(null)}
             onLaunched={(runId) => navigate(`/plan-runs/${runId}`)}
+            activeSessionId={null}
           />
         )}
       </div>

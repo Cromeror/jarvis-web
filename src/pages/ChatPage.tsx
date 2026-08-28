@@ -19,7 +19,7 @@ import { resolveQueueStates } from '../lib/chat-queue.js';
 import type { QueuedMessageView } from '../components/ui/molecules/QueuePanel.js';
 import { useChatStream } from '../hooks/useChatStream.js';
 import { ChatWindow } from '../components/Chat/ChatWindow.js';
-import { PlanSidePanel } from '../components/Plan/PlanSidePanel.js';
+import { PlanFullscreenModal } from '../components/Plan/PlanFullscreenModal.js';
 import { PlanLaunchDialog } from '../components/Plan/PlanLaunchDialog.js';
 import { SessionWorkspaceDialog } from '../components/Chat/SessionWorkspaceDialog.js';
 import { listProjectReplicas, type ProjectReplica } from '../lib/project-replicas-api.js';
@@ -713,17 +713,37 @@ export function ChatPage(): React.ReactElement {
   const [launchPlanId, setLaunchPlanId] = useState<string | null>(null);
   const requestLaunchPlan = useCallback((planId: string) => setLaunchPlanId(planId), []);
 
+  // Acuse de recibo de un plan lanzado desde el chat SIN abrir su detalle: la
+  // opción "Planes" del rail y el "Lanzar ahora" de la tarjeta de Focus, que
+  // son los dos que pasan por `handleLaunchPlan`. Decisión explícita: ahí NO se
+  // navega. El usuario está leyendo una conversación y el launch es una acción
+  // al costado, no el destino — mandarlo a /plan-runs le saca de encima lo que
+  // estaba mirando. El acuse va donde ya está: un toast con el nombre del plan,
+  // y el plan pasando a "Ejecuciones" del rail (de ahí el bump del token:
+  // `railPlans` se refetchea y el plan, ahora en running, entra en esa opción y
+  // prende su badge de atención).
+  // Los dos caminos que SÍ navegan son los que pasan por el detalle del plan:
+  // el `onLaunched` del PlanFullscreenModal (acá abajo) y el de PlansPage. Ahí
+  // el usuario ya se metió en el plan, así que el run es lo que fue a buscar.
+  const notifyPlanLaunched = useCallback(
+    (planTitle: string) => {
+      addToast(`"${planTitle}" se está ejecutando — seguilo en Ejecuciones`, 'success');
+      setRailPlansToken((n) => n + 1);
+    },
+    [addToast],
+  );
+
   const handleLaunchPlan = useCallback(
-    async (planId: string, replicaId?: string) => {
+    async (planId: string, planTitle: string, replicaId?: string) => {
       setLaunchPlanId(null);
       try {
-        const { run_id } = await launchPlan(planId, replicaId);
-        navigate(`/plan-runs/${run_id}`);
+        await launchPlan(planId, replicaId);
+        notifyPlanLaunched(planTitle);
       } catch (err) {
         addToast(err instanceof Error ? err.message : 'Error al lanzar el plan', 'error');
       }
     },
-    [navigate, addToast],
+    [notifyPlanLaunched, addToast],
   );
 
   // Mensajes de "nada que mostrar" — compartidos entre el ContentPanel
@@ -1144,15 +1164,6 @@ export function ChatPage(): React.ReactElement {
           activeSessionReplicas={activeSessionReplicas}
           onOpenWorkspaceDialog={() => setWorkspaceDialogOpen(true)}
         />
-        {openPlanId && (
-          <PlanSidePanel
-            planId={openPlanId}
-            onClose={() => setOpenPlanId(null)}
-            onLaunched={(runId) => navigate(`/plan-runs/${runId}`)}
-            activeSessionId={activeSessionId}
-            onSendToChat={(message) => void handleSend(message)}
-          />
-        )}
         <ChatOptionsRail
           activeOption={railOption}
           onToggleOption={(key) => setRailOption((cur) => (cur === key ? null : key))}
@@ -1166,6 +1177,24 @@ export function ChatPage(): React.ReactElement {
           liveEvents={railLiveEvents}
         />
       </div>
+      {/*
+        * El detalle de un plan es el modal, no un panel al costado: los cuatro
+        * caminos que setean `openPlanId` (rail Planes, rail Ejecuciones, la
+        * tarjeta del feed vía onOpenPlan, y handleAttentionItemClick) abren
+        * directo la vista completa, sin el paso intermedio de un panel angosto
+        * que había que maximizar. Va acá abajo, fuera del flex row, porque es
+        * un overlay `fixed` como los otros diálogos — adentro de la fila
+        * ocuparía ancho del layout sin necesitarlo.
+        */}
+      {openPlanId && (
+        <PlanFullscreenModal
+          planId={openPlanId}
+          onClose={() => setOpenPlanId(null)}
+          onLaunched={(runId) => navigate(`/plan-runs/${runId}`)}
+          activeSessionId={activeSessionId}
+          onSendToChat={(message) => void handleSend(message)}
+        />
+      )}
       {workspaceDialogOpen && activeSession && (
         <SessionWorkspaceDialog
           sessionTitle={activeSession.title ?? 'Nueva conversación'}
@@ -1184,7 +1213,7 @@ export function ChatPage(): React.ReactElement {
             planTitle={plan?.title ?? 'Plan'}
             projectId={plan?.project_id ?? activeProjectId}
             onCancel={() => setLaunchPlanId(null)}
-            onConfirm={(replicaId) => void handleLaunchPlan(launchPlanId, replicaId)}
+            onConfirm={(replicaId) => void handleLaunchPlan(launchPlanId, plan?.title ?? 'El plan', replicaId)}
           />
         );
       })()}

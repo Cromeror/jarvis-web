@@ -3,6 +3,8 @@ import { diffWords } from 'diff';
 import {
   getPlan,
   updatePlan,
+  approvePlan,
+  launchPlan,
   listPlanAnnotations,
   createPlanAnnotation,
   deletePlanAnnotation,
@@ -12,6 +14,7 @@ import {
 } from '../../lib/plans-api.js';
 import type { PlanDetail, PlanAnnotation, PlanAnnotationAnchorKind } from '../../lib/plans-api.js';
 import { PlanMarkdown } from './PlanMarkdown.js';
+import { PlanLaunchDialog } from './PlanLaunchDialog.js';
 import { Toast, useToast } from '../ui/atoms/Toast.js';
 
 interface PlanFullscreenModalProps {
@@ -21,6 +24,8 @@ interface PlanFullscreenModalProps {
   activeSessionId: string | null;
   /** Forwards a composed message into the open chat, as if the user had typed it. */
   onSendToChat?: (message: string) => void;
+  /** Called with the run id once the plan is launched, so the caller can navigate to the progress view. */
+  onLaunched?: (runId: string) => void;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -108,7 +113,7 @@ function AnnotationDiff({ before, after }: { before: string; after: string }): R
  * los cambios con `plan_update`. Una vez aplicados, se ve el diff contra el
  * contenido vivo del bloque y se puede marcar la anotación como resuelta.
  */
-export function PlanFullscreenModal({ planId, onClose, activeSessionId, onSendToChat }: PlanFullscreenModalProps): React.ReactElement {
+export function PlanFullscreenModal({ planId, onClose, activeSessionId, onSendToChat, onLaunched }: PlanFullscreenModalProps): React.ReactElement {
   const { toasts, addToast, removeToast } = useToast();
   const [detail, setDetail] = useState<PlanDetail | null>(null);
   const [annotations, setAnnotations] = useState<PlanAnnotation[]>([]);
@@ -124,6 +129,8 @@ export function PlanFullscreenModal({ planId, onClose, activeSessionId, onSendTo
   // proyecto del plan (PATCH /api/plans/:id), así que un mismatch se resuelve
   // con el error que devuelve, no con un chequeo duplicado acá.
   const [reassigning, setReassigning] = useState(false);
+  /** Diálogo "¿dónde corre?" abierto — el launch pasa por ahí para poder elegir réplica. */
+  const [askingWhere, setAskingWhere] = useState(false);
 
   async function refresh(): Promise<void> {
     const [d, a] = await Promise.all([getPlan(planId), listPlanAnnotations(planId)]);
@@ -141,6 +148,33 @@ export function PlanFullscreenModal({ planId, onClose, activeSessionId, onSendTo
       addToast(err instanceof Error ? err.message : 'Error al vincular la conversación', 'error');
     } finally {
       setReassigning(false);
+    }
+  }
+
+  async function handleApprove(): Promise<void> {
+    setBusy(true);
+    try {
+      await approvePlan(planId);
+      await refresh();
+    } catch (err) {
+      addToast(err instanceof Error ? err.message : 'Error al aprobar el plan', 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleLaunch(replicaId?: string): Promise<void> {
+    setBusy(true);
+    setAskingWhere(false);
+    try {
+      if (detail?.plan.status === 'draft') await approvePlan(planId);
+      const { run_id } = await launchPlan(planId, replicaId);
+      await refresh();
+      onLaunched?.(run_id);
+    } catch (err) {
+      addToast(err instanceof Error ? err.message : 'Error al lanzar el plan', 'error');
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -289,6 +323,29 @@ export function PlanFullscreenModal({ planId, onClose, activeSessionId, onSendTo
             )}
           </div>
           <div className="flex items-center gap-2">
+            {detail?.plan.status === 'draft' && (
+              <button
+                type="button"
+                onClick={() => void handleApprove()}
+                disabled={busy}
+                className="rounded-full border border-indigo-300 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-40"
+              >
+                Aprobar
+              </button>
+            )}
+            {(detail?.plan.status === 'draft' || detail?.plan.status === 'approved') && (
+              <button
+                type="button"
+                onClick={() => setAskingWhere(true)}
+                disabled={busy}
+                className="rounded-full bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-40"
+              >
+                Lanzar ahora
+              </button>
+            )}
+            {detail?.plan.status === 'running' && (
+              <span className="text-xs text-slate-500">Ejecutándose…</span>
+            )}
             <button
               type="button"
               onClick={() => void refresh()}
@@ -482,6 +539,15 @@ export function PlanFullscreenModal({ planId, onClose, activeSessionId, onSendTo
           </div>
         </div>
       </div>
+
+      {askingWhere && detail && (
+        <PlanLaunchDialog
+          planTitle={detail.plan.title}
+          projectId={detail.plan.project_id}
+          onCancel={() => setAskingWhere(false)}
+          onConfirm={(replicaId) => void handleLaunch(replicaId)}
+        />
+      )}
 
       {popover && (
         <div
