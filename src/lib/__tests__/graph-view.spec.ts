@@ -12,6 +12,26 @@ function c(hash: string, parents: string[] = []): Commit {
 /** Historia lineal: A <- B <- C, en el orden en que la devuelve el backend. */
 const LINEAL = [c('A', ['B']), c('B', ['C']), c('C', [])];
 
+/**
+ * `n` bloques encadenados, cada uno con DOS merges (`Mia`, `Mib`) que apuntan
+ * al mismo padre `Xi`. Cada bloque es una oportunidad de dejar un carril muerto:
+ * cuando llega `Xi` hay dos carriles esperandolo y hay que cerrar los dos.
+ */
+function convergencias(n: number): Commit[] {
+  const commits: Commit[] = [];
+  for (let i = 1; i <= n; i++) {
+    commits.push(
+      c(`M${i}a`, [`A${i}`, `X${i}`]),
+      c(`A${i}`, [`M${i}b`]),
+      c(`M${i}b`, [`B${i}`, `X${i}`]),
+      c(`B${i}`, [`X${i}`]),
+      // El bloque siguiente cuelga de Xi; el ultimo cierra la historia.
+      c(`X${i}`, i < n ? [`M${i + 1}a`] : []),
+    );
+  }
+  return commits;
+}
+
 describe('buildCommitGraph', () => {
   it('una historia lineal usa un solo carril', () => {
     const graph = buildCommitGraph(LINEAL);
@@ -66,17 +86,21 @@ describe('buildCommitGraph', () => {
     expect(filaX.outgoing).toEqual([]);
   });
 
-  it('sin liberar los convergentes el ancho crece; con la correccion no', () => {
-    const graph = buildCommitGraph([
-      c('M1', ['A', 'X']),
-      c('A', ['M2']),
-      c('M2', ['B', 'X']),
-      c('B', ['X']),
-      c('X', []),
-    ]);
-    // Con la liberacion correcta alcanzan 3 carriles; el bug daba 4+ y ninguno
-    // se cerraba.
-    expect(graph.laneCount).toBeLessThanOrEqual(3);
+  // El sintoma del bug es el ANCHO, y para verlo hace falta encadenar varias
+  // convergencias: con una sola, el carril muerto que deja la version ingenua
+  // todavia entra en el ancho que el grafo iba a ocupar igual (2 en los dos
+  // casos), asi que un tope fijo la deja pasar. Encadenadas, cada bloque deja
+  // el suyo y el ancho crece con la historia: 2, 3, 4, 5 contra 2 constante.
+  it('el ancho no crece con la cantidad de convergencias', () => {
+    const anchos = [1, 2, 3, 4].map((n) => buildCommitGraph(convergencias(n)).laneCount);
+    expect(anchos).toEqual([2, 2, 2, 2]);
+  });
+
+  it('ninguna convergencia encadenada deja un carril vivo al terminar', () => {
+    const graph = buildCommitGraph(convergencias(4));
+    const ultima = graph.rows[graph.rows.length - 1];
+    expect(ultima.passingBottom).toEqual([]);
+    expect(ultima.outgoing).toEqual([]);
   });
 
   // Un padre fuera de la pagina no es un extremo suelto: la linea sigue.
@@ -163,6 +187,19 @@ describe('toGraphState', () => {
     expect(toGraphState(logResponse({ commits: [] })).kind).not.toBe('failed');
   });
 
+  // Los dos estados vacios son distinguibles por su motivo: el del backend
+  // ("no es un repositorio git") y el de la vista ("todavia no tiene commits").
+  // Ninguno se muestra como un grafo vacio sin explicacion.
+  it('sin commits y sin repo son vacios con motivos distintos', () => {
+    const sinRepo = toGraphState(logResponse({ error: '/srv/p no es un repositorio git' }));
+    const sinCommits = toGraphState(logResponse({ commits: [] }));
+    expect(sinRepo.kind).toBe('empty');
+    expect(sinCommits.kind).toBe('empty');
+    if (sinRepo.kind !== 'empty' || sinCommits.kind !== 'empty') throw new Error('inalcanzable');
+    expect(sinRepo.reason).not.toBe(sinCommits.reason);
+    expect(sinCommits.reason).toBe(NO_HISTORY_REASON);
+  });
+
   it('con commits queda listo y conserva el cursor', () => {
     const state = toGraphState(logResponse({ commits: [c('A')], next_cursor: 'abc:50' }));
     expect(state).toEqual({ kind: 'ready', commits: [c('A')], nextCursor: 'abc:50' });
@@ -192,6 +229,27 @@ describe('appendPage', () => {
     // estaba fuera de la primera, ahora es un nodo de verdad.
     const graph = buildCommitGraph(siguiente.commits);
     expect(graph.rows[0].outgoing[0].inPage).toBe(true);
+  });
+
+  // Una pagina rota NO puede verse igual que el final de la historia: el
+  // `emptyLog` del backend trae `commits: []` y `next_cursor: null`, asi que
+  // apilarla borraria el cursor y el boton de cargar mas desapareceria — git
+  // fallo, pero en pantalla se leeria "no hay mas commits".
+  it('una pagina con error no se apila y conserva el cursor para reintentar', () => {
+    const inicial = toGraphState(logResponse({ commits: [c('A', ['B'])], next_cursor: 'x:1' }));
+    const despues = appendPage(inicial, logResponse({ commits: [], next_cursor: null, error: 'git no contesto' }));
+    expect(despues).toBe(inicial);
+    if (despues.kind !== 'ready') throw new Error('inalcanzable');
+    expect(despues.nextCursor).toBe('x:1');
+    expect(despues.commits.map((x) => x.hash)).toEqual(['A']);
+  });
+
+  // El final de verdad si apaga el cursor, y por eso el boton desaparece.
+  it('la ultima pagina cierra la paginacion', () => {
+    const inicial = toGraphState(logResponse({ commits: [c('A', ['B'])], next_cursor: 'x:1' }));
+    const despues = appendPage(inicial, logResponse({ commits: [c('B')], next_cursor: null }));
+    if (despues.kind !== 'ready') throw new Error('inalcanzable');
+    expect(despues.nextCursor).toBeNull();
   });
 
   it('no apila sobre un estado que no esta listo', () => {

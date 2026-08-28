@@ -4,6 +4,15 @@ import type { FileDiffResponse } from '../../lib/workspace-changes-api.js';
 
 interface DiffViewProps {
   diff: FileDiffResponse;
+  /**
+   * Texto de origen del patch, arriba del diff. `null` lo oculta.
+   *
+   * El default lo deriva de `source`, que describe de donde sale un diff del
+   * WORKING TREE ("indice contra HEAD", "sin stagear"). El patch de un commit
+   * es el mismo formato pero no tiene ese origen, y ahi la etiqueta derivada
+   * seria una afirmacion falsa sobre lo que se esta mirando.
+   */
+  sourceLabel?: string | null;
 }
 
 const LINE_CLASS: Record<DiffLine['type'], string> = {
@@ -37,9 +46,12 @@ function Notice({ tone, children }: { tone: 'info' | 'warning' | 'danger'; child
  * Los tres casos en los que NO hay diff que dibujar se muestran como tales, no
  * como un panel vacío: binario, truncado, y error de git.
  */
-export function DiffView({ diff }: DiffViewProps): React.ReactElement {
+export function DiffView({ diff, sourceLabel }: DiffViewProps): React.ReactElement {
   const parsed = useMemo(() => parseUnifiedDiff(diff.diff), [diff.diff]);
   const shown = useMemo(() => countDiffLines(parsed), [parsed]);
+  const origin = sourceLabel !== undefined
+    ? sourceLabel
+    : diff.source === 'staged' ? 'índice contra HEAD' : diff.source === 'untracked' ? 'archivo nuevo' : 'sin stagear';
 
   if (diff.error) {
     return <Notice tone="danger">{diff.error}</Notice>;
@@ -81,9 +93,7 @@ export function DiffView({ diff }: DiffViewProps): React.ReactElement {
       <div className="mb-3 flex flex-wrap items-center gap-3 text-xs">
         <span className="font-mono text-emerald-600">+{diff.added_lines ?? shown.added}</span>
         <span className="font-mono text-red-500">−{diff.deleted_lines ?? shown.deleted}</span>
-        <span className="text-slate-400">
-          {diff.source === 'staged' ? 'índice contra HEAD' : diff.source === 'untracked' ? 'archivo nuevo' : 'sin stagear'}
-        </span>
+        {origin !== null && <span className="text-slate-400">{origin}</span>}
       </div>
 
       {(diff.truncated || parsed.repaired) && (

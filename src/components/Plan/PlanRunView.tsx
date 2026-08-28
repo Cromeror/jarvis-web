@@ -78,7 +78,12 @@ export function PlanRunView(): React.ReactElement {
                   </div>
                 )}
                 {step.error && <pre className="mt-1 whitespace-pre-wrap text-[11px] text-red-600">{step.error}</pre>}
-                {step.output && step.status === 'completed' && (
+                {/* También en 'failed': una tool que declara el fallo en su
+                    salida deja la evidencia ahí (qué check rompió, la cola del
+                    log) y `error` sólo dice por qué el paso cuenta como fallado.
+                    Sin esto, el único caso donde el detalle importa es el único
+                    que no se ve. */}
+                {step.output && (step.status === 'completed' || step.status === 'failed') && (
                   <pre className="mt-1 max-h-24 overflow-y-auto whitespace-pre-wrap text-[11px] text-slate-600">{step.output}</pre>
                 )}
                 {/* Live output while the step runs — same <pre> treatment as the

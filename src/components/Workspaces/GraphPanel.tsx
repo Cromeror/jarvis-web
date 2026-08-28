@@ -34,11 +34,16 @@ const PAGE_SIZE = 50;
 export function GraphPanel({ projectId, replicaId, selectedHash, onSelectCommit }: GraphPanelProps): React.ReactElement {
   const [state, setState] = useState<GraphState>({ kind: 'loading' });
   const [loadingMore, setLoadingMore] = useState(false);
+  // Que fallo al traer la pagina siguiente. Tragarselo dejaba el unico caso en
+  // el que un error se disfraza de estado normal: sin cursor no hay boton, y
+  // "no se pudo leer mas" se ve identico a "llegaste al final de la historia".
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const [detail, setDetail] = useState<CommitDetailResponse | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
   const loadFirstPage = useCallback(() => {
     setState({ kind: 'loading' });
+    setLoadMoreError(null);
     listWorkspaceLog(projectId, { replicaId, limit: PAGE_SIZE })
       .then((res) => setState(toGraphState(res)))
       // Solo un pedido que NO llego es `failed`: ahi reintentar tiene sentido.
@@ -54,11 +59,16 @@ export function GraphPanel({ projectId, replicaId, selectedHash, onSelectCommit 
   const loadMore = useCallback(() => {
     if (state.kind !== 'ready' || !state.nextCursor) return;
     setLoadingMore(true);
+    setLoadMoreError(null);
     listWorkspaceLog(projectId, { replicaId, limit: PAGE_SIZE, cursor: state.nextCursor })
       // Se apila: los carriles se calculan sobre el acumulado o la rama se
-      // veria partida justo en el limite de pagina.
-      .then((res) => setState((prev) => appendPage(prev, res)))
-      .catch(() => undefined)
+      // veria partida justo en el limite de pagina. `appendPage` no apila una
+      // pagina con error, asi que el cursor sobrevive para reintentar.
+      .then((res) => {
+        if (res.error) setLoadMoreError(res.error);
+        setState((prev) => appendPage(prev, res));
+      })
+      .catch((err: unknown) => setLoadMoreError(err instanceof Error ? err.message : String(err)))
       .finally(() => setLoadingMore(false));
   }, [projectId, replicaId, state]);
 
@@ -142,13 +152,18 @@ export function GraphPanel({ projectId, replicaId, selectedHash, onSelectCommit 
         </div>
         {state.nextCursor && (
           <div className="border-t border-slate-100 p-2 text-center">
+            {loadMoreError && (
+              <p className="mb-2 text-xs text-red-600">
+                No se pudo traer la pagina siguiente: {loadMoreError}
+              </p>
+            )}
             <button
               type="button"
               onClick={loadMore}
               disabled={loadingMore}
               className="rounded-lg border border-slate-200 px-4 py-1.5 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50"
             >
-              {loadingMore ? 'Cargando…' : `Cargar ${PAGE_SIZE} commits mas`}
+              {loadingMore ? 'Cargando…' : loadMoreError ? 'Reintentar' : `Cargar ${PAGE_SIZE} commits mas`}
             </button>
           </div>
         )}

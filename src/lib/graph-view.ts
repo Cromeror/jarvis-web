@@ -177,9 +177,18 @@ export function toGraphState(response: CommitLogResponse): GraphState {
  * Los carriles se calculan sobre el ACUMULADO y no por pagina suelta: si cada
  * pagina se dibujara por su cuenta, una rama abierta antes del corte empezaria
  * de nuevo en otro carril y el grafo se veria partido en el limite.
+ *
+ * Una pagina que vino con error NO se apila: se devuelve lo que ya habia, con
+ * su cursor intacto. Es el mismo criterio con el que la primera pagina no
+ * confunde "sin commits" con "no es un repo git", un paso mas adelante — un
+ * `emptyLog` trae `commits: []` y `next_cursor: null`, asi que apilarlo
+ * borraria el cursor y el boton de cargar mas desapareceria: git fallo, pero
+ * en pantalla se veria exactamente igual que haber llegado al final de la
+ * historia. El cursor sobrevive justamente para poder reintentar.
  */
 export function appendPage(current: GraphState, response: CommitLogResponse): GraphState {
   if (current.kind !== 'ready') return current;
+  if (response.error) return current;
   return {
     kind: 'ready',
     commits: [...current.commits, ...response.commits],

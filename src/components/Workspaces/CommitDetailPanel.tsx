@@ -80,6 +80,9 @@ export function CommitDetailPanel({ detail, loading }: CommitDetailPanelProps): 
         diff={{
           root_path: detail.root_path,
           path: commit?.hash ?? '',
+          // `source` describe de donde sale un diff del working tree; un commit
+          // no tiene ese origen. El campo es obligatorio en el shape, asi que se
+          // pone el neutro y la etiqueta se apaga con `sourceLabel={null}`.
           source: 'staged',
           binary: false,
           truncated: detail.truncated,
@@ -88,6 +91,7 @@ export function CommitDetailPanel({ detail, loading }: CommitDetailPanelProps): 
           deleted_lines: totalDeleted,
           error: detail.commit ? null : detail.error,
         }}
+        sourceLabel={null}
       />
     </div>
   );
