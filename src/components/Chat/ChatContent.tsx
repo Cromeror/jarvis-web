@@ -6,6 +6,7 @@ import { sessionWorkspace, canChooseWorkspace } from '../../lib/session-workspac
 import { WorkspaceBadge } from './WorkspaceBadge.js';
 import { ProjectTabStrip } from './ProjectTabStrip.js';
 import { ConversationSwitcher } from './ConversationSwitcher.js';
+import { ConversationTitle } from './ConversationTitle.js';
 import { NewSessionButton } from './NewSessionButton.js';
 import { ChatInputBar } from '../ui/molecules/ChatInputBar.js';
 import { BackgroundTasksBar, type BackgroundTaskView } from '../ui/molecules/BackgroundTasksBar.js';
@@ -99,7 +100,18 @@ export function ChatContent({
     <div className="relative flex h-full min-w-0 flex-1 flex-col overflow-hidden rounded-[var(--chatcontent-radius)] bg-[var(--chatcontent-bg-base)] bg-gradient-to-b from-[var(--chatcontent-bg-from)] to-[var(--chatcontent-bg-to)]">
       <div className="flex items-center gap-2 border-b border-[var(--chatcontent-border-subtle)] px-3 py-2">
         <ProjectTabStrip sessions={sessions} projects={projects} activeProjectId={activeProjectId} onSelectProject={onSelectProject} />
-        <div className="ml-auto flex items-center gap-1">
+        {/*
+          El tab strip dice en qué PROYECTO estás; esto, en cuál de sus
+          conversaciones — y es donde se le cambia el nombre. El separador sólo
+          va si hay algo a cada lado.
+        */}
+        {activeSession && (
+          <>
+            <span aria-hidden className="shrink-0 text-[var(--tab-text-default)] opacity-40">/</span>
+            <ConversationTitle session={activeSession} onRename={onRenameSession} />
+          </>
+        )}
+        <div className="ml-auto flex shrink-0 items-center gap-1">
           {workspace && (
             <WorkspaceBadge
               workspace={workspace}

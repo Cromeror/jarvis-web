@@ -6,6 +6,7 @@ import type { ProjectReplica } from '../../lib/project-replicas-api.js';
 import { sessionWorkspace } from '../../lib/session-workspace.js';
 import { WorkspaceBadge } from './WorkspaceBadge.js';
 import { Spinner } from '../ui/atoms/Spinner.js';
+import { useInlineRename } from '../../hooks/useInlineRename.js';
 
 interface ConversationSwitcherProps {
   sessions: ChatSession[];
@@ -39,21 +40,11 @@ export function ConversationSwitcher({
 }: ConversationSwitcherProps): React.ReactElement {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
-  const [editingTitle, setEditingTitle] = useState('');
   const ref = useRef<HTMLDivElement>(null);
-
-  const startEditing = (session: ChatSession): void => {
-    setEditingSessionId(session.id);
-    setEditingTitle(session.title ?? '');
-  };
-
-  const commitEditing = (): void => {
-    const sessionId = editingSessionId;
-    const trimmed = editingTitle.trim();
-    setEditingSessionId(null);
-    if (sessionId && trimmed) onRename(sessionId, trimmed);
-  };
+  // Misma semántica de edición que el título del header (ver useInlineRename):
+  // el rename tiene dos entradas y no pueden discrepar en qué hace Escape ni en
+  // qué pasa si el campo queda vacío.
+  const rename = useInlineRename(onRename);
 
   useEffect(() => {
     if (!open) return;
@@ -67,9 +58,9 @@ export function ConversationSwitcher({
   useEffect(() => {
     if (!open) {
       setQuery('');
-      setEditingSessionId(null);
+      rename.cancel();
     }
-  }, [open]);
+  }, [open, rename.cancel]);
 
   const projectNameById = useMemo(() => new Map(projects.map((p) => [p.id, p.name])), [projects]);
 
@@ -114,7 +105,7 @@ export function ConversationSwitcher({
               const active = session.id === activeSessionId;
               const pending = pendingSessionIds.has(session.id);
               const unread = unreadSessionIds.has(session.id);
-              const editing = editingSessionId === session.id;
+              const editing = rename.editingId === session.id;
               return (
                 <div
                   key={session.id}
@@ -124,17 +115,17 @@ export function ConversationSwitcher({
                     <input
                       type="text"
                       autoFocus
-                      value={editingTitle}
-                      onChange={(e) => setEditingTitle(e.target.value)}
+                      value={rename.draft}
+                      onChange={(e) => rename.setDraft(e.target.value)}
                       onClick={(e) => e.stopPropagation()}
-                      onBlur={commitEditing}
+                      onBlur={rename.commit}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault();
-                          commitEditing();
+                          rename.commit();
                         } else if (e.key === 'Escape') {
                           e.preventDefault();
-                          setEditingSessionId(null);
+                          rename.cancel();
                         }
                       }}
                       className="min-w-0 flex-1 rounded-md border border-indigo-300 px-2 py-1.5 text-sm text-slate-700 outline-none"
@@ -178,7 +169,7 @@ export function ConversationSwitcher({
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        startEditing(session);
+                        rename.start(session.id, session.title);
                       }}
                       aria-label="Renombrar conversación"
                       title="Renombrar conversación"
