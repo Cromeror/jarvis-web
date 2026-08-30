@@ -64,7 +64,21 @@ export async function login(username: string, password: string): Promise<AuthUse
   });
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(res.status === 401 ? 'Usuario o contraseña inválidos' : `HTTP ${res.status}: ${body}`);
+    if (res.status === 401) throw new Error('Usuario o contraseña inválidos');
+    // 429: el servidor frena la fuerza bruta con backoff por IP+usuario y
+    // manda cuánto falta. Mostrar `HTTP 429: {...}` dejaría al usuario sin
+    // entender por qué su password correcta "no anda".
+    if (res.status === 429) {
+      const message = (() => {
+        try {
+          return (JSON.parse(body) as { message?: string }).message;
+        } catch {
+          return undefined;
+        }
+      })();
+      throw new Error(message ?? 'Demasiados intentos fallidos. Esperá un momento y probá de nuevo.');
+    }
+    throw new Error(`HTTP ${res.status}: ${body}`);
   }
   const result = (await res.json()) as LoginResult;
   storeSession(result);
