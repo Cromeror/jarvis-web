@@ -45,6 +45,18 @@ export function getStoredUser(): AuthUserSummary | null {
   return cachedUser;
 }
 
+/**
+ * Reemplaza el token guardado sin tocar el usuario.
+ *
+ * Lo usa la sesión deslizante: el server devuelve un token renovado en un
+ * header y esto lo persiste. NO se toca `jarvis_user` — el rol y los proyectos
+ * no vienen en el header, y sobreescribirlos con nada dejaría la UI sin saber
+ * quién está logueado.
+ */
+export function replaceToken(token: string): void {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
 export function clearSession(): void {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);

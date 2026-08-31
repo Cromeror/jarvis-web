@@ -1,4 +1,13 @@
-import { getToken, clearSession } from './auth-api.js';
+import { getToken, clearSession, replaceToken } from './auth-api.js';
+
+/**
+ * El header por el que el server manda un token renovado. Mismo string que
+ * `REFRESHED_TOKEN_HEADER` en http-api, escrito acá porque `web-app` no depende
+ * de ese paquete. Si cambia allá tiene que cambiar acá: el modo de falla es
+ * silencioso —la sesión deja de deslizarse y vuelve el corte a los 90 días— así
+ * que hay un e2e que lo fija del lado del server.
+ */
+const REFRESHED_TOKEN_HEADER = 'X-Jarvis-Token';
 
 /**
  * Monkeypatchea window.fetch una sola vez (llamado desde main.tsx) para que
@@ -23,6 +32,16 @@ export function installAuthFetchInterceptor(): void {
     }
 
     const res = await originalFetch(input, init);
+
+    // Sesión deslizante: si el server renovó el token, se guarda el nuevo. Va
+    // acá y no en cada cliente por lo mismo que el Authorization de arriba —
+    // este interceptor es el único punto por el que pasan todos los fetch.
+    // Se excluye el 401 para no guardar un token que el bloque de abajo va a
+    // borrar en la misma pasada.
+    if (isApi && !isLogin && res.status !== 401) {
+      const refreshed = res.headers.get(REFRESHED_TOKEN_HEADER);
+      if (refreshed) replaceToken(refreshed);
+    }
 
     if (isApi && !isLogin && res.status === 401) {
       clearSession();
