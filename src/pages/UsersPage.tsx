@@ -6,6 +6,8 @@ import type { ProjectSummary } from '../lib/projects-api.js';
 import { listUsers, createUser, updateUser, deleteUser } from '../lib/users-api.js';
 import type { UserSummary, UserRole } from '../lib/users-api.js';
 import { DataTable, type DataTableColumn } from '../components/ui/organisms/DataTable.js';
+import { Tab } from '../components/ui/atoms/Tab.js';
+import { OrganizationRolesPanel } from '../components/organizations/OrganizationRolesPanel.js';
 import { StatusBadge } from '../components/ui/atoms/StatusBadge.js';
 
 function ProjectAccessBadges({ userProjectIds, projects }: { userProjectIds: string[]; projects: ProjectSummary[] }): React.ReactElement {
@@ -150,8 +152,16 @@ function UserFormModal({
   );
 }
 
+/**
+ * Las dos mitades de la misma pregunta: quién entra (usuarios) y qué puede
+ * hacer (roles por organización). Son pestañas y no dos rutas porque configurar
+ * un rol sin ver a quién le toca —y al revés— obliga a ir y volver.
+ */
+type UsersTab = 'usuarios' | 'organizaciones';
+
 export function UsersPage(): React.ReactElement {
   const { user: currentUser } = useAuth();
+  const [tab, setTab] = useState<UsersTab>('usuarios');
   const [users, setUsers] = useState<UserSummary[]>([]);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -219,21 +229,37 @@ export function UsersPage(): React.ReactElement {
   ];
 
   return (
-    <div className="h-full overflow-y-auto bg-white p-6">
+    // Fondo oscuro y no `bg-white`: es la superficie de la app
+    // (`--app-bg`, la misma que el shell y que ChatContent). Los dos
+    // componentes que viven acá ya estaban pensados para fondo oscuro y sobre
+    // blanco se veían mal — `Tab` pinta su texto con `rgba(255,255,255,.6)`
+    // (blanco sobre blanco) y `DataTable` trae su propio `--table2-bg: #221f1d`.
+    <div className="h-full overflow-y-auto bg-[var(--app-bg)] p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-slate-900">Usuarios</h1>
-        <button
-          type="button"
-          onClick={() => setEditing('new')}
-          className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-        >
-          + Nuevo usuario
-        </button>
+        <h1 className="text-lg font-semibold text-white">Administración de usuarios</h1>
+        {tab === 'usuarios' && (
+          <button
+            type="button"
+            onClick={() => setEditing('new')}
+            className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          >
+            + Nuevo usuario
+          </button>
+        )}
       </div>
 
-      {error && <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+      <div className="mb-4 flex gap-1 border-b border-white/10">
+        <Tab label="Usuarios" size="sm" selected={tab === 'usuarios'} onClick={() => setTab('usuarios')} />
+        <Tab label="Roles por organización" size="sm" selected={tab === 'organizaciones'} onClick={() => setTab('organizaciones')} />
+      </div>
 
-      {loading ? (
+      {error && (
+        <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>
+      )}
+
+      {tab === 'organizaciones' ? (
+        <OrganizationRolesPanel users={users} />
+      ) : loading ? (
         <p className="text-sm text-slate-400">Cargando…</p>
       ) : (
         <DataTable columns={columns} rows={users} getRowKey={(u) => u.id} />
