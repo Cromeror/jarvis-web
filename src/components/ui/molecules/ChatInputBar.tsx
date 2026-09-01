@@ -9,9 +9,7 @@ function formatFileSize(bytes: number): string {
 
 interface ChatInputBarProps {
   disabled?: boolean;
-  onSend: (message: string, attachments?: File[], planMode?: boolean) => void;
-  planMode?: boolean;
-  onTogglePlanMode?: (next: boolean) => void;
+  onSend: (message: string, attachments?: File[]) => void;
   /**
    * True mientras Jarvis está contestando. Solo se usa para mostrar el stop
    * dentro del composer expandido.
@@ -32,8 +30,6 @@ interface ChatInputBarProps {
 export function ChatInputBar({
   disabled = false,
   onSend,
-  planMode = false,
-  onTogglePlanMode,
   turnInFlight = false,
   onStop,
 }: ChatInputBarProps): React.ReactElement {
@@ -76,7 +72,7 @@ export function ChatInputBar({
   const handleSend = (): void => {
     const trimmed = value.trim();
     if ((!trimmed && attachments.length === 0) || disabled) return;
-    onSend(trimmed, attachments.length ? attachments : undefined, planMode);
+    onSend(trimmed, attachments.length ? attachments : undefined);
     setValue('');
     setAttachments([]);
   };
@@ -176,36 +172,11 @@ export function ChatInputBar({
               />
             </svg>
           </button>
-          {onTogglePlanMode && (
-            <button
-              type="button"
-              onClick={() => onTogglePlanMode(!planMode)}
-              disabled={disabled}
-              aria-pressed={planMode}
-              title={planMode ? 'Modo Plan activo — el próximo mensaje propone un plan en vez de actuar' : 'Activar Modo Plan'}
-              className={`flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors disabled:opacity-30 ${
-                planMode
-                  ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                  : 'text-[var(--tab-text-default)] hover:bg-white/10 hover:text-[var(--tab-text-hover)]'
-              }`}
-            >
-              <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
-                <path
-                  d="M9 3h6l1 4h4l-1 4-3 1-1 5-3 3-3-3-1-5-3-1-1-4h4l1-4Z"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              Plan
-            </button>
-          )}
           <textarea
             ref={textareaRef}
             className="max-h-[40vh] flex-1 resize-none overflow-y-auto bg-transparent px-1 py-2 text-[16px] text-white placeholder:text-[var(--chatinput-placeholder-text)] focus:outline-none disabled:opacity-50"
             rows={1}
-            placeholder={planMode ? 'Describí qué querés planear...' : 'Escribí un mensaje...'}
+            placeholder="Escribí un mensaje..."
             value={value}
             disabled={disabled}
             onChange={(e) => setValue(e.target.value)}
@@ -248,7 +219,7 @@ export function ChatInputBar({
           <textarea
             ref={expandedTextareaRef}
             className="flex-1 resize-none bg-transparent px-4 py-3 text-[17px] leading-relaxed text-white placeholder:text-[var(--chatcontent-text-muted)] focus:outline-none"
-            placeholder={planMode ? 'Describí qué querés planear...' : 'Escribí un mensaje...'}
+            placeholder="Escribí un mensaje..."
             value={value}
             disabled={disabled}
             onChange={(e) => setValue(e.target.value)}

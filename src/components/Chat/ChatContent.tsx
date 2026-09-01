@@ -23,9 +23,7 @@ interface ChatContentProps {
   onDeleteSession: (sessionId: string) => void;
   onRenameSession: (sessionId: string, title: string) => void;
   onNewSession: (projectId: string) => void;
-  onSend: (message: string, attachments?: File[], planMode?: boolean) => void;
-  planMode?: boolean;
-  onTogglePlanMode?: (next: boolean) => void;
+  onSend: (message: string, attachments?: File[]) => void;
   /**
    * Bloquea la barra de escribir. Por default NO se bloquea mientras Jarvis
    * trabaja: el CLI acepta mensajes en pleno turno (los funde en el turno en
@@ -75,8 +73,6 @@ export function ChatContent({
   onRenameSession,
   onNewSession,
   onSend,
-  planMode,
-  onTogglePlanMode,
   inputDisabled = false,
   turnInFlight,
   onStop,
@@ -151,8 +147,6 @@ export function ChatContent({
       <ChatInputBar
         disabled={inputDisabled}
         onSend={onSend}
-        planMode={planMode}
-        onTogglePlanMode={onTogglePlanMode}
         turnInFlight={turnInFlight}
         onStop={onStop}
       />

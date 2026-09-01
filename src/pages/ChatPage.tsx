@@ -125,10 +125,6 @@ export function ChatPage(): React.ReactElement {
   // pasa nada visible), y una vez conocido el uuid el estado se lee del
   // stream sin que quede ningún instante sin marca.
   const [sentUuidByOptimisticId, setSentUuidByOptimisticId] = useState<Map<number, string | null>>(new Map());
-  // Independent of any session — the user can toggle Plan Mode before a
-  // conversation exists yet (empty chat, nothing sent), so it can't live
-  // nested under chatBySession[activeSessionId], which wouldn't exist then.
-  const [planMode, setPlanMode] = useState(false);
   // Which plan is open in the side panel — null means the panel is hidden.
   const [openPlanId, setOpenPlanId] = useState<string | null>(null);
   // Opción activa del rail derecho — Focus es un ítem más del acordeón (ver
@@ -368,7 +364,7 @@ export function ChatPage(): React.ReactElement {
   }, [initialProjectId]);
 
   const handleSend = useCallback(
-    async (message: string, attachmentFiles?: File[], planMode?: boolean) => {
+    async (message: string, attachmentFiles?: File[]) => {
       const sessionId = activeSessionId;
       if (!sessionId) {
         addToast('Elegí "Nueva conversación" para empezar', 'error');
@@ -424,7 +420,7 @@ export function ChatPage(): React.ReactElement {
         // Returns as soon as the message is queued — the reply arrives over
         // the conversation's SSE stream, so nothing here waits for the turn
         // and the user can send the next message right away.
-        const queued = await sendChatMessage(activeSessionIdForSend, message, attachments, planMode ? 'plan' : undefined);
+        const queued = await sendChatMessage(activeSessionIdForSend, message, attachments);
         // Con el uuid ya se puede leer el estado real del stream ('queued' /
         // 'started') sobre esta misma burbuja. NO se borra la entrada acá: si
         // se borrara, entre el 202 y el primer evento del stream el mensaje
@@ -881,10 +877,9 @@ export function ChatPage(): React.ReactElement {
    */
   const handleCreateSuggestedPlan = useCallback(
     (suggestedTitle: string) => {
-      // Plan mode va como argumento del turno, no por el toggle: setPlanMode no
-      // habría aplicado a este envío (el estado se lee en el próximo render) y
-      // además dejaría el toggle prendido para los mensajes siguientes.
-      void handleSend(`Creá el plan "${suggestedTitle}" que propusiste para esta conversación.`, undefined, true);
+      // Un mensaje normal: el chat tiene `plan_create` en su catálogo de tools,
+      // así que el pedido alcanza. No hay modo de turno especial que activar.
+      void handleSend(`Creá el plan "${suggestedTitle}" que propusiste para esta conversación.`);
     },
     [handleSend],
   );
@@ -1145,8 +1140,6 @@ export function ChatPage(): React.ReactElement {
           backgroundTasks={backgroundTasks}
           onStopBackgroundTask={handleStopBackgroundTask}
           onStopAllBackgroundTasks={handleStopAllBackgroundTasks}
-          planMode={planMode}
-          onTogglePlanMode={setPlanMode}
           proposedPlanIds={activeChat?.proposedPlanIds}
           onOpenPlan={setOpenPlanId}
           activeProjectId={activeProjectId}

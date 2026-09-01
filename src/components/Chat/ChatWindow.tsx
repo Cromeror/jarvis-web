@@ -13,7 +13,7 @@ interface ChatWindowProps {
   pending: boolean;
   /** Partial assistant text streamed so far for the turn in flight — empty when there's nothing to show yet (e.g. Jarvis is still only running tools). */
   liveText?: string;
-  onSend: (message: string, attachments?: File[], planMode?: boolean) => void;
+  onSend: (message: string, attachments?: File[]) => void;
   /** Cancels the turn currently in flight. Absent while there's nothing to stop. */
   onStop?: () => void;
   /** Estado de cola por id de mensaje del usuario — marca cuál está respondiendo Jarvis y cuáles esperan. */
@@ -26,8 +26,6 @@ interface ChatWindowProps {
   backgroundTasks?: BackgroundTaskView[];
   onStopBackgroundTask?: (taskId: string) => void;
   onStopAllBackgroundTasks?: () => void;
-  planMode?: boolean;
-  onTogglePlanMode?: (next: boolean) => void;
   /** Plans proposed during this session's turns — rendered as a small banner that opens the side panel. */
   proposedPlanIds?: string[];
   onOpenPlan?: (planId: string) => void;
@@ -62,8 +60,6 @@ export function ChatWindow({
   backgroundTasks,
   onStopBackgroundTask,
   onStopAllBackgroundTasks,
-  planMode,
-  onTogglePlanMode,
   proposedPlanIds,
   onOpenPlan,
   activeProjectId,
@@ -95,8 +91,6 @@ export function ChatWindow({
       onRenameSession={onRenameSession}
       onNewSession={onNewSession}
       onSend={onSend}
-      planMode={planMode}
-      onTogglePlanMode={onTogglePlanMode}
       turnInFlight={pending}
       onStop={onStop}
       backgroundTasks={backgroundTasks}

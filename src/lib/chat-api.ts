@@ -98,7 +98,6 @@ export async function sendChatMessage(
   sessionId: string,
   message: string,
   attachments?: ChatAttachmentInput[],
-  mode?: 'plan',
 ): Promise<{ queued: boolean; session_id: string; command_uuid: string | null }> {
   const res = await fetch(`/api/chat/sessions/${encodeURIComponent(sessionId)}/messages`, {
     method: 'POST',
@@ -106,7 +105,6 @@ export async function sendChatMessage(
     body: JSON.stringify({
       message,
       ...(attachments?.length ? { attachments } : {}),
-      ...(mode ? { mode } : {}),
     }),
   });
   return handleResponse<{ queued: boolean; session_id: string; command_uuid: string | null }>(res);

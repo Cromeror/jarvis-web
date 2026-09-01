@@ -56,9 +56,10 @@ function timeAgo(iso: string): string {
 
 /**
  * Secondary view: list of plans for a project, with a manual "Lanzar"
- * button per approved plan. The primary flow is conversational (Plan Mode
- * in the chat) — this page is for revisiting/launching plans later, in a
- * different session or day, per "lanzar a voluntad".
+ * button per approved plan. The primary flow is conversational (asking the
+ * chat for a plan, which persists it with `plan_create`) — this page is for
+ * revisiting/launching plans later, in a different session or day, per
+ * "lanzar a voluntad".
  */
 export function PlansPage(): React.ReactElement {
   const { projectId: initialProjectId } = useParams<{ projectId?: string }>();
