@@ -11,6 +11,8 @@ export interface ProjectRecentChat {
 
 export interface ProjectSummary {
   id: string;
+  /** La organización dueña — de ella salen los roles que se pueden asignar sobre este proyecto. */
+  organization_id: string | null;
   name: string;
   description: string | null;
   sector: string | null;

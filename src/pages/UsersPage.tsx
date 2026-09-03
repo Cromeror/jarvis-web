@@ -4,19 +4,44 @@ import { useAuth } from '../hooks/useAuth.js';
 import { listProjects } from '../lib/projects-api.js';
 import type { ProjectSummary } from '../lib/projects-api.js';
 import { listUsers, createUser, updateUser, deleteUser } from '../lib/users-api.js';
-import type { UserSummary, UserRole } from '../lib/users-api.js';
+import type { UserSummary, UserRole, ProjectRoleInput } from '../lib/users-api.js';
+import { listRoles } from '../lib/organizations-api.js';
+import type { RoleSummary } from '../lib/organizations-api.js';
 import { DataTable, type DataTableColumn } from '../components/ui/organisms/DataTable.js';
 import { Tab } from '../components/ui/atoms/Tab.js';
 import { OrganizationRolesPanel } from '../components/organizations/OrganizationRolesPanel.js';
 import { StatusBadge } from '../components/ui/atoms/StatusBadge.js';
 
-function ProjectAccessBadges({ userProjectIds, projects }: { userProjectIds: string[]; projects: ProjectSummary[] }): React.ReactElement {
-  if (userProjectIds.length === 0) return <span className="text-xs text-[var(--card-text-secondary)]">Sin proyectos asignados</span>;
-  const names = userProjectIds.map((id) => projects.find((p) => p.id === id)?.name ?? id);
+/**
+ * Qué proyectos toca el usuario y CON QUÉ ROL.
+ *
+ * Se muestran los dos orígenes por separado porque son cosas distintas y la
+ * pantalla sólo administra uno: las asignaciones por proyecto —lo que el
+ * formulario edita— llevan el nombre del rol; los proyectos que el usuario ve
+ * por su rol en la organización dueña se marcan aparte, para que no parezca que
+ * el formulario los puede quitar.
+ */
+function ProjectAccessBadges({
+  user,
+  projects,
+}: {
+  user: UserSummary;
+  projects: ProjectSummary[];
+}): React.ReactElement {
+  const nombreDe = (id: string): string => projects.find((p) => p.id === id)?.name ?? id;
+  const asignados = new Set(user.project_roles.map((a) => a.project_id));
+  const porOrganizacion = user.project_ids.filter((id) => !asignados.has(id));
+
+  if (user.project_roles.length === 0 && porOrganizacion.length === 0) {
+    return <span className="text-xs text-[var(--card-text-secondary)]">Sin proyectos asignados</span>;
+  }
   return (
     <div className="flex flex-wrap gap-1">
-      {names.map((name) => (
-        <StatusBadge key={name} label={name} tone="neutral" />
+      {user.project_roles.map((a) => (
+        <StatusBadge key={a.project_id} label={`${nombreDe(a.project_id)} · ${a.role_name}`} tone="neutral" />
+      ))}
+      {porOrganizacion.map((id) => (
+        <StatusBadge key={id} label={`${nombreDe(id)} · por organización`} tone="info" />
       ))}
     </div>
   );
@@ -26,10 +51,32 @@ interface UserFormState {
   username: string;
   password: string;
   role: UserRole;
-  project_ids: string[];
+  project_roles: ProjectRoleInput[];
 }
 
-const EMPTY_FORM: UserFormState = { username: '', password: '', role: 'user', project_ids: [] };
+const EMPTY_FORM: UserFormState = { username: '', password: '', role: 'user', project_roles: [] };
+
+/**
+ * Los roles asignables sobre un proyecto: los de SU organización y de scope
+ * `project`.
+ *
+ * El filtro por scope no es cosmético — el backend rechaza un rol de scope
+ * `org` sobre un proyecto. Ofrecerlo acá sería ofrecer una opción que sólo
+ * falla al guardar. (Y el caso peligroso es el que parece inofensivo: elegir el
+ * "Administrador" de la organización creyendo que queda acotado a ese
+ * proyecto, cuando ese rol ya vale en todos.)
+ *
+ * Se ordenan de MENOR a mayor privilegio para que la opción por defecto —la
+ * primera— sea la que menos otorga: tildar un proyecto sin mirar el select da
+ * el acceso mínimo, no el máximo.
+ */
+function rolesAsignables(project: ProjectSummary, rolesPorOrg: Record<string, RoleSummary[]>): RoleSummary[] {
+  const roles = project.organization_id ? (rolesPorOrg[project.organization_id] ?? []) : [];
+  return roles
+    .filter((r) => r.scope === 'project')
+    .slice()
+    .sort((a, b) => a.permissions.length - b.permissions.length || a.name.localeCompare(b.name));
+}
 
 function UserFormModal({
   projects,
@@ -43,15 +90,60 @@ function UserFormModal({
   onSaved: () => void;
 }): React.ReactElement {
   const [form, setForm] = useState<UserFormState>(
-    editing ? { username: editing.username, password: '', role: editing.role, project_ids: editing.project_ids } : EMPTY_FORM,
+    editing
+      ? {
+          username: editing.username,
+          password: '',
+          role: editing.role,
+          // Sólo las asignaciones explícitas: lo que el usuario ve por su rol en
+          // la organización no lo administra este formulario, y traerlo acá haría
+          // que guardar lo convierta en una asignación por proyecto que nadie pidió.
+          project_roles: editing.project_roles.map((a) => ({ project_id: a.project_id, role_id: a.role_id })),
+        }
+      : EMPTY_FORM,
   );
+  const [rolesPorOrg, setRolesPorOrg] = useState<Record<string, RoleSummary[]>>({});
+  const [rolesListos, setRolesListos] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  function toggleProject(id: string): void {
+  // Los roles de cada organización dueña de un proyecto: son las opciones del
+  // select. Se piden una vez por organización y no una por proyecto — varios
+  // proyectos comparten dueño y serían el mismo pedido repetido.
+  useEffect(() => {
+    let cancelado = false;
+    const orgIds = [...new Set(projects.map((p) => p.organization_id).filter((id): id is string => !!id))];
+    void Promise.all(
+      orgIds.map(async (orgId) => [orgId, await listRoles(orgId).catch(() => [] as RoleSummary[])] as const),
+    ).then((pares) => {
+      if (cancelado) return;
+      setRolesPorOrg(Object.fromEntries(pares));
+      setRolesListos(true);
+    });
+    return () => {
+      cancelado = true;
+    };
+  }, [projects]);
+
+  function toggleProject(project: ProjectSummary): void {
+    setForm((f) => {
+      if (f.project_roles.some((a) => a.project_id === project.id)) {
+        return { ...f, project_roles: f.project_roles.filter((a) => a.project_id !== project.id) };
+      }
+      // Al tildar se preselecciona el rol de MENOR privilegio disponible (el
+      // primero de la lista ya ordenada). Sin default habría que elegir en dos
+      // pasos; con el de mayor privilegio, un descuido daría de más.
+      const disponibles = rolesAsignables(project, rolesPorOrg);
+      const primero = disponibles[0];
+      if (!primero) return f;
+      return { ...f, project_roles: [...f.project_roles, { project_id: project.id, role_id: primero.id }] };
+    });
+  }
+
+  function cambiarRol(projectId: string, roleId: string): void {
     setForm((f) => ({
       ...f,
-      project_ids: f.project_ids.includes(id) ? f.project_ids.filter((p) => p !== id) : [...f.project_ids, id],
+      project_roles: f.project_roles.map((a) => (a.project_id === projectId ? { ...a, role_id: roleId } : a)),
     }));
   }
 
@@ -64,7 +156,7 @@ function UserFormModal({
         await updateUser(editing.id, {
           role: form.role,
           password: form.password || undefined,
-          project_ids: form.project_ids,
+          project_roles: form.project_roles,
         });
       } else {
         if (!form.username.trim() || !form.password.trim()) {
@@ -127,15 +219,49 @@ function UserFormModal({
 
         {form.role === 'user' && (
           <>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">Proyectos asignados</label>
-            <div className="mb-4 max-h-40 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
-              {projects.map((p) => (
-                <label key={p.id} className="flex items-center gap-2 rounded px-1 py-0.5 text-sm text-slate-700 hover:bg-slate-50">
-                  <input type="checkbox" checked={form.project_ids.includes(p.id)} onChange={() => toggleProject(p.id)} />
-                  {p.name}
-                </label>
-              ))}
+            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">
+              Proyectos y rol
+            </label>
+            <div className="mb-4 max-h-52 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
+              {projects.map((p) => {
+                const asignado = form.project_roles.find((a) => a.project_id === p.id);
+                const disponibles = rolesAsignables(p, rolesPorOrg);
+                // Un proyecto cuya organización no tiene ningún rol de proyecto
+                // no se puede asignar: se deshabilita y se dice por qué, en vez
+                // de dejar tildar algo que el backend va a rechazar.
+                const sinRoles = rolesListos && disponibles.length === 0;
+                return (
+                  <div key={p.id} className="flex items-center gap-2 rounded px-1 py-1 text-sm text-slate-700 hover:bg-slate-50">
+                    <input
+                      type="checkbox"
+                      checked={!!asignado}
+                      disabled={sinRoles || !rolesListos}
+                      onChange={() => toggleProject(p)}
+                    />
+                    <span className="flex-1 truncate">{p.name}</span>
+                    {asignado && (
+                      <select
+                        value={asignado.role_id}
+                        onChange={(e) => cambiarRol(p.id, e.target.value)}
+                        className="max-w-[45%] rounded border border-slate-200 px-2 py-1 text-xs text-slate-700 outline-none focus:border-indigo-400"
+                      >
+                        {disponibles.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    {sinRoles && (
+                      <span className="text-xs text-slate-400" title="Creá un rol de scope 'proyecto' en la pestaña «Roles por organización»">
+                        sin roles de proyecto
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
               {projects.length === 0 && <p className="px-1 text-xs text-slate-400">No hay proyectos todavía</p>}
+              {!rolesListos && projects.length > 0 && <p className="px-1 text-xs text-slate-400">Cargando roles…</p>}
             </div>
           </>
         )}
@@ -209,7 +335,7 @@ export function UsersPage(): React.ReactElement {
     {
       key: 'projects',
       header: 'Proyectos',
-      render: (u) => (u.role === 'superadmin' ? <span className="text-xs text-[var(--card-text-secondary)]">Todos</span> : <ProjectAccessBadges userProjectIds={u.project_ids} projects={projects} />),
+      render: (u) => (u.role === 'superadmin' ? <span className="text-xs text-[var(--card-text-secondary)]">Todos</span> : <ProjectAccessBadges user={u} projects={projects} />),
     },
     {
       key: 'actions',

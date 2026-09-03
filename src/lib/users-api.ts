@@ -2,11 +2,30 @@
 
 export type UserRole = 'superadmin' | 'user';
 
+/** Sobre qué proyecto entra el usuario y con qué rol. El par junto: un proyecto sin rol no otorga nada. */
+export interface ProjectRoleInput {
+  project_id: string;
+  role_id: string;
+}
+
+/** Lo mismo que devuelve la API, con el nombre del rol ya resuelto. */
+export interface ProjectRoleAssignment extends ProjectRoleInput {
+  role_name: string;
+}
+
 export interface UserSummary {
   id: string;
   username: string;
   role: UserRole;
+  /**
+   * Los proyectos que VE, incluyendo los que le llegan por ser miembro de la
+   * organización dueña. Es más ancho que `project_roles` a propósito: esta
+   * pantalla administra asignaciones por proyecto, pero mostrar sólo eso
+   * escondería accesos reales.
+   */
   project_ids: string[];
+  /** Lo que esta pantalla administra: las asignaciones explícitas (proyecto, rol). */
+  project_roles: ProjectRoleAssignment[];
   created_at: string;
   updated_at: string;
 }
@@ -15,13 +34,13 @@ export interface CreateUserInput {
   username: string;
   password: string;
   role: UserRole;
-  project_ids: string[];
+  project_roles: ProjectRoleInput[];
 }
 
 export interface UpdateUserInput {
   role?: UserRole;
   password?: string;
-  project_ids?: string[];
+  project_roles?: ProjectRoleInput[];
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {
