@@ -7,6 +7,15 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/**
+ * Los formatos que el chat puede procesar. Tiene que decir lo mismo que
+ * `ALLOWED_ATTACHMENT_EXTENSIONS` en packages/core/src/chat-attachment-types.ts:
+ * esto es comodidad (filtrar antes de subir 10 MB al vacío), no el control —
+ * el servidor valida extensión Y firma de bytes, y `POST /api/chat/sessions/:id/messages`
+ * es invocable sin pasar por esta pantalla.
+ */
+const ADJUNTOS_ACEPTADOS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.pdf', '.md', '.markdown'];
+
 interface ChatInputBarProps {
   disabled?: boolean;
   onSend: (message: string, attachments?: File[]) => void;
@@ -36,6 +45,8 @@ export function ChatInputBar({
   const [value, setValue] = useState('');
   const [focused, setFocused] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
+  /** Nombres de lo último que se intentó adjuntar y no es un formato que el chat pueda leer. */
+  const [rechazados, setRechazados] = useState<string[]>([]);
   const [expanded, setExpanded] = useState(false);
   const [showExpandButton, setShowExpandButton] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -62,11 +73,19 @@ export function ChatInputBar({
   }, [expanded]);
 
   const addFiles = (files: FileList | File[]): void => {
-    setAttachments((prev) => [...prev, ...Array.from(files)]);
+    const entrantes = Array.from(files);
+    const permitido = (file: File): boolean =>
+      ADJUNTOS_ACEPTADOS.some((ext) => file.name.toLowerCase().endsWith(ext));
+    const aceptados = entrantes.filter(permitido);
+    // Se avisa cuáles quedaron afuera: descartarlos en silencio es el mismo
+    // problema que tenía el backend, sólo que del lado del usuario.
+    setRechazados(entrantes.filter((f) => !permitido(f)).map((f) => f.name));
+    if (aceptados.length) setAttachments((prev) => [...prev, ...aceptados]);
   };
 
   const removeAttachment = (index: number): void => {
     setAttachments((prev) => prev.filter((_, i) => i !== index));
+    setRechazados([]);
   };
 
   const handleSend = (): void => {
@@ -75,6 +94,7 @@ export function ChatInputBar({
     onSend(trimmed, attachments.length ? attachments : undefined);
     setValue('');
     setAttachments([]);
+    setRechazados([]);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
@@ -105,6 +125,12 @@ export function ChatInputBar({
   return (
     <div className="border-t border-[var(--chatcontent-border-subtle)] p-4">
       <div className="mx-auto max-w-3xl">
+        {rechazados.length > 0 && (
+          <div className="mb-2 rounded-md bg-red-500/10 px-3 py-2 text-xs text-red-300" role="alert">
+            No se puede adjuntar {rechazados.join(', ')}: el chat sólo lee imágenes, PDF y Markdown (
+            {ADJUNTOS_ACEPTADOS.join(', ')}).
+          </div>
+        )}
         {attachments.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-2">
             {attachments.map((file, i) => (
@@ -147,6 +173,7 @@ export function ChatInputBar({
             ref={fileInputRef}
             type="file"
             multiple
+            accept={ADJUNTOS_ACEPTADOS.join(',')}
             className="hidden"
             onChange={(e) => {
               if (e.target.files?.length) addFiles(e.target.files);
