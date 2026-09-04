@@ -207,20 +207,20 @@ function UserFormModal({
           className="mb-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-indigo-400"
         />
 
-        <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">Rol</label>
+        <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">Tipo de cuenta</label>
         <select
           value={form.role}
           onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as UserRole }))}
           className="mb-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-indigo-400"
         >
-          <option value="user">Usuario</option>
-          <option value="superadmin">Superadmin</option>
+          <option value="user">Cliente</option>
+          <option value="superadmin">Operador del producto</option>
         </select>
 
         {form.role === 'user' && (
           <>
             <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">
-              Proyectos y rol
+              Proyectos y rol en cada uno
             </label>
             <div className="mb-4 max-h-52 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
               {projects.map((p) => {
@@ -329,8 +329,11 @@ export function UsersPage(): React.ReactElement {
     { key: 'username', header: 'Usuario', render: (u) => <span className="font-medium text-[var(--card-text-secondary)]">{u.username}</span> },
     {
       key: 'role',
-      header: 'Rol',
-      render: (u) => <StatusBadge label={u.role === 'superadmin' ? 'Superadmin' : 'Usuario'} tone={u.role === 'superadmin' ? 'info' : 'neutral'} />,
+      header: 'Tipo de cuenta',
+      // "Rol" acá era la ambigüedad: este eje no es RBAC sino tenancy — quién
+      // sos respecto del producto (el operador de la instalación, o gente de un
+      // cliente). Los roles de verdad son los de organización y los de proyecto.
+      render: (u) => <StatusBadge label={u.role === 'superadmin' ? 'Operador del producto' : 'Cliente'} tone={u.role === 'superadmin' ? 'info' : 'neutral'} />,
     },
     {
       key: 'projects',

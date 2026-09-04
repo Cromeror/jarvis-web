@@ -44,7 +44,7 @@ export function AccountMenu(): React.ReactElement {
         <div className="absolute right-0 top-full z-20 mt-1 w-52 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
           <div className="mb-1 border-b border-slate-100 px-2 pb-2">
             <p className="text-sm font-medium text-slate-900">{username}</p>
-            {user && <p className="text-xs text-slate-400">{user.role === 'superadmin' ? 'Superadmin' : 'Usuario'}</p>}
+            {user && <p className="text-xs text-slate-400">{user.role === 'superadmin' ? 'Operador del producto' : 'Cliente'}</p>}
           </div>
           <button
             type="button"
