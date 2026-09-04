@@ -4,9 +4,9 @@ import { useAuth } from '../hooks/useAuth.js';
 import { listProjects } from '../lib/projects-api.js';
 import type { ProjectSummary } from '../lib/projects-api.js';
 import { listUsers, createUser, updateUser, deleteUser } from '../lib/users-api.js';
-import type { UserSummary, UserRole, ProjectRoleInput } from '../lib/users-api.js';
-import { listRoles } from '../lib/organizations-api.js';
-import type { RoleSummary } from '../lib/organizations-api.js';
+import type { UserSummary, AccountType, ProjectRoleInput } from '../lib/users-api.js';
+import { listRoles, listOrganizations } from '../lib/organizations-api.js';
+import type { RoleSummary, OrganizationSummary } from '../lib/organizations-api.js';
 import { DataTable, type DataTableColumn } from '../components/ui/organisms/DataTable.js';
 import { Tab } from '../components/ui/atoms/Tab.js';
 import { OrganizationRolesPanel } from '../components/organizations/OrganizationRolesPanel.js';
@@ -50,11 +50,20 @@ function ProjectAccessBadges({
 interface UserFormState {
   username: string;
   password: string;
-  role: UserRole;
+  account_type: AccountType;
+  organization_id: string;
+  organization_role_id: string;
   project_roles: ProjectRoleInput[];
 }
 
-const EMPTY_FORM: UserFormState = { username: '', password: '', role: 'user', project_roles: [] };
+const EMPTY_FORM: UserFormState = {
+  username: '',
+  password: '',
+  account_type: 'member',
+  organization_id: '',
+  organization_role_id: '',
+  project_roles: [],
+};
 
 /**
  * Los roles asignables sobre un proyecto: los de SU organización y de scope
@@ -94,7 +103,12 @@ function UserFormModal({
       ? {
           username: editing.username,
           password: '',
-          role: editing.role,
+          account_type: editing.account_type,
+          // La organización no se edita acá: mudar a alguien de organización es
+          // una operación de la pantalla de organizaciones, con su invariante de
+          // gobierno. Este formulario sólo la elige al dar el alta.
+          organization_id: '',
+          organization_role_id: '',
           // Sólo las asignaciones explícitas: lo que el usuario ve por su rol en
           // la organización no lo administra este formulario, y traerlo acá haría
           // que guardar lo convierta en una asignación por proyecto que nadie pidió.
@@ -102,6 +116,7 @@ function UserFormModal({
         }
       : EMPTY_FORM,
   );
+  const [organizaciones, setOrganizaciones] = useState<OrganizationSummary[]>([]);
   const [rolesPorOrg, setRolesPorOrg] = useState<Record<string, RoleSummary[]>>({});
   const [rolesListos, setRolesListos] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -110,6 +125,37 @@ function UserFormModal({
   // Los roles de cada organización dueña de un proyecto: son las opciones del
   // select. Se piden una vez por organización y no una por proyecto — varios
   // proyectos comparten dueño y serían el mismo pedido repetido.
+  // Las organizaciones a las que se puede dar de alta a alguien. Es una lista
+  // aparte de las dueñas de proyectos: una organización recién creada todavía no
+  // tiene ninguno y aun así se puede entrar a ella.
+  useEffect(() => {
+    let cancelado = false;
+    void listOrganizations()
+      .then((orgs) => {
+        if (!cancelado) setOrganizaciones(orgs);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelado = true;
+    };
+  }, []);
+
+  // Los roles de la organización elegida en el alta, que pueden no estar en
+  // `rolesPorOrg` (ésa sólo trae las dueñas de algún proyecto).
+  useEffect(() => {
+    const orgId = form.organization_id;
+    if (!orgId || rolesPorOrg[orgId]) return;
+    let cancelado = false;
+    void listRoles(orgId)
+      .then((roles) => {
+        if (!cancelado) setRolesPorOrg((prev) => ({ ...prev, [orgId]: roles }));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelado = true;
+    };
+  }, [form.organization_id, rolesPorOrg]);
+
   useEffect(() => {
     let cancelado = false;
     const orgIds = [...new Set(projects.map((p) => p.organization_id).filter((id): id is string => !!id))];
@@ -154,7 +200,10 @@ function UserFormModal({
     try {
       if (editing) {
         await updateUser(editing.id, {
-          role: form.role,
+          account_type: form.account_type,
+          ...(form.account_type === 'member' && form.organization_id && form.organization_role_id
+            ? { organization_id: form.organization_id, organization_role_id: form.organization_role_id }
+            : {}),
           password: form.password || undefined,
           project_roles: form.project_roles,
         });
@@ -209,15 +258,63 @@ function UserFormModal({
 
         <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">Tipo de cuenta</label>
         <select
-          value={form.role}
-          onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as UserRole }))}
+          value={form.account_type}
+          onChange={(e) => setForm((f) => ({ ...f, account_type: e.target.value as AccountType }))}
           className="mb-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-indigo-400"
         >
-          <option value="user">Cliente</option>
-          <option value="superadmin">Operador del producto</option>
+          <option value="member">Cliente</option>
+          <option value="operator">Operador del producto</option>
         </select>
 
-        {form.role === 'user' && (
+        {form.account_type === 'member' && !editing && (
+          <>
+            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">
+              Organización
+            </label>
+            <select
+              value={form.organization_id}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, organization_id: e.target.value, organization_role_id: '' }))
+              }
+              className="mb-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-indigo-400"
+            >
+              <option value="">Una organización propia</option>
+              {organizaciones.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.name}
+                </option>
+              ))}
+            </select>
+
+            {form.organization_id && (
+              <>
+                <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">
+                  Rol en la organización
+                </label>
+                <select
+                  value={form.organization_role_id}
+                  onChange={(e) => setForm((f) => ({ ...f, organization_role_id: e.target.value }))}
+                  className="mb-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-indigo-400"
+                >
+                  <option value="">Elegí un rol</option>
+                  {(rolesPorOrg[form.organization_id] ?? [])
+                    .filter((r) => r.scope === 'org')
+                    .map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
+                    ))}
+                </select>
+                <p className="mb-3 px-1 text-xs text-slate-400">
+                  El rol de organización delimita: administra miembros, roles y auditoría. Lo que la persona
+                  puede hacer en cada proyecto sale del rol que se le dé abajo.
+                </p>
+              </>
+            )}
+          </>
+        )}
+
+        {form.account_type === 'member' && (
           <>
             <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">
               Proyectos y rol en cada uno
@@ -311,7 +408,7 @@ export function UsersPage(): React.ReactElement {
     void refresh();
   }, []);
 
-  if (currentUser && currentUser.role !== 'superadmin') {
+  if (currentUser && currentUser.account_type !== 'operator') {
     return <Navigate to="/" replace />;
   }
 
@@ -328,17 +425,17 @@ export function UsersPage(): React.ReactElement {
   const columns: Array<DataTableColumn<UserSummary>> = [
     { key: 'username', header: 'Usuario', render: (u) => <span className="font-medium text-[var(--card-text-secondary)]">{u.username}</span> },
     {
-      key: 'role',
+      key: 'account_type',
       header: 'Tipo de cuenta',
       // "Rol" acá era la ambigüedad: este eje no es RBAC sino tenancy — quién
       // sos respecto del producto (el operador de la instalación, o gente de un
       // cliente). Los roles de verdad son los de organización y los de proyecto.
-      render: (u) => <StatusBadge label={u.role === 'superadmin' ? 'Operador del producto' : 'Cliente'} tone={u.role === 'superadmin' ? 'info' : 'neutral'} />,
+      render: (u) => <StatusBadge label={u.account_type === 'operator' ? 'Operador del producto' : 'Cliente'} tone={u.account_type === 'operator' ? 'info' : 'neutral'} />,
     },
     {
       key: 'projects',
       header: 'Proyectos',
-      render: (u) => (u.role === 'superadmin' ? <span className="text-xs text-[var(--card-text-secondary)]">Todos</span> : <ProjectAccessBadges user={u} projects={projects} />),
+      render: (u) => (u.account_type === 'operator' ? <span className="text-xs text-[var(--card-text-secondary)]">Todos</span> : <ProjectAccessBadges user={u} projects={projects} />),
     },
     {
       key: 'actions',

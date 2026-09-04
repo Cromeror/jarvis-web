@@ -35,7 +35,7 @@ export interface OrganizationMember {
   organization_id: string;
   user_id: string;
   username: string;
-  user_role: 'superadmin' | 'user';
+  user_account_type: 'operator' | 'member';
   role_id: string;
   role_name: string | null;
   created_at: string;

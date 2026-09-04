@@ -41,7 +41,7 @@ export function AppSidebar2({
   const location = useLocation();
   const navigate = useNavigate();
 
-  const routes = user?.role === 'superadmin' ? [...NAV_ROUTES, USERS_ROUTE] : NAV_ROUTES;
+  const routes = user?.account_type === 'operator' ? [...NAV_ROUTES, USERS_ROUTE] : NAV_ROUTES;
   const allRoutes = [ACCENT_ROUTE, ...routes];
   const activeRoute = allRoutes.find((route) =>
     route.end ? location.pathname === route.to : location.pathname.startsWith(route.to)

@@ -314,7 +314,7 @@ function OrganizationFormModal({
  */
 export function OrganizationRolesPanel({ users }: { users: UserSummary[] }): React.ReactElement {
   const { user: currentUser } = useAuth();
-  const puedeCrearOrganizaciones = currentUser?.role === 'superadmin';
+  const puedeCrearOrganizaciones = currentUser?.account_type === 'operator';
   const [organizations, setOrganizations] = useState<OrganizationSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [catalog, setCatalog] = useState<PermissionInfo[]>([]);
@@ -464,7 +464,7 @@ export function OrganizationRolesPanel({ users }: { users: UserSummary[] }): Rea
       render: (m) => <span className="font-medium text-[var(--card-text-secondary)]">{m.username}</span>,
     },
     {
-      key: 'role',
+      key: 'account_type',
       header: 'Rol en la organización',
       render: (m) => (
         <select

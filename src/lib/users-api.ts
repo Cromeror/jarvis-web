@@ -1,6 +1,6 @@
 /** API client for api/users — superadmin-only user management. */
 
-export type UserRole = 'superadmin' | 'user';
+export type AccountType = 'operator' | 'member';
 
 /** Sobre qué proyecto entra el usuario y con qué rol. El par junto: un proyecto sin rol no otorga nada. */
 export interface ProjectRoleInput {
@@ -16,7 +16,7 @@ export interface ProjectRoleAssignment extends ProjectRoleInput {
 export interface UserSummary {
   id: string;
   username: string;
-  role: UserRole;
+  account_type: AccountType;
   /**
    * Los proyectos que VE, incluyendo los que le llegan por ser miembro de la
    * organización dueña. Es más ancho que `project_roles` a propósito: esta
@@ -33,12 +33,21 @@ export interface UserSummary {
 export interface CreateUserInput {
   username: string;
   password: string;
-  role: UserRole;
+  account_type: AccountType;
+  /**
+   * A qué organización entra y con qué rol adentro. Van los dos o ninguno.
+   *
+   * Sin esto el usuario nace en una organización PROPIA, y entonces los
+   * `project_roles` no le dan acceso a nada: la membresía en la organización
+   * dueña del proyecto es la frontera.
+   */
+  organization_id?: string;
+  organization_role_id?: string;
   project_roles: ProjectRoleInput[];
 }
 
 export interface UpdateUserInput {
-  role?: UserRole;
+  account_type?: AccountType;
   password?: string;
   project_roles?: ProjectRoleInput[];
 }

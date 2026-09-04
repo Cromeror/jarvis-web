@@ -1,11 +1,11 @@
 /** Auth API client — login + current user, y el storage local del JWT. */
 
-export type UserRole = 'superadmin' | 'user';
+export type AccountType = 'operator' | 'member';
 
 export interface AuthUserSummary {
   id: string;
   username: string;
-  role: UserRole;
+  account_type: AccountType;
   project_ids: string[];
 }
 
