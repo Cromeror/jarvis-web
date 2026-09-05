@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { apiUrl } from '../lib/api-origin.js';
 
 export interface PipelineStepEvent {
   id: number;
@@ -66,7 +67,7 @@ export function usePipelineEvents(runId: string | null) {
       })
       .catch(() => { /* snapshot best-effort — SSE will still fill in state */ });
 
-    const es = new EventSource(`/api/pipeline/${runId}/events`);
+    const es = new EventSource(apiUrl(`/api/pipeline/${runId}/events`));
     es.onmessage = (e: MessageEvent) => {
       try {
         const data = JSON.parse(e.data as string) as PipelineSseEvent;

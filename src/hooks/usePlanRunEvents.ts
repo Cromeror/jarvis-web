@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { PlanRunStepSnapshot } from '../lib/plans-api.js';
+import { apiUrl } from '../lib/api-origin.js';
 
 /** Coarse lifecycle event — carries a full snapshot of every step. */
 interface PlanRunSnapshotEvent {
@@ -81,7 +82,7 @@ export function usePlanRunEvents(runId: string | null) {
       })
       .catch(() => { /* snapshot best-effort — SSE will still fill in state */ });
 
-    const es = new EventSource(`/api/plan-runs/${runId}/events`);
+    const es = new EventSource(apiUrl(`/api/plan-runs/${runId}/events`));
     es.onmessage = (e: MessageEvent) => {
       try {
         const data = JSON.parse(e.data as string) as PlanRunSseEvent;

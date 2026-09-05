@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getToken } from '../lib/auth-api.js';
 import type { BackgroundTaskLike } from '../lib/chat-queue.js';
+import { apiUrl } from '../lib/api-origin.js';
 
 /** One message already sent to Jarvis and not answered yet — what the input bar shows as "en cola". */
 export interface QueuedCommand {
@@ -92,7 +93,7 @@ export function useChatStream(sessionId: string | null, handlers: ChatStreamHand
     if (!token) return;
 
     const es = new EventSource(
-      `/api/chat/sessions/${encodeURIComponent(sessionId)}/stream?access_token=${encodeURIComponent(token)}`,
+      apiUrl(`/api/chat/sessions/${encodeURIComponent(sessionId)}/stream?access_token=${encodeURIComponent(token)}`),
     );
     es.onmessage = (e: MessageEvent) => {
       let data: ChatSseEvent;

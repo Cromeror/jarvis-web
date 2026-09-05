@@ -7,6 +7,7 @@ import { RawEditor } from './RawEditor.js';
 import { GuidedEditor } from './GuidedEditor.js';
 import { CopyPromptBtn } from '../ui/atoms/CopyPromptBtn.js';
 import { Button } from '../ui/atoms/Button.js';
+import { apiUrl } from '../../lib/api-origin.js';
 
 interface EditorProps {
   filePath: string;
@@ -48,7 +49,7 @@ export function Editor({
 
   // SSE: detect external changes (e.g. LLM editing the file)
   useEffect(() => {
-    const es = new EventSource(`/api/file/watch?path=${encodeURIComponent(filePath)}`);
+    const es = new EventSource(apiUrl(`/api/file/watch?path=${encodeURIComponent(filePath)}`));
     es.onmessage = (e: MessageEvent) => {
       try {
         const data = JSON.parse(e.data as string) as { event?: string };

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { LoginAttempt, LoginAttemptStatus } from '../lib/login-api.js';
+import { apiUrl } from '../lib/api-origin.js';
 
 interface LoginUpdatedEvent {
   event: 'login_updated';
@@ -38,7 +39,7 @@ export function useLoginEvents(attemptId: string | null) {
       })
       .catch(() => { /* snapshot best-effort — SSE will still fill in state */ });
 
-    const es = new EventSource(`/api/login/${attemptId}/events`);
+    const es = new EventSource(apiUrl(`/api/login/${attemptId}/events`));
     es.onmessage = (e: MessageEvent) => {
       try {
         const data = JSON.parse(e.data as string) as LoginSseEvent;
