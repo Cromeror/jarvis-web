@@ -6,7 +6,7 @@
  * eso alcanza. Este módulo existe para que dejen de tener que serlo, sin
  * reescribir los 26 archivos que ya llaman a la API.
  *
- * **El default es el comportamiento de hoy.** Sin `VITE_JARVIS_API_ORIGIN`, el
+ * **El default es el comportamiento de hoy.** Sin `VITE_API_URL`, el
  * origen es la cadena vacía y toda URL queda relativa — un checkout recién
  * clonado sigue andando sin leer un runbook. La configuración habilita la
  * separación, no la impone.
@@ -33,11 +33,11 @@
 /**
  * El origen de la API: `https://api.ejemplo` o `''` para "el mismo que el front".
  *
- * Sale de `VITE_JARVIS_API_ORIGIN` (Vite sólo expone al cliente las variables
+ * Sale de `VITE_API_URL` (Vite sólo expone al cliente las variables
  * con prefijo `VITE_`). Se le saca la barra final para que `origen + path` no
  * produzca `//api/...`, que algunos proxies normalizan y otros no.
  */
-export const API_ORIGIN: string = (import.meta.env['VITE_JARVIS_API_ORIGIN'] ?? '').replace(/\/+$/, '');
+export const API_URL: string = (import.meta.env['VITE_API_URL'] ?? '').replace(/\/+$/, '');
 
 /** El prefijo bajo el que vive toda la API. */
 const API_PREFIX = '/api/';
@@ -49,7 +49,7 @@ const API_PREFIX = '/api/';
  * esto le antepone el origen sólo si hay uno configurado.
  */
 export function apiUrl(path: string): string {
-  return `${API_ORIGIN}${path.startsWith('/') ? path : `/${path}`}`;
+  return `${API_URL}${path.startsWith('/') ? path : `/${path}`}`;
 }
 
 /**
@@ -68,7 +68,7 @@ export function apiRequestPath(url: string): string | null {
     // Absoluta. Sólo cuenta si va al origen de la API — una absoluta a
     // cualquier otro host es una llamada a un tercero y el interceptor no tiene
     // por qué mandarle nuestro token.
-    const base = API_ORIGIN || (typeof window !== 'undefined' ? window.location.origin : '');
+    const base = API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
     if (!base || !url.startsWith(`${base}/`)) return null;
     path = url.slice(base.length);
   } else {

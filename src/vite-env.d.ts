@@ -10,7 +10,7 @@
  */
 interface ImportMetaEnv {
   /** Origen de la API (`https://api.ejemplo`). Vacío/ausente = mismo origen que el front. */
-  readonly VITE_JARVIS_API_ORIGIN?: string;
+  readonly VITE_API_URL?: string;
 }
 
 interface ImportMeta {

@@ -7,7 +7,7 @@
  * equivocado. Nada de eso aparece en consola; se manifiesta como "la app me
  * desloguea sola" o "el chat no responde".
  *
- * `API_ORIGIN` se resuelve en tiempo de import (es una constante inlineada por
+ * `API_URL` se resuelve en tiempo de import (es una constante inlineada por
  * Vite), así que cada Escenario que necesita otro origen reimporta el módulo
  * con `vi.resetModules()` + `vi.stubEnv()`. Es más ceremonia que un parámetro,
  * pero prueba la constante REAL en vez de una versión inyectable que producción
@@ -28,7 +28,7 @@ const OTRO_ORIGEN = 'https://api.ejemplo';
 /** Reimporta `api-origin` con el origen dado (cadena vacía = sin configurar). */
 async function conOrigen(origen: string) {
   vi.resetModules();
-  vi.stubEnv('VITE_JARVIS_API_ORIGIN', origen);
+  vi.stubEnv('VITE_API_URL', origen);
   return import('../api-origin.js');
 }
 
@@ -62,8 +62,8 @@ afterEach(() => {
 
 describe('despliegue-web-desacoplado — origen de la API', () => {
   it('Sin configuración, la API vive en el mismo origen', async () => {
-    const { API_ORIGIN, apiUrl } = await conOrigen('');
-    expect(API_ORIGIN).toBe('');
+    const { API_URL, apiUrl } = await conOrigen('');
+    expect(API_URL).toBe('');
     // Relativa, exactamente como hoy: un checkout sin configurar no cambia.
     expect(apiUrl('/api/plans')).toBe('/api/plans');
   });
@@ -97,7 +97,7 @@ describe('despliegue-web-desacoplado — origen de la API', () => {
       clearSession: () => undefined,
     }));
     vi.resetModules();
-    vi.stubEnv('VITE_JARVIS_API_ORIGIN', OTRO_ORIGEN);
+    vi.stubEnv('VITE_API_URL', OTRO_ORIGEN);
     const { llamadas } = montarWindow(respuesta(200, { 'X-Jarvis-Token': 'token-nuevo' }));
     const { installAuthFetchInterceptor } = await import('../auth-fetch-interceptor.js');
 
@@ -119,7 +119,7 @@ describe('despliegue-web-desacoplado — origen de la API', () => {
       clearSession: () => { limpiada = true; },
     }));
     vi.resetModules();
-    vi.stubEnv('VITE_JARVIS_API_ORIGIN', OTRO_ORIGEN);
+    vi.stubEnv('VITE_API_URL', OTRO_ORIGEN);
     const { win } = montarWindow(respuesta(401));
     const { installAuthFetchInterceptor } = await import('../auth-fetch-interceptor.js');
 

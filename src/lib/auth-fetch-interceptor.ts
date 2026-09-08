@@ -1,5 +1,5 @@
 import { getToken, clearSession, replaceToken } from './auth-api.js';
-import { API_ORIGIN, apiUrl, apiRequestPath } from './api-origin.js';
+import { API_URL, apiUrl, apiRequestPath } from './api-origin.js';
 
 /**
  * El header por el que el server manda un token renovado. Mismo string que
@@ -23,7 +23,7 @@ const ES_ABSOLUTA = /^[a-z][a-z0-9+.-]*:\/\//i;
  * ## Es además el punto donde se resuelve el ORIGEN de la API
  *
  * Los módulos siguen escribiendo rutas relativas (`fetch('/api/plans')`) y acá
- * se les antepone `API_ORIGIN` si hay uno configurado. Es lo que permite mover
+ * se les antepone `API_URL` si hay uno configurado. Es lo que permite mover
  * la API a otro host sin tocar los 26 archivos que la llaman.
  *
  * Y es la razón por la que reconocer la llamada NO puede seguir siendo
@@ -35,7 +35,7 @@ const ES_ABSOLUTA = /^[a-z][a-z0-9+.-]*:\/\//i;
  * **Sólo se reescribe un `input` string o URL.** Un `Request` ya construido
  * lleva su cuerpo y sus headers adentro, y rearmarlo para cambiarle el origen
  * es una fuente de bugs sutiles; ningún call site del front usa esa forma. Con
- * el default (`API_ORIGIN` vacío) no se reescribe nada y el comportamiento es
+ * el default (`API_URL` vacío) no se reescribe nada y el comportamiento es
  * exactamente el de antes.
  */
 export function installAuthFetchInterceptor(): void {
@@ -50,7 +50,7 @@ export function installAuthFetchInterceptor(): void {
     // Relativa + origen configurado => absoluta contra la API. `apiUrl` recibe
     // la url cruda, no el path normalizado, para no perder query ni hash.
     const destino: RequestInfo | URL =
-      isApi && API_ORIGIN && !ES_ABSOLUTA.test(url) && (typeof input === 'string' || input instanceof URL)
+      isApi && API_URL && !ES_ABSOLUTA.test(url) && (typeof input === 'string' || input instanceof URL)
         ? apiUrl(url)
         : input;
 
