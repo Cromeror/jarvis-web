@@ -3,10 +3,10 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { resolve } from 'path';
 
-// .env lives at the repo root, not packages/web-app (Vite's default envDir),
-// since it's shared with http-api/storage — point both Vite's own client-env
-// loading and this file's loadEnv() call at it.
-const envDir = resolve(__dirname, '../..');
+// El .env vive en la raíz de ESTE repo. Cuando la web era packages/web-app
+// dentro del monorepo, apuntaba dos niveles arriba porque el archivo se
+// compartía con http-api y storage; acá no se comparte con nadie.
+const envDir = __dirname;
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, envDir, '');
@@ -28,10 +28,12 @@ export default defineConfig(({ mode }) => {
       allowedHosts: env['JARVIS_ALLOWED_HOSTS']
         ? env['JARVIS_ALLOWED_HOSTS'].split(',').map((h) => h.trim())
         : undefined,
+      // Proxy de desarrollo: evita CORS mientras se trabaja en local, sin
+      // tener que declarar VITE_API_URL. En un build publicado no interviene
+      // —Vite dev server no existe ahí—, así que para apuntar a una API en
+      // otro origen la variable es VITE_API_URL. Ver README.
       proxy: {
-        // @jarvis/http-api (packages/http-api) — independent NestJS server,
-        // not the @jarvis/mcp daemon (which stays on 7432 for the MCP shim).
-        '/api': env['JARVIS_HTTP_API_URL'] ?? 'http://localhost:7433',
+        '/api': env['JARVIS_API_PROXY'] ?? 'http://localhost:7433',
       },
     },
     build: {

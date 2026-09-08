@@ -15,10 +15,5 @@
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "include": ["src"],
-  "references": [
-    {
-      "path": "../core"
-    }
-  ]
+  "include": ["src"]
 }
