@@ -26,13 +26,19 @@ Característica: El front habla con una API que puede estar en otro origen
   401. Nada tira una excepción — la app simplemente empieza a deslogearse
   sola. Por eso `apiRequestPath()` normaliza ANTES de decidir.
 
-  Y LOS STREAMS NO PASAN POR EL INTERCEPTOR. Hay CINCO `EventSource` (chat,
-  plan-runs, pipelines, login, file/watch) y `EventSource` no pasa por
-  `window.fetch` ni admite header `Authorization` — de ahí que su token viaje
-  por query string. Resolver el origen sólo en el interceptor dejaría los cinco
-  apuntando al origen viejo: el chat se quedaría mudo sin un solo error en
-  consola. Por eso hay un Escenario propio para SSE y otro que prohíbe
-  construir el origen a mano.
+  LOS STREAMS TAMBIÉN VAN POR `fetch`, Y ESO FUE UN CAMBIO DE TRANSPORTE. Los
+  cinco (chat, plan-runs, pipelines, login, file/watch) usaban `EventSource`,
+  que no pasa por `window.fetch` ni admite header `Authorization` — así que su
+  única forma de autenticarse era mandar el JWT en la query, y eso lo dejaba
+  escrito en los logs de acceso del reverse proxy y en el historial del
+  navegador. Ahora van sobre `fetch` (`src/lib/sse-stream.ts`) y heredan las tres
+  cosas del interceptor: token en el header, resolución del origen y manejo del
+  401.
+
+  Lo que hubo que reponer a mano es la RECONEXIÓN: `EventSource` la hacía el
+  browser. Sin ella, un corte de red dejaría el chat mudo hasta un refresh. El
+  Escenario de acá fija que nadie vuelva a `EventSource`; el backoff y el parseo
+  del protocolo los cubre `sse-stream.spec.ts`.
 
   # --- Resolución del origen ---------------------------------------
 
@@ -64,10 +70,11 @@ Característica: El front habla con una API que puede estar en otro origen
     Cuando el origen de la API no es el del front
     Entonces la sesión se limpia y se redirige a /login
 
-  Escenario: Los streams SSE resuelven contra el mismo origen que el resto
-    Dado que EventSource no pasa por el interceptor de fetch
-    Cuando el front abre cualquiera de sus cinco streams
-    Entonces la URL sale del mismo resolvedor de origen que las llamadas fetch
+  Escenario: Ningún stream se abre con EventSource
+    Dado que EventSource no admite headers y obliga a mandar el JWT en la query
+    Cuando reviso cómo el front abre sus cinco streams
+    Entonces ninguno usa EventSource
+    Y todos pasan por openSseStream, que va sobre fetch y hereda el interceptor
 
   Escenario: Ningún módulo del front escribe el origen a mano
     Cuando reviso los módulos del front que llaman a la API

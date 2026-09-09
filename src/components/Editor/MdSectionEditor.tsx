@@ -16,6 +16,18 @@ interface Props {
  * - Toolbar gives quick access to common styles.
  * - Round-trips through tiptap-markdown so the persisted source stays Markdown.
  */
+/**
+ * `tiptap-markdown` agrega `editor.storage.markdown` en runtime pero no extiende
+ * el tipo `Storage` de `@tiptap/core`. Se declara acá, y no como augmentation
+ * del módulo, porque `@tiptap/core` es transitiva: no está en package.json.
+ *
+ * En el monorepo esto no se veía — el build es `vite build`, que transpila con
+ * esbuild sin chequear tipos. Apareció al declarar el check `typecheck`.
+ */
+interface MarkdownStorage {
+  markdown: { getMarkdown(): string };
+}
+
 export function MdSectionEditor({ content, onChange }: Props): React.ReactElement {
   const editor = useEditor({
     extensions: [
@@ -32,7 +44,7 @@ export function MdSectionEditor({ content, onChange }: Props): React.ReactElemen
     ],
     content,
     onUpdate: ({ editor }) => {
-      const md = (editor.storage.markdown as { getMarkdown(): string }).getMarkdown();
+      const md = (editor.storage as unknown as MarkdownStorage).markdown.getMarkdown();
       onChange(md);
     },
   });
@@ -40,7 +52,7 @@ export function MdSectionEditor({ content, onChange }: Props): React.ReactElemen
   // Keep external changes in sync (e.g. when switching files)
   useEffect(() => {
     if (!editor) return;
-    const current = (editor.storage.markdown as { getMarkdown(): string }).getMarkdown();
+    const current = (editor.storage as unknown as MarkdownStorage).markdown.getMarkdown();
     if (current !== content) {
       editor.commands.setContent(content, { emitUpdate: false });
     }

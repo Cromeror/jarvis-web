@@ -7,7 +7,7 @@ import { RawEditor } from './RawEditor.js';
 import { GuidedEditor } from './GuidedEditor.js';
 import { CopyPromptBtn } from '../ui/atoms/CopyPromptBtn.js';
 import { Button } from '../ui/atoms/Button.js';
-import { apiUrl } from '../../lib/api-origin.js';
+import { openSseStream } from '../../lib/sse-stream.js';
 
 interface EditorProps {
   filePath: string;
@@ -25,7 +25,8 @@ interface EditorProps {
 export function Editor({
   filePath,
   initialContent,
-  fileType,
+  // `fileType` sigue en EditorProps —los callers la pasan— pero este componente
+  // no la usa: no se destructura para no declarar una variable muerta.
   onSave,
   onVersionSaved,
 }: EditorProps): React.ReactElement {
@@ -49,13 +50,14 @@ export function Editor({
 
   // SSE: detect external changes (e.g. LLM editing the file)
   useEffect(() => {
-    const es = new EventSource(apiUrl(`/api/file/watch?path=${encodeURIComponent(filePath)}`));
-    es.onmessage = (e: MessageEvent) => {
-      try {
-        const data = JSON.parse(e.data as string) as { event?: string };
-        if (data.event === 'changed') setExternalChange(true);
-      } catch { /* ignore malformed events */ }
-    };
+    const es = openSseStream(`/api/file/watch?path=${encodeURIComponent(filePath)}`, {
+      onMessage: (payload: string) => {
+        try {
+          const data = JSON.parse(payload) as { event?: string };
+          if (data.event === 'changed') setExternalChange(true);
+          } catch { /* ignore malformed events */ }
+        },
+      });
     return () => es.close();
   }, [filePath]);
 

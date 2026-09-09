@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { PlanRunStepSnapshot } from '../lib/plans-api.js';
-import { apiUrl } from '../lib/api-origin.js';
+import { openSseStream } from '../lib/sse-stream.js';
 
 /** Coarse lifecycle event — carries a full snapshot of every step. */
 interface PlanRunSnapshotEvent {
@@ -82,28 +82,29 @@ export function usePlanRunEvents(runId: string | null) {
       })
       .catch(() => { /* snapshot best-effort — SSE will still fill in state */ });
 
-    const es = new EventSource(apiUrl(`/api/plan-runs/${runId}/events`));
-    es.onmessage = (e: MessageEvent) => {
-      try {
-        const data = JSON.parse(e.data as string) as PlanRunSseEvent;
+    const es = openSseStream(`/api/plan-runs/${runId}/events`, {
+      onMessage: (payload: string) => {
+        try {
+          const data = JSON.parse(payload) as PlanRunSseEvent;
 
-        // Fine-grained progress: append to the step's live text, nothing else.
-        if (data.event === 'step_progress') {
-          setStepProgress((prev) => ({ ...prev, [data.step_id]: appendChunk(prev[data.step_id] ?? '', data) }));
-          return;
-        }
+          // Fine-grained progress: append to the step's live text, nothing else.
+          if (data.event === 'step_progress') {
+            setStepProgress((prev) => ({ ...prev, [data.step_id]: appendChunk(prev[data.step_id] ?? '', data) }));
+            return;
+          }
 
-        // Lifecycle snapshot: refresh the grid and clear live text for any step
-        // that just reached a terminal status (its output now lives in the grid).
-        setSteps(data.steps);
-        setActiveStepIds(data.active_step_ids);
-        setRunStatus(data.run_status);
-        setStepProgress((prev) => clearFinished(prev, data.steps));
-        if (data.event === 'run_completed' || data.event === 'run_failed') {
-          es.close();
-        }
-      } catch { /* ignore malformed events */ }
-    };
+          // Lifecycle snapshot: refresh the grid and clear live text for any step
+          // that just reached a terminal status (its output now lives in the grid).
+          setSteps(data.steps);
+          setActiveStepIds(data.active_step_ids);
+          setRunStatus(data.run_status);
+          setStepProgress((prev) => clearFinished(prev, data.steps));
+          if (data.event === 'run_completed' || data.event === 'run_failed') {
+            es.close();
+          }
+          } catch { /* ignore malformed events */ }
+        },
+      });
 
     return () => {
       cancelled = true;

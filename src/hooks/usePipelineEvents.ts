@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { apiUrl } from '../lib/api-origin.js';
+import { openSseStream } from '../lib/sse-stream.js';
 
 export interface PipelineStepEvent {
   id: number;
@@ -67,26 +67,27 @@ export function usePipelineEvents(runId: string | null) {
       })
       .catch(() => { /* snapshot best-effort — SSE will still fill in state */ });
 
-    const es = new EventSource(apiUrl(`/api/pipeline/${runId}/events`));
-    es.onmessage = (e: MessageEvent) => {
-      try {
-        const data = JSON.parse(e.data as string) as PipelineSseEvent;
-        if (data.event === 'step_updated') {
-          setSteps((prev) => {
-            const idx = prev.findIndex((s) => s.id === data.step.id);
-            if (idx === -1) return [...prev, data.step].sort((a, b) => a.step_index - b.step_index);
-            const next = [...prev];
-            next[idx] = data.step;
-            return next;
-          });
-        } else if (data.event === 'run_checking') {
-          setRunStatus('checking');
-        } else if (data.event === 'run_finished') {
-          setRunStatus(data.status);
-          es.close();
-        }
-      } catch { /* ignore malformed events */ }
-    };
+    const es = openSseStream(`/api/pipeline/${runId}/events`, {
+      onMessage: (payload: string) => {
+        try {
+          const data = JSON.parse(payload) as PipelineSseEvent;
+          if (data.event === 'step_updated') {
+            setSteps((prev) => {
+              const idx = prev.findIndex((s) => s.id === data.step.id);
+              if (idx === -1) return [...prev, data.step].sort((a, b) => a.step_index - b.step_index);
+              const next = [...prev];
+              next[idx] = data.step;
+              return next;
+            });
+          } else if (data.event === 'run_checking') {
+            setRunStatus('checking');
+          } else if (data.event === 'run_finished') {
+            setRunStatus(data.status);
+            es.close();
+          }
+          } catch { /* ignore malformed events */ }
+        },
+      });
 
     return () => {
       cancelled = true;

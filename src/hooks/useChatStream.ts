@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getToken } from '../lib/auth-api.js';
 import type { BackgroundTaskLike } from '../lib/chat-queue.js';
-import { apiUrl } from '../lib/api-origin.js';
+import { openSseStream } from '../lib/sse-stream.js';
 
 /** One message already sent to Jarvis and not answered yet — what the input bar shows as "en cola". */
 export interface QueuedCommand {
@@ -85,94 +85,92 @@ export function useChatStream(sessionId: string | null, handlers: ChatStreamHand
     setBackgroundTasks([]);
     if (!sessionId) return;
 
-    // EventSource can't set an Authorization header (unlike every other API
-    // call, patched globally in auth-fetch-interceptor.ts) — the JWT rides as
-    // a query param instead, which JwtAuthGuard accepts as a fallback for
-    // exactly this reason. No token yet (logged out) — nothing to stream.
-    const token = getToken();
-    if (!token) return;
+    // Sin token (deslogueado) no hay nada que escuchar. El header lo pone el
+    // interceptor de fetch, igual que en cualquier otra llamada — antes el JWT
+    // viajaba en la query porque EventSource no admite headers, y eso lo dejaba
+    // escrito en los logs de acceso del reverse proxy.
+    if (!getToken()) return;
 
-    const es = new EventSource(
-      apiUrl(`/api/chat/sessions/${encodeURIComponent(sessionId)}/stream?access_token=${encodeURIComponent(token)}`),
-    );
-    es.onmessage = (e: MessageEvent) => {
-      let data: ChatSseEvent;
-      try {
-        data = JSON.parse(e.data as string) as ChatSseEvent;
-      } catch {
-        return; // ignore malformed events
-      }
+    const es = openSseStream(`/api/chat/sessions/${encodeURIComponent(sessionId)}/stream`, {
+      onMessage: (payload: string) => {
+        let data: ChatSseEvent;
+        try {
+          data = JSON.parse(payload) as ChatSseEvent;
+        } catch {
+          return; // ignore malformed events
+        }
 
-      switch (data.kind) {
-        case 'idle':
-          setActive(false);
-          setPending([]);
-          setLiveText('');
-          // OJO: `backgroundTasks` NO se limpia acá. Idle significa que no queda
-          // nada sin contestar, no que no quede nada corriendo — verificado
-          // contra el CLI real: una tarea sobrevive al turno que la lanzó. La
-          // lista solo se vacía cuando el propio CLI manda `tasks: []`.
-          //
-          // Red de seguridad: si algún turn_end se perdió (caída del stream,
-          // reinicio del server), quedar idle con historial viejo es el peor
-          // estado posible — se ve una conversación sin su última respuesta.
-          handlersRef.current.onHistoryChanged();
-          return;
-        case 'busy':
-          setActive(true);
-          return;
-        case 'queue':
-          setPending(data.pending);
-          setActive(data.pending.length > 0);
-          return;
-        case 'background_tasks':
-          // Reemplazo, no merge: el evento trae la lista completa.
-          setBackgroundTasks(data.tasks);
-          return;
-        case 'turn_end':
-          // Not a disconnect: more messages may be queued behind this turn.
-          // The history now has the reply, so the live buffer must go.
-          setLiveText('');
-          handlersRef.current.onHistoryChanged();
-          return;
-        case 'plan_created':
-          handlersRef.current.onPlanCreated?.(data.plan_id);
-          return;
-        case 'error':
-          handlersRef.current.onError?.(data.message);
-          return;
-        case 'assistant_text':
-          setActive(true);
-          setLiveText((prev) => prev + data.text);
-          return;
-        default:
-          setActive(true);
-      }
-    };
-    // EventSource retries the connection on its own on a drop (e.g. an
-    // http-api restart) — nothing to do here besides not crashing the UI.
-    es.onerror = () => undefined;
-    // Cada (re)conexión resincroniza DESDE CERO, no solo pide el historial.
-    //
-    // El estado de "trabajando" (turno activo, cola, tareas) es efímero: vive
-    // en la memoria del proceso del server. Si ese proceso se reinició, lo que
-    // había en vuelo se perdió — pero el front seguía mostrando su última foto
-    // para siempre: "Enviando… / 1 esperando" sobre un mensaje que ya había
-    // sido contestado. Y ni un refresh lo arreglaba, porque el estado se
-    // reconstruía igual en cada carga.
-    //
-    // Se limpia y se deja que el server vuelva a decir la verdad: el `queue`
-    // que manda al conectar repone lo que realmente sigue pendiente, y el
-    // refetch del historial trae lo que se contestó mientras no escuchábamos.
-    // Perder la marca por un instante es mucho mejor que mostrar una falsa.
-    es.onopen = () => {
-      setPending([]);
-      setLiveText('');
-      setActive(false);
-      setBackgroundTasks([]);
-      handlersRef.current.onReconnected?.();
-      handlersRef.current.onHistoryChanged();
-    };
+        switch (data.kind) {
+          case 'idle':
+            setActive(false);
+            setPending([]);
+            setLiveText('');
+            // OJO: `backgroundTasks` NO se limpia acá. Idle significa que no queda
+            // nada sin contestar, no que no quede nada corriendo — verificado
+            // contra el CLI real: una tarea sobrevive al turno que la lanzó. La
+            // lista solo se vacía cuando el propio CLI manda `tasks: []`.
+            //
+            // Red de seguridad: si algún turn_end se perdió (caída del stream,
+            // reinicio del server), quedar idle con historial viejo es el peor
+            // estado posible — se ve una conversación sin su última respuesta.
+            handlersRef.current.onHistoryChanged();
+            return;
+          case 'busy':
+            setActive(true);
+            return;
+          case 'queue':
+            setPending(data.pending);
+            setActive(data.pending.length > 0);
+            return;
+          case 'background_tasks':
+            // Reemplazo, no merge: el evento trae la lista completa.
+            setBackgroundTasks(data.tasks);
+            return;
+          case 'turn_end':
+            // Not a disconnect: more messages may be queued behind this turn.
+            // The history now has the reply, so the live buffer must go.
+            setLiveText('');
+            handlersRef.current.onHistoryChanged();
+            return;
+          case 'plan_created':
+            handlersRef.current.onPlanCreated?.(data.plan_id);
+            return;
+          case 'error':
+            handlersRef.current.onError?.(data.message);
+            return;
+          case 'assistant_text':
+            setActive(true);
+            setLiveText((prev) => prev + data.text);
+            return;
+          default:
+            setActive(true);
+        }
+      },
+      // La reconexión la hace `openSseStream` con backoff — con EventSource la
+      // hacía el browser. Acá no hay nada que atender más que no romper la UI.
+      onError: () => undefined,
+      // Cada (re)conexión resincroniza DESDE CERO, no solo pide el historial.
+      //
+      // El estado de "trabajando" (turno activo, cola, tareas) es efímero: vive
+      // en la memoria del proceso del server. Si ese proceso se reinició, lo que
+      // había en vuelo se perdió — pero el front seguía mostrando su última foto
+      // para siempre: "Enviando… / 1 esperando" sobre un mensaje que ya había
+      // sido contestado. Y ni un refresh lo arreglaba, porque el estado se
+      // reconstruía igual en cada carga.
+      //
+      // Se limpia y se deja que el server vuelva a decir la verdad: el `queue`
+      // que manda al conectar repone lo que realmente sigue pendiente, y el
+      // refetch del historial trae lo que se contestó mientras no escuchábamos.
+      // Perder la marca por un instante es mucho mejor que mostrar una falsa.
+      onOpen: () => {
+        setPending([]);
+        setLiveText('');
+        setActive(false);
+        setBackgroundTasks([]);
+        handlersRef.current.onReconnected?.();
+        handlersRef.current.onHistoryChanged();
+      },
+    });
 
     return () => es.close();
   }, [sessionId]);

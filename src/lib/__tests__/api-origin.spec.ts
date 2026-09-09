@@ -131,21 +131,24 @@ describe('despliegue-web-desacoplado — origen de la API', () => {
     vi.doUnmock('../auth-api.js');
   });
 
-  it('Los streams SSE resuelven contra el mismo origen que el resto', () => {
-    // EventSource no pasa por el interceptor, así que esto no se puede
-    // verificar con un doble: se verifica que ningún call site quedó relativo.
+  it('Ningún stream se abre con EventSource', () => {
+    // Antes este test verificaba que cada `new EventSource(...)` pasara por
+    // apiUrl(). Cambió el transporte: los streams van sobre fetch
+    // (`sse-stream.ts`), así que heredan el origen y el token del interceptor y
+    // ya no hace falta resolverlos a mano.
+    //
+    // Lo que se prohíbe ahora es VOLVER a EventSource, porque volvería con él
+    // el JWT en la query — el motivo por el que se cambió.
     const SRC = resolve(import.meta.dirname, '..', '..');
     const fuentes = (dir: string): string[] =>
       readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
         e.isDirectory() ? fuentes(join(dir, e.name)) : /\.tsx?$/.test(e.name) ? [join(dir, e.name)] : [],
       );
-    const sinResolver = fuentes(SRC).filter((f) =>
-      // Los espacios van DENTRO del lookahead: con `\\s*` afuera, el motor
-      // cede los espacios por backtracking y el lookahead pasa contra el salto
-      // de línea — un falso positivo en cada call site escrito en varias líneas.
-      /new EventSource\((?![\s]*apiUrl\()/.test(readFileSync(f, 'utf8')),
-    );
-    expect(sinResolver).toEqual([]);
+    const culpables = fuentes(SRC)
+      .filter((f) => !f.includes('__tests__'))
+      .filter((f) => /new EventSource\s*\(/.test(readFileSync(f, 'utf8')))
+      .map((f) => f.slice(SRC.length + 1));
+    expect(culpables).toEqual([]);
   });
 
   it('Ningún módulo del front escribe el origen a mano', () => {

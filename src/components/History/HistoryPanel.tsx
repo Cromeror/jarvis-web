@@ -16,7 +16,8 @@ interface HistoryPanelProps {
  */
 export function HistoryPanel({
   filePath,
-  currentContent,
+  // `currentContent` sigue en HistoryPanelProps, pero el panel lee las
+  // versiones del server y no compara contra el contenido en pantalla.
   onRestored,
 }: HistoryPanelProps): React.ReactElement {
   const [collapsed, setCollapsed] = useState(true);
