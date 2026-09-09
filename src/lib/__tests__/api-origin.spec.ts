@@ -147,4 +147,24 @@ describe('despliegue-web-desacoplado — origen de la API', () => {
     );
     expect(sinResolver).toEqual([]);
   });
+
+  it('Ningún módulo del front escribe el origen a mano', () => {
+    // Vivía en el spec de http-api, que recorría packages/web-app/src. Con la
+    // web en su propio repo ese path no existe: el invariante se verifica donde
+    // está el código que lo tiene que cumplir.
+    //
+    // Sólo el ARGUMENTO de un fetch/EventSource. Un `https://` en un
+    // comentario, en un link de la UI o en un `<a href>` no es una llamada a la
+    // API, y prohibirlos volvería el test ruidoso hasta que alguien lo apague.
+    const ORIGEN_LITERAL = /(?:fetch|EventSource)\s*\(\s*(?:new\s+URL\s*\(\s*)?[`'"]https?:\/\//;
+    const SRC = resolve(import.meta.dirname, '..', '..');
+    const fuentes = (dir: string): string[] =>
+      readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+        e.isDirectory() ? fuentes(join(dir, e.name)) : /\.tsx?$/.test(e.name) ? [join(dir, e.name)] : [],
+      );
+    const culpables = fuentes(SRC)
+      .filter((f) => ORIGEN_LITERAL.test(readFileSync(f, 'utf8')))
+      .map((f) => f.slice(SRC.length + 1));
+    expect(culpables).toEqual([]);
+  });
 });

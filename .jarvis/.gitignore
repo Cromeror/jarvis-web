@@ -1,0 +1,3 @@
+# `environments/` es estado local de cada máquina (unidades systemd, paths
+# absolutos), no del proyecto. `verify.yaml` sí va al repo.
+environments/

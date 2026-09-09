@@ -1,0 +1,30 @@
+# Cómo se verifica este proyecto. Lo lee `verify_run` (packages/tools/verify del
+# repo jarvis-agent).
+#
+# A diferencia de .jarvis/environments/*, que es estado local por máquina, este
+# archivo SÍ va al repo: son los comandos del proyecto, no de esta máquina.
+#
+# Regla: un check tiene que TERMINAR y no debe mutar nada. Verificar es
+# preguntar, no arreglar.
+name: jarvis-web
+max_output_chars: 6000
+
+checks:
+  - id: test
+    # Los tests de este paquete NO corrían en el monorepo: su verify.yaml los
+    # excluía con `--exclude=web-app`. Acá sí corren, y son la única red del
+    # front — de ahí que vayan primero.
+    run: pnpm test
+    timeout_ms: 300000
+
+  - id: typecheck
+    # `pnpm build` es `vite build`, que transpila con esbuild y NO chequea
+    # tipos: sin este check un error de tipos llega al bundle sin avisar.
+    run: pnpm typecheck
+    timeout_ms: 300000
+
+  - id: build
+    # Verifica además que el bundle se pueda generar, que es el artefacto que
+    # el servidor de estáticos publica.
+    run: pnpm build
+    timeout_ms: 600000
