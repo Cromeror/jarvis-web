@@ -80,3 +80,28 @@ Característica: El front habla con una API que puede estar en otro origen
     Cuando reviso los módulos del front que llaman a la API
     Entonces ninguno construye un origen absoluto literal
     Y el único lugar que decide el origen es el resolvedor compartido
+
+  # --- El despliegue, que es independiente del de la API -------------------
+  #
+  # Estos tres venían del feature del core y se mudaron acá: hablan de lo que
+  # hace (y no hace) el deploy de ESTE repo, y su script vive acá. El core no
+  # puede leerlo — clonado solo, `../web` no existe.
+  #
+  # Son la razón de ser de toda la separación: mientras la SPA vivía dentro de
+  # `http-api`, publicar front obligaba a reiniciar la API, y ese restart mata
+  # las sesiones de chat en curso de TODOS los proyectos.
+
+  Escenario: Publicar la web no reinicia el proceso de la API
+    Dado un despliegue que sólo cambia archivos de este repo
+    Cuando lo publico
+    Entonces no se ejecuta "systemctl restart jarvis-api"
+
+  Escenario: Una conversación en curso sobrevive a un despliegue de la web
+    Dado un chat con un turno corriendo
+    Cuando publico la web
+    Entonces el turno sigue vivo y su sesión nativa no se reinicia
+
+  Escenario: La web se revierte sin tocar la API
+    Dado un bundle publicado que resultó defectuoso
+    Cuando vuelvo al bundle anterior
+    Entonces la API no se reinicia ni cambia de versión

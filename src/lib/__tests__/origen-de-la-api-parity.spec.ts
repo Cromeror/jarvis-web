@@ -26,15 +26,14 @@ import { fileURLToPath } from 'node:url';
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const FEATURE = join(AQUI, 'origen-de-la-api.feature');
 /**
- * El spec que implementa los Escenarios de este contrato.
+ * Los specs que implementan los Escenarios de este contrato.
  *
- * Fue una lista de dos mientras la web vivía en `packages/web-app`: la mitad
- * del front se verificaba en ese paquete. Al salir a su propio repo, ese
- * segundo spec dejó de ser alcanzable —y un parity que no encuentra sus `it()`
- * se pone rojo por una razón que no es la que importa—, así que el contrato se
- * partió: la Regla D se especifica y se verifica en `jarvis-web`.
+ * Son DOS: la resolución del origen se verifica en `api-origin.spec.ts` y el
+ * despliegue en `despliegue.spec.ts`. Los dos viven en ESTE repo, así que no
+ * reaparece el problema que partió el contrato en su momento — un parity no
+ * puede leer specs del otro lado de un límite de repo.
  */
-const SPEC = join(AQUI, 'api-origin.spec.ts');
+const SPECS = [join(AQUI, 'api-origin.spec.ts'), join(AQUI, 'despliegue.spec.ts')];
 
 interface Escenario {
   titulo: string;
@@ -60,7 +59,7 @@ function its(texto: string): string[] {
 
 describe('paridad entre origen-de-la-api.feature y sus it()', () => {
   const delFeature = existsSync(FEATURE) ? escenarios(readFileSync(FEATURE, 'utf8')) : [];
-  const delSpec = existsSync(SPEC) ? its(readFileSync(SPEC, 'utf8')) : [];
+  const delSpec = SPECS.flatMap((s) => (existsSync(s) ? its(readFileSync(s, 'utf8')) : []));
   const exigibles = delFeature.filter((e) => !e.pendiente);
 
   it('el feature existe y tiene Escenarios', () => {
