@@ -8,12 +8,18 @@
 # ese restart mata las sesiones de chat en curso de TODOS los proyectos. Hoy son
 # dos deploys independientes:
 #
-#   API  → /home/ubuntu/srv/jarvis-agent/scripts/deploy-prod.sh   (systemd jarvis-api)
-#   WEB  → este script                                            (bundle estático)
+#   API  → su propio repo y su propio script   (proceso, systemd)
+#   WEB  → este script                         (bundle estático)
 #
-# Acá NO se reinicia ningún proceso: el bundle lo sirve un nginx
-# (jarvis-agent/traefik/web-static/) que lee el directorio `dist` por un bind
-# mount. Publicar es reemplazar los archivos.
+# Acá NO se reinicia ningún proceso. El contrato de este repo con el mundo es UN
+# DIRECTORIO: `dist/`. Publicar es reemplazar sus archivos; quien los entrega al
+# navegador es un servidor de estáticos que vive fuera de este repo y lee ese
+# directorio por un bind mount.
+#
+# Este repo NO sabe cuál es ese servidor, ni dónde está su config: no lo
+# necesita para hacer su trabajo, y saberlo lo ataría a decisiones de
+# infraestructura que cambian por su cuenta. Lo único que se verifica es el
+# RESULTADO (paso 7), que vale igual sea nginx, Caddy o un CDN.
 #
 # Uso:
 #   ./scripts/deploy-prod.sh            # pull + install + build + publicar
@@ -54,10 +60,7 @@ cd "$REPO_DIR"
 
 step "[1] Preflight"
 command -v pnpm >/dev/null || die "falta pnpm en el PATH"
-docker ps --filter name=jarvis-web-static --format '{{.Names}}' | grep -q . \
-  || die "el container jarvis-web-static no corre — levantalo con:
-      cd /home/ubuntu/srv/jarvis-agent/traefik/web-static && docker compose up -d"
-ok "pnpm y el servidor de estáticos están"
+ok "pnpm está"
 
 if [[ $DO_PULL -eq 1 ]]; then
   step "[2] git pull"
@@ -77,8 +80,8 @@ if [[ $DO_TESTS -eq 1 ]]; then
 fi
 
 step "[5] Build del bundle"
-# VITE_API_URL sin setear = mismo origen. En este VPS es lo correcto: Traefik
-# rutea /api del :80 a la API (jarvis-agent/traefik/dynamic/jarvis.yml), así que
+# VITE_API_URL sin setear = mismo origen. En este VPS es lo correcto: el :80
+# rutea /api a la API y el resto a este bundle, así que
 # el front y la API comparten origen y no hay CORS. Es de BUILD-TIME: si algún
 # día la API queda en otro origen, hay que rebuildear — reiniciar no hace nada.
 rm -rf "$STAGE_DIR"
@@ -87,9 +90,9 @@ pnpm build --outDir "$STAGE_DIR" --emptyOutDir
 ok "bundle compilado"
 
 step "[6] Publicar"
-# rsync sobre el MISMO directorio, no `mv`: nginx lo tiene bind-mounteado, y un
-# bind mount sigue al inodo original — reemplazar el directorio dejaría al
-# container sirviendo el bundle viejo para siempre, sin ningún error visible.
+# rsync sobre el MISMO directorio, no `mv`: el servidor de estáticos lo tiene
+# bind-mounteado, y un bind mount sigue al inodo original — reemplazar el
+# directorio lo dejaría sirviendo el bundle viejo para siempre, sin error.
 mkdir -p "$DIST_DIR"
 rsync -a --delete "$STAGE_DIR/" "$DIST_DIR/"
 rm -rf "$STAGE_DIR"
@@ -112,4 +115,4 @@ ok "/api/* sigue yendo a la API"
 
 echo
 echo "${C_OK}✓ Web deployada${C_OFF} — $(git rev-parse --short HEAD)"
-echo "  la API se deploya aparte: /home/ubuntu/srv/jarvis-agent/scripts/deploy-prod.sh"
+echo "  la API se deploya aparte, desde su propio repo"
