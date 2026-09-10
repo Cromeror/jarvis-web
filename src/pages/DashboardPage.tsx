@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { listProjects } from '../lib/projects-api.js';
 import type { ProjectSummary } from '../lib/projects-api.js';
@@ -112,32 +112,58 @@ export function DashboardPage(): React.ReactElement {
       });
   }, [projectIdsToLoad.join(',')]);
 
+  // Se pide UNA VEZ por proyecto, y sólo de los que todavía no se pidieron.
+  //
+  // Antes este efecto rearmaba el mapa entero cada vez que cambiaba
+  // `projectIdsToLoad`, o sea en cada cambio del filtro. Filtrar a tres
+  // proyectos que ya estaban cargados disparaba tres requests nuevas —y cada
+  // una, sobre un proyecto aislado, un `sudo` del lado del server— para
+  // terminar con los mismos datos que ya había en memoria.
+  //
+  // El cache no se invalida a propósito: ni las réplicas ni los nombres de
+  // environments cambian solos mientras mirás el dashboard, y re-pedirlos "por
+  // las dudas" es exactamente el problema que esto viene a sacar.
+  const proyectosPedidos = useRef(new Set<string>());
   useEffect(() => {
-    if (projectIdsToLoad.length === 0) {
-      setReplicasByProject({});
-      setEnvNamesByProject({});
-      return;
-    }
+    const pendientes = projectIdsToLoad.filter((id) => !proyectosPedidos.current.has(id));
+    if (pendientes.length === 0) return;
+    // Marcar antes de pedir: si el efecto se re-dispara con la request en vuelo
+    // —cambiar el filtro dos veces seguido—, no se pide dos veces lo mismo.
+    pendientes.forEach((id) => proyectosPedidos.current.add(id));
+
     Promise.all(
-      projectIdsToLoad.map((id) =>
+      pendientes.map((id) =>
         Promise.all([listProjectReplicas(id), listEnvironmentDefinitions(id)]).then(
           ([replicas, envNames]) => [id, replicas, envNames] as const,
         ),
       ),
     )
       .then((results) => {
-        setReplicasByProject(Object.fromEntries(results.map(([id, replicas]) => [id, replicas])));
-        setEnvNamesByProject(Object.fromEntries(results.map(([id, , envNames]) => [id, envNames])));
+        // Merge y no reemplazo: lo cargado antes sigue sirviendo a la tabla
+        // cuando el filtro se amplía de vuelta.
+        setReplicasByProject((prev) => ({
+          ...prev,
+          ...Object.fromEntries(results.map(([id, replicas]) => [id, replicas])),
+        }));
+        setEnvNamesByProject((prev) => ({
+          ...prev,
+          ...Object.fromEntries(results.map(([id, , envNames]) => [id, envNames])),
+        }));
       })
       .catch(() => {
         /* best-effort — la tabla de infraestructura simplemente queda en 0/0 sin ambientes */
       });
+  }, [projectIdsToLoad.join(',')]);
+
+  // Las corridas de ambiente van aparte: es UNA request para todos los
+  // proyectos, así que no depende del filtro ni se beneficia del cache.
+  useEffect(() => {
     listAllEnvironmentRuns()
       .then(setAllEnvRuns)
       .catch(() => {
         /* best-effort — los dots de ambiente quedan todos inactivos */
       });
-  }, [projectIdsToLoad.join(',')]);
+  }, []);
 
   const projectNameById = useMemo(() => new Map(projects.map((p) => [p.id, p.name])), [projects]);
   const projectOptions = useMemo(() => projects.map((p) => ({ label: p.name, value: p.id })), [projects]);

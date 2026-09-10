@@ -195,21 +195,56 @@ export function ChatPage(): React.ReactElement {
     if (projectIds.length > 0) loadSessions(projectIds);
   }, [projectIds.join(','), loadSessions]);
 
-  // Un proyecto sin réplicas es el caso normal y responde `[]`: no hay error
-  // que mostrar ni estado vacío que pintar — simplemente no aparece la opción
-  // de moverse. Por eso el fallo se traga por proyecto en vez de cortar todo.
+  // Las réplicas se cargan BAJO DEMANDA, y de a un proyecto por vez.
+  //
+  // Antes se pedían las de TODOS los proyectos al entrar al chat: con once
+  // proyectos eran once requests, y cada una sobre un proyecto aislado dispara
+  // un `sudo` del lado del server. La mayoría no se usaba nunca — un proyecto
+  // cuyas conversaciones no estás mirando no aporta nada a esta pantalla.
+  //
+  // Lo que de verdad hace falta son dos conjuntos, y los dos son chicos: el
+  // proyecto de la conversación abierta (para el selector de réplica) y los
+  // proyectos que aparecen en las sesiones ya cargadas (para traducir el
+  // `replica_id` de una fila del historial a su nombre).
+  //
+  // El cache es incremental y no se invalida: una réplica no cambia de nombre
+  // sola, y re-pedirla en cada render sería volver al problema por otra puerta.
+  const proyectosConReplicasPedidas = useRef(new Set<string>());
+  const proyectosQueNecesitanReplicas = useMemo(() => {
+    const ids = new Set<string>();
+    const activa = sessions.find((s) => s.id === activeSessionId);
+    if (activa?.project_id) ids.add(activa.project_id);
+    for (const s of sessions) if (s.replica_id && s.project_id) ids.add(s.project_id);
+    return [...ids].sort().join(',');
+  }, [activeSessionId, sessions]);
+
   useEffect(() => {
-    if (projectIds.length === 0) return;
+    const pendientes = proyectosQueNecesitanReplicas
+      .split(',')
+      .filter((id) => id !== '' && !proyectosConReplicasPedidas.current.has(id));
+    if (pendientes.length === 0) return;
+    // Se marca ANTES de pedir: si el efecto se re-dispara mientras la request
+    // está en vuelo, no se pide dos veces lo mismo.
+    pendientes.forEach((id) => proyectosConReplicasPedidas.current.add(id));
+
     let cancelled = false;
     Promise.all(
-      projectIds.map((id) => listProjectReplicas(id).then((replicas) => [id, replicas] as const).catch(() => [id, []] as const)),
+      // Un proyecto sin réplicas es el caso normal y responde `[]`: no hay error
+      // que mostrar ni estado vacío que pintar — simplemente no aparece la opción
+      // de moverse. Por eso el fallo se traga por proyecto en vez de cortar todo.
+      pendientes.map((id) =>
+        listProjectReplicas(id)
+          .then((replicas) => [id, replicas] as const)
+          .catch(() => [id, []] as const),
+      ),
     ).then((entries) => {
-      if (!cancelled) setReplicasByProject(Object.fromEntries(entries));
+      // Merge, no reemplazo: lo que ya se cargó de otros proyectos se conserva.
+      if (!cancelled) setReplicasByProject((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
     });
     return () => {
       cancelled = true;
     };
-  }, [projectIds.join(',')]);
+  }, [proyectosQueNecesitanReplicas]);
 
   // El `busy` de cada conversación es un snapshot del momento del fetch, no un
   // stream: el SSE es de UNA conversación (la abierta), así que para las demás
