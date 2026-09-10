@@ -78,3 +78,10 @@ Dos cosas que conviene no romper:
   chat queda mudo, sin error en consola. Hay un test que lo impide.
 
 `src/lib/__tests__/api-origin.spec.ts` cubre los dos casos.
+
+## Deuda conocida
+
+`docs/deuda-conocida.md` — problemas detectados y no resueltos, con lo medido y
+lo que hay que decidir antes de tocarlos. Hoy: el polling del panel Historial
+(un BUG: su costo crece con la cantidad de proyectos de la instalación, no con
+lo que se está mirando) y el N+1 de infraestructura del dashboard.
