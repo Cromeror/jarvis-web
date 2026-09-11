@@ -23,6 +23,25 @@ export interface ChatSession {
    * si la respuesta viene de un server viejo.
    */
   busy?: boolean;
+  /**
+   * Si la conversación es tuya. Sólo viene en el LISTADO, que es el único
+   * lugar donde el server sabe quién pregunta.
+   *
+   * Que aparezca una ajena no es una fuga: quien administra recursos ajenos
+   * (`resource:manage_any`, y un operador de la instalación lo tiene en todos
+   * los proyectos) las ve a propósito. Lo que no puede pasar es que se vean
+   * IGUAL que las propias — leer el chat de otra persona creyendo que es el
+   * tuyo es el mismo daño que la fuga, con menos aviso.
+   *
+   * Ausente = el server no lo dice (uno viejo). Se lee como "no sé", no como
+   * ajena: marcarlas todas sería peor que no marcar ninguna.
+   */
+  propia?: boolean;
+  /**
+   * De quién es, cuando no es tuya. `null` = no tiene dueño (la conversación
+   * que abre una corrida de plan). Ausente en las propias.
+   */
+  owner_username?: string | null;
 }
 
 export interface ChatMessage {

@@ -15,6 +15,7 @@ import {
   stopBackgroundTask,
 } from '../lib/chat-api.js';
 import type { ChatSession, ChatMessage, ChatAttachmentInput } from '../lib/chat-api.js';
+import { sessionOwnerMark } from '../lib/session-owner.js';
 import { resolveQueueStates } from '../lib/chat-queue.js';
 import type { QueuedMessageView } from '../components/ui/molecules/QueuePanel.js';
 import { useChatStream } from '../hooks/useChatStream.js';
@@ -63,6 +64,15 @@ const ATTENTION_VISIBLE_ROWS = 3;
 /** La cola LIVE del diseño muestra los últimos eventos, no el log completo. */
 const LIVE_VISIBLE_ROWS = 5;
 
+/**
+ * De quién es una conversación ajena → badge del rail. `undefined` en las
+ * propias, que es el caso normal: ver `sessionOwnerMark`.
+ */
+function ownerBadge(session: ChatSession): { label: string; status: BadgeStatus } | undefined {
+  const mark = sessionOwnerMark(session);
+  return mark ? { label: mark.label, status: 'info' } : undefined;
+}
+
 /** Estado del plan → badge del rail (etiqueta + tono del átomo Badge). */
 const PLAN_BADGE: Record<PlanStatus, { label: string; status: BadgeStatus }> = {
   draft: { label: 'Borrador', status: 'info' },
@@ -90,7 +100,13 @@ function sameSessionList(a: ChatSession[], b: ChatSession[]): boolean {
       // El workspace se pinta en la lista, así que un cambio de réplica tiene
       // que romper la igualdad o el badge se queda con el valor viejo.
       (session.replica_id ?? null) === (other.replica_id ?? null) &&
-      (session.busy ?? false) === (other.busy ?? false)
+      (session.busy ?? false) === (other.busy ?? false) &&
+      // La propiedad no cambia en una fila viva, pero el DATO sí puede
+      // aparecer (un server que empieza a mandarlo, un refresco después de
+      // ganar el permiso): sin esto la lista no se reemplaza y el badge
+      // "de fulano" no llega nunca.
+      (session.propia ?? null) === (other.propia ?? null) &&
+      (session.owner_username ?? null) === (other.owner_username ?? null)
     );
   });
 }
@@ -733,6 +749,10 @@ export function ChatPage(): React.ReactElement {
           // lista: es instantáneo y no espera al próximo refresco (y si los dos
           // discrepan, el que tiene el evento en vivo es el que sabe).
           status: (s.id === activeSessionId ? streamActive : (s.busy ?? false)) ? 'Respondiendo…' : undefined,
+          // De quién es, si no es tuya. El rail sólo ofrece los cinco tonos del
+          // átomo Badge, así que va en `info` — el énfasis ámbar del OwnerBadge
+          // no se puede expresar acá y el dato importa más que el color.
+          badge: ownerBadge(s),
         })),
     [sessions, activeProjectId, activeSessionId, streamActive],
   );

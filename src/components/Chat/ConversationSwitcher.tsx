@@ -4,7 +4,9 @@ import type { ProjectSummary } from '../../lib/projects-api.js';
 import { toneForProject } from '../../lib/project-tone.js';
 import type { ProjectReplica } from '../../lib/project-replicas-api.js';
 import { sessionWorkspace } from '../../lib/session-workspace.js';
+import { sessionOwnerMark } from '../../lib/session-owner.js';
 import { WorkspaceBadge } from './WorkspaceBadge.js';
+import { OwnerBadge } from './OwnerBadge.js';
 import { Spinner } from '../ui/atoms/Spinner.js';
 import { useInlineRename } from '../../hooks/useInlineRename.js';
 
@@ -161,6 +163,10 @@ export function ConversationSwitcher({
                         {replicasById && (
                           <WorkspaceBadge workspace={sessionWorkspace(session, replicasById)} size="xs" />
                         )}
+                        {/* Este buscador cruza TODOS los proyectos, así que es
+                            donde más fácil se entra a la conversación de otra
+                            persona sin querer. */}
+                        <OwnerBadge mark={sessionOwnerMark(session)} size="xs" />
                       </span>
                     </button>
                   )}

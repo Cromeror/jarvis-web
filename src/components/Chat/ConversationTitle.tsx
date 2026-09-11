@@ -1,5 +1,7 @@
 import React from 'react';
 import type { ChatSession } from '../../lib/chat-api.js';
+import { sessionOwnerMark } from '../../lib/session-owner.js';
+import { OwnerBadge } from './OwnerBadge.js';
 import { useInlineRename } from '../../hooks/useInlineRename.js';
 
 interface ConversationTitleProps {
@@ -18,6 +20,10 @@ interface ConversationTitleProps {
  *
  * Sin conversación abierta no renderiza: un título editable de la nada no tiene
  * a quién renombrar.
+ *
+ * Cuando la conversación es de otra persona lo dice acá, al lado del nombre:
+ * es el único punto de la pantalla que está presente mientras la LEÉS. El badge
+ * del historial o del buscador se ve un segundo y desaparece al entrar.
  */
 export function ConversationTitle({ session, onRename }: ConversationTitleProps): React.ReactElement | null {
   const rename = useInlineRename(onRename);
@@ -26,6 +32,7 @@ export function ConversationTitle({ session, onRename }: ConversationTitleProps)
 
   const editing = rename.editingId === session.id;
   const label = session.title ?? 'Nueva conversación';
+  const owner = sessionOwnerMark(session);
 
   if (editing) {
     return (
@@ -51,18 +58,22 @@ export function ConversationTitle({ session, onRename }: ConversationTitleProps)
   }
 
   return (
-    <button
-      type="button"
-      onClick={() => rename.start(session.id, session.title)}
-      title="Renombrar conversación"
-      className="group flex min-w-0 max-w-[18rem] items-center gap-1.5 rounded-md px-2 py-1 text-left transition-colors hover:bg-white/10"
-    >
-      <span
-        className={`min-w-0 truncate text-sm ${session.title ? 'text-[var(--tab-text-hover)]' : 'italic text-[var(--tab-text-default)]'}`}
+    <span className="flex min-w-0 items-center gap-1.5">
+      <button
+        type="button"
+        onClick={() => rename.start(session.id, session.title)}
+        title="Renombrar conversación"
+        className="group flex min-w-0 max-w-[18rem] items-center gap-1.5 rounded-md px-2 py-1 text-left transition-colors hover:bg-white/10"
       >
-        {label}
-      </span>
-      <i className="pi pi-pencil shrink-0 text-[10px] text-[var(--tab-text-default)] opacity-0 transition-opacity group-hover:opacity-100" />
-    </button>
+        <span
+          className={`min-w-0 truncate text-sm ${session.title ? 'text-[var(--tab-text-hover)]' : 'italic text-[var(--tab-text-default)]'}`}
+        >
+          {label}
+        </span>
+        <i className="pi pi-pencil shrink-0 text-[10px] text-[var(--tab-text-default)] opacity-0 transition-opacity group-hover:opacity-100" />
+      </button>
+      {/* Fuera del botón: es información, no un disparador del rename. */}
+      <OwnerBadge mark={owner} size="xs" />
+    </span>
   );
 }
