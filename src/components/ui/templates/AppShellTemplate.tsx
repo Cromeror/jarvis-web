@@ -7,6 +7,12 @@ interface AppShellTemplateProps {
   topbarTitle: string;
   topbarActions?: React.ReactNode;
   onMenuClick?: () => void;
+  /**
+   * El área de contenido, para que quien la necesite pueda anclarle algo
+   * flotante (ver `workspace-anchor`). Es un ref y no un contexto para que este
+   * template siga siendo presentacional: quien provee el contexto es el layout.
+   */
+  contentRef?: React.Ref<HTMLDivElement>;
   children: React.ReactNode;
 }
 
@@ -42,6 +48,7 @@ export function AppShellTemplate({
   topbarTitle,
   topbarActions,
   onMenuClick,
+  contentRef,
   children,
 }: AppShellTemplateProps): React.ReactElement {
   return (
@@ -49,7 +56,12 @@ export function AppShellTemplate({
       {sidebar}
       <div className="flex h-full min-w-0 flex-1 flex-col items-start overflow-hidden">
         <Topbar title={topbarTitle} onMenuClick={onMenuClick} actions={topbarActions} />
-        <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-tl-[var(--layout-radius-top-left)] rounded-tr-[var(--layout-radius-top-right)] rounded-bl-[var(--layout-radius-bottom-left)] rounded-br-[var(--layout-radius-bottom-right)] bg-gradient-to-b from-[var(--layout-content-bg-from)] to-[var(--layout-content-bg-to)] pt-[var(--layout-content-padding-top)]">
+        {/* `relative`: es el sistema de coordenadas de lo que flote sobre el
+            contenido — sin esto, un `absolute` adentro se posicionaría contra
+            el viewport y volvería a taparlo todo. */}
+        <div
+          ref={contentRef}
+          className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-tl-[var(--layout-radius-top-left)] rounded-tr-[var(--layout-radius-top-right)] rounded-bl-[var(--layout-radius-bottom-left)] rounded-br-[var(--layout-radius-bottom-right)] bg-gradient-to-b from-[var(--layout-content-bg-from)] to-[var(--layout-content-bg-to)] pt-[var(--layout-content-padding-top)]">
           {children}
         </div>
       </div>

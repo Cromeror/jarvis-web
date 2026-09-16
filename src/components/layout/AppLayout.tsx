@@ -5,6 +5,7 @@ import { EnvironmentsMenu } from './EnvironmentsMenu.js';
 import { PipelinesMenu } from './PipelinesMenu.js';
 import { AppShellTemplate } from '../ui/templates/AppShellTemplate.js';
 import { FloatingChat } from '../Chat/FloatingChat.js';
+import { WorkspaceAnchorProvider, useShellAnchorRef } from './workspace-anchor.js';
 
 /**
  * Título de página según el primer segmento de la ruta — mismo criterio que
@@ -30,8 +31,19 @@ function usePageTitle(): string {
  * shell vive en el template, acá solo se resuelve qué va en cada slot.
  */
 export function AppLayout(): React.ReactElement {
+  return (
+    // El provider envuelve al shell porque el anchor por defecto ES el área de
+    // contenido del shell: quien lo registra tiene que estar adentro.
+    <WorkspaceAnchorProvider>
+      <AppShellWithAnchor />
+    </WorkspaceAnchorProvider>
+  );
+}
+
+function AppShellWithAnchor(): React.ReactElement {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const title = usePageTitle();
+  const contentRef = useShellAnchorRef();
 
   return (
     <AppShellTemplate
@@ -44,6 +56,7 @@ export function AppLayout(): React.ReactElement {
         </>
       }
       onMenuClick={() => setMobileNavOpen(true)}
+      contentRef={contentRef}
     >
       <Outlet />
       {/* Va en el shell y no en cada página: el punto del chat flotante es estar

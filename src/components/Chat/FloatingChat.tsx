@@ -1,8 +1,11 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
 import { getChatMessages, listChatSessions, sendChatMessage, startChatSession, stopChatMessage } from '../../lib/chat-api.js';
 import type { ChatMessage } from '../../lib/chat-api.js';
 import { useChatStream } from '../../hooks/useChatStream.js';
+import { MessageList } from '../ui/molecules/MessageList.js';
+import { useWorkspaceAnchor } from '../layout/workspace-anchor.js';
 
 /**
  * De qué proyecto es la conversación: el de la URL.
@@ -20,44 +23,28 @@ function projectIdDeLaUrl(pathname: string): string | null {
   return posibleProyecto || null;
 }
 
-/** El texto de un mensaje, recortado: el widget es para intercambios cortos. */
-function Burbuja({ mensaje }: { mensaje: ChatMessage }): React.ReactElement {
-  const esUsuario = mensaje.role === 'user';
-  return (
-    <div className={`flex ${esUsuario ? 'justify-end' : 'justify-start'}`}>
-      <div
-        className={`max-w-[85%] whitespace-pre-wrap break-words rounded-xl px-3 py-2 text-xs ${
-          esUsuario ? 'bg-indigo-600 text-white' : 'bg-white/10 text-slate-100'
-        }`}
-      >
-        {mensaje.content}
-      </div>
-    </div>
-  );
-}
-
 /**
- * Chat flotante, anclado abajo.
+ * El chat, en una ventana que acompaña al trabajo.
  *
- * Es el mismo chat de siempre —la misma sesión, la misma API, el mismo stream—
- * en una ventana que no ocupa la pantalla: la idea es poder preguntar algo sin
- * abandonar lo que estás haciendo, que hoy obliga a irse a `/chat` y volver.
+ * **No es un segundo chat**: es el mismo. La misma sesión, la misma API, el
+ * mismo `useChatStream` y —desde que se sacó el render propio— la misma
+ * `MessageList` que la pantalla completa, con su agrupación pregunta→respuesta,
+ * sus métricas y su panel de cola. Lo único distinto es dónde se presenta.
+ * Tener dos renders era garantía de que uno se quedara atrás: el que se arregla
+ * es siempre el que se está mirando.
  *
- * Tres decisiones que no son detalle:
+ * **Flota sobre el ÁREA DE TRABAJO, no sobre el viewport** (`absolute` dentro
+ * del anchor, no `fixed`): así no tapa el rail derecho de una página que lo
+ * tenga, y cuando ese rail se colapsa el área se ensancha y la ventana se
+ * corre sola, sin saber nada del rail.
  *
- * - **No aparece en `/chat`.** Ahí ya está la conversación completa, y dos
- *   chats sobre la misma sesión en la misma pantalla es una invitación a
- *   escribir en el que no se está mirando.
- * - **Reusa la ÚLTIMA conversación del proyecto**, no abre una nueva cada vez.
- *   Una sesión nueva paga su prompt de arranque y parte el historial en dos; si
- *   no hay ninguna, ahí sí se crea.
- * - **No duplica el render del chat grande** (agrupación pregunta→respuesta,
- *   métricas por turno, adjuntos): es deliberadamente mínimo. Lo que necesita
- *   ese detalle se sigue leyendo en `/chat`, y hay un acceso directo en el
- *   header.
+ * No aparece en `/chat`: ahí ya está la conversación completa, y dos vistas de
+ * la misma sesión en la misma pantalla invitan a escribir en la que no se está
+ * mirando.
  */
 export function FloatingChat(): React.ReactElement | null {
   const { pathname } = useLocation();
+  const anchor = useWorkspaceAnchor();
   const projectId = projectIdDeLaUrl(pathname);
   const enChat = pathname.startsWith('/chat');
 
@@ -67,7 +54,6 @@ export function FloatingChat(): React.ReactElement | null {
   const [texto, setTexto] = useState('');
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const finRef = useRef<HTMLDivElement>(null);
 
   const refrescarHistorial = useCallback(async (): Promise<void> => {
     if (!sessionId) return;
@@ -121,10 +107,6 @@ export function FloatingChat(): React.ReactElement | null {
     setMensajes([]);
   }, [projectId]);
 
-  useEffect(() => {
-    finRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [mensajes.length, liveText]);
-
   async function enviar(): Promise<void> {
     const mensaje = texto.trim();
     if (!mensaje || !sessionId) return;
@@ -143,22 +125,18 @@ export function FloatingChat(): React.ReactElement | null {
 
   if (enChat) return null;
 
-  if (!abierto) {
-    return (
-      <button
-        type="button"
-        onClick={() => setAbierto(true)}
-        title={projectId ? `Preguntarle a Jarvis sobre ${projectId}` : 'Chat de Jarvis'}
-        className="fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-3 text-sm font-medium text-white shadow-lg transition-colors hover:bg-indigo-700"
-      >
-        <i className="pi pi-comments text-base" />
-        Jarvis
-      </button>
-    );
-  }
-
-  return (
-    <div className="fixed bottom-4 right-4 z-40 flex h-[520px] w-[380px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[var(--app-bg)] shadow-2xl">
+  const contenido = !abierto ? (
+    <button
+      type="button"
+      onClick={() => setAbierto(true)}
+      title={projectId ? `Preguntarle a Jarvis sobre ${projectId}` : 'Chat de Jarvis'}
+      className="absolute bottom-4 right-4 z-30 flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-3 text-sm font-medium text-white shadow-lg transition-colors hover:bg-indigo-700"
+    >
+      <i className="pi pi-comments text-base" />
+      Jarvis
+    </button>
+  ) : (
+    <div className="absolute bottom-4 right-4 z-30 flex h-[min(560px,calc(100%-2rem))] w-[380px] max-w-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[var(--app-bg)] shadow-2xl">
       <header className="flex items-center justify-between gap-2 border-b border-white/10 px-3 py-2">
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-white">Jarvis</p>
@@ -168,8 +146,8 @@ export function FloatingChat(): React.ReactElement | null {
           </p>
         </div>
         <div className="flex items-center gap-1">
-          {/* El detalle completo —agrupación, métricas, adjuntos— vive en /chat.
-              El acceso directo evita que el widget tenga que crecer hasta serlo. */}
+          {/* La misma conversación, en la pantalla completa: mismo historial,
+              con el resto de sus controles (adjuntos, selector de sesión). */}
           {projectId && (
             <a
               href={`/chat/${projectId}${sessionId ? `/${sessionId}` : ''}`}
@@ -190,36 +168,25 @@ export function FloatingChat(): React.ReactElement | null {
         </div>
       </header>
 
-      <div className="flex-1 space-y-2 overflow-y-auto px-3 py-3">
+      <div className="min-h-0 flex-1 overflow-hidden">
         {!projectId ? (
-          <p className="text-xs text-slate-400">
+          <p className="p-3 text-xs text-slate-400">
             Elegí un proyecto para conversar: entrá a un chat, un plan, un environment o un paquete.
           </p>
         ) : cargando ? (
-          <p className="text-xs text-slate-400">Abriendo la conversación…</p>
+          <p className="p-3 text-xs text-slate-400">Abriendo la conversación…</p>
         ) : (
-          <>
-            {mensajes.length === 0 && <p className="text-xs text-slate-500">Todavía no hay mensajes.</p>}
-            {mensajes.map((m) => (
-              <Burbuja key={m.id} mensaje={m} />
-            ))}
-            {/* El texto que Jarvis está escribiendo AHORA, que todavía no es una
-                fila en la base: sin esto, el widget se ve congelado durante todo
-                el turno. */}
-            {liveText && (
-              <div className="flex justify-start">
-                <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-xl bg-white/5 px-3 py-2 text-xs text-slate-300">
-                  {liveText}
-                </div>
-              </div>
-            )}
-            {pending.length > 0 && (
-              <p className="text-[11px] text-slate-500">
-                {pending.length} {pending.length === 1 ? 'mensaje en cola' : 'mensajes en cola'}
-              </p>
-            )}
-            <div ref={finRef} />
-          </>
+          // La MISMA lista que la pantalla completa. Lo que no se le pasa acá
+          // —cola editable, apertura de planes— no es una versión recortada del
+          // render: son controles que necesitan pantalla, y la lista los omite
+          // sola cuando no recibe sus handlers.
+          <MessageList
+            sessionId={sessionId}
+            messages={mensajes}
+            pending={active}
+            liveText={liveText}
+            onStop={active && sessionId ? () => void stopChatMessage(sessionId) : undefined}
+          />
         )}
       </div>
 
@@ -241,28 +208,25 @@ export function FloatingChat(): React.ReactElement | null {
           placeholder={projectId ? 'Escribile a Jarvis…' : 'Elegí un proyecto'}
           className="min-h-[38px] flex-1 resize-none rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs text-white placeholder:text-slate-500 outline-none focus:border-indigo-400 disabled:opacity-50"
         />
-        {/* Mientras Jarvis trabaja, el botón corta el turno en vez de mandar: el
-            input NO se deshabilita —la cola acepta mensajes— pero poder frenar
-            es lo que falta cuando algo se fue por un camino equivocado. */}
-        {active ? (
-          <button
-            type="button"
-            onClick={() => void (sessionId && stopChatMessage(sessionId))}
-            className="rounded-lg border border-white/15 px-3 py-2 text-xs font-medium text-white hover:bg-white/10"
-          >
-            Parar
-          </button>
-        ) : (
-          <button
-            type="button"
-            disabled={!texto.trim() || !sessionId}
-            onClick={() => void enviar()}
-            className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-          >
-            Enviar
-          </button>
-        )}
+        <button
+          type="button"
+          disabled={!texto.trim() || !sessionId}
+          onClick={() => void enviar()}
+          className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+        >
+          Enviar
+        </button>
       </div>
+      {pending.length > 0 && (
+        <p className="px-3 pb-2 text-[11px] text-slate-500">
+          {pending.length} {pending.length === 1 ? 'mensaje en cola' : 'mensajes en cola'}
+        </p>
+      )}
     </div>
   );
+
+  // Sin anchor todavía (primer render, antes de que el shell registre el suyo)
+  // no se dibuja: un fallback a `document.body` volvería al `fixed` que este
+  // componente dejó de usar, y se vería saltar de lugar.
+  return anchor ? createPortal(contenido, anchor) : null;
 }

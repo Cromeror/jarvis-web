@@ -5,6 +5,7 @@ import type { CatalogPackage } from '../lib/catalog-api.js';
 import { StatusBadge } from '../components/ui/atoms/StatusBadge.js';
 import { moduleView } from '../modules/registry.js';
 import { UtilitiesRail, type UtilityRunResult } from '../components/modules/UtilitiesRail.js';
+import { usePageAnchorRef } from '../components/layout/workspace-anchor.js';
 
 /**
  * Un paquete asignado al proyecto: sus módulos, y las utilidades del módulo
@@ -27,6 +28,10 @@ export function PackagePage(): React.ReactElement {
   const [error, setError] = useState<string | null>(null);
   /** Lo último que devolvió una utilidad del rail. Se muestra en el área de trabajo, que es donde hay lugar. */
   const [ultimaCorrida, setUltimaCorrida] = useState<UtilityRunResult | null>(null);
+  // Esta pantalla tiene rail propio, así que su área de trabajo NO es todo el
+  // contenido: lo que flote tiene que hacerlo sobre esta columna, que es la que
+  // se ensancha cuando el rail se colapsa.
+  const anchorRef = usePageAnchorRef();
 
   useEffect(() => {
     if (!projectId) return;
@@ -81,7 +86,7 @@ export function PackagePage(): React.ReactElement {
     // app ya sabe que a la derecha están las acciones sobre lo que tiene
     // enfrente, y aprender un segundo lugar para lo mismo es costo sin beneficio.
     <div className="flex h-full gap-2 bg-[var(--app-bg)] p-2">
-      <div className="min-w-0 flex-1 overflow-y-auto p-4">
+      <div ref={anchorRef} className="relative min-w-0 flex-1 overflow-y-auto p-4">
       <h1 className="text-lg font-semibold text-white">{paquete.name}</h1>
       {paquete.description && <p className="mt-1 text-sm text-slate-400">{paquete.description}</p>}
 
