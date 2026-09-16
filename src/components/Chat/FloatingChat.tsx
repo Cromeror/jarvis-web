@@ -6,6 +6,7 @@ import type { ChatMessage } from '../../lib/chat-api.js';
 import { useChatStream } from '../../hooks/useChatStream.js';
 import { MessageList } from '../ui/molecules/MessageList.js';
 import { useWorkspaceAnchor } from '../layout/workspace-anchor.js';
+import { ExecutorLoginPrompt } from './ExecutorLoginPrompt.js';
 
 /**
  * De qué proyecto es la conversación: el de la URL.
@@ -54,6 +55,13 @@ export function FloatingChat(): React.ReactElement | null {
   const [texto, setTexto] = useState('');
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /**
+   * El turno murió antes de arrancar el motor: casi siempre la sesión del
+   * executor vencida. Se distingue por el `step` que manda el server, no por el
+   * texto del mensaje — ahí el chat puede ofrecer el arreglo en vez de sólo
+   * mostrar el error.
+   */
+  const [sinSesionDelExecutor, setSinSesionDelExecutor] = useState(false);
 
   const refrescarHistorial = useCallback(async (): Promise<void> => {
     if (!sessionId) return;
@@ -66,7 +74,10 @@ export function FloatingChat(): React.ReactElement | null {
 
   const { active, liveText, pending } = useChatStream(abierto ? sessionId : null, {
     onHistoryChanged: () => void refrescarHistorial(),
-    onError: (message) => setError(message),
+    onError: (message, step) => {
+      setError(message);
+      if (step === 'spawn') setSinSesionDelExecutor(true);
+    },
   });
 
   // La conversación se resuelve al ABRIR, no al montar: el widget está en todas
@@ -190,7 +201,20 @@ export function FloatingChat(): React.ReactElement | null {
         )}
       </div>
 
-      {error && <p className="px-3 pb-1 text-[11px] text-red-300">{error}</p>}
+      {/* El error primero, el arreglo abajo: primero se entiende qué pasó y
+          después qué se puede hacer. */}
+      {error && !sinSesionDelExecutor && <p className="px-3 pb-1 text-[11px] text-red-300">{error}</p>}
+      {sinSesionDelExecutor && (
+        <div className="px-2 pb-2">
+          <ExecutorLoginPrompt
+            projectId={projectId}
+            onResuelto={() => {
+              setSinSesionDelExecutor(false);
+              setError(null);
+            }}
+          />
+        </div>
+      )}
 
       <div className="flex items-end gap-2 border-t border-white/10 p-2">
         <textarea

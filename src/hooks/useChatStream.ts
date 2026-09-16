@@ -30,7 +30,7 @@ type ChatSseEvent =
   | { kind: 'background_tasks'; tasks: BackgroundTaskLike[] }
   | { kind: 'turn_end' }
   | { kind: 'plan_created'; plan_id: string }
-  | { kind: 'error'; message: string; error_id?: string };
+  | { kind: 'error'; message: string; error_id?: string; step?: string };
 
 interface ChatStreamHandlers {
   /**
@@ -54,8 +54,15 @@ interface ChatStreamHandlers {
   onReconnected?: () => void;
   /** A plan_create ran during the turn that just ended. */
   onPlanCreated?: (planId: string) => void;
-  /** The session failed with messages still unanswered. */
-  onError?: (message: string) => void;
+  /**
+   * The session failed with messages still unanswered.
+   *
+   * `step` dice qué falló, y la UI lo necesita para distinguir UN caso del
+   * resto: `spawn` es casi siempre la sesión del executor vencida, y eso se
+   * arregla desde la pantalla. Reconocerlo por el texto del mensaje sería
+   * atarse a una frase que se reescribe sin avisar.
+   */
+  onError?: (message: string, step?: string) => void;
 }
 
 /**
@@ -136,7 +143,7 @@ export function useChatStream(sessionId: string | null, handlers: ChatStreamHand
             handlersRef.current.onPlanCreated?.(data.plan_id);
             return;
           case 'error':
-            handlersRef.current.onError?.(data.message);
+            handlersRef.current.onError?.(data.message, data.step);
             return;
           case 'assistant_text':
             setActive(true);
