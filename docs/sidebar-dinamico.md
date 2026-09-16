@@ -21,11 +21,19 @@ O sea: hay un piso fijo por tipo de cuenta —chats para todos, administración 
 el admin— y sobre ese piso, el resto de las entradas aparece o no según el
 proyecto.
 
+**Qué son esas entradas dinámicas: los paquetes asignados al cliente.** Cada
+paquete (contabilidad, por ejemplo) es una opción del menú, y adentro un submenú
+deja elegir el módulo con el que se va a trabajar (conciliación de bancos,
+generación de informes). El modelo —paquete, módulo, utilidad, y quién los
+configura— está en `docs/paquetes-y-modulos.md` del repo `jarvis-agent`; acá
+sólo vive la navegación.
+
 ## Qué NO está decidido todavía
 
 Deliberadamente sin resolver, para no cerrar opciones antes de tiempo:
 
-- Dónde vive esa configuración (proyecto, organización, rol), y quién la edita.
+- Dónde vive esa configuración (proyecto, organización, rol). Quién la edita sí
+  está decidido: el superadmin.
 - Si las entradas se derivan de los permisos que ya existen
   (`packages/storage/src/permissions.ts` en `jarvis-agent`) o de una declaración
   aparte.
