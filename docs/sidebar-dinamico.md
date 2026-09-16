@@ -1,9 +1,8 @@
-# Sidebar dinámico — WIP
+# Sidebar dinámico — CONSTRUIDO (primera vuelta)
 
-> **Estado: WIP.** Es la dirección acordada, no un diseño. Acá se va a ir
-> agregando lo que se decida; mientras tanto, nada de esto está implementado —
-> el sidebar de hoy es fijo. No citar este documento como si describiera el
-> código.
+> **Estado: CONSTRUIDO.** `AppSidebar2` arma el menú con el piso fijo más los
+> paquetes asignados al proyecto de la URL, y `Sidebar2` sabe renderizar el
+> submenú. Lo que sigue abierto está al final.
 
 ## Qué se quiere
 
@@ -28,23 +27,38 @@ generación de informes). El modelo —paquete, módulo, utilidad, y quién los
 configura— está en `docs/paquetes-y-modulos.md` del repo `jarvis-agent`; acá
 sólo vive la navegación.
 
-## Qué NO está decidido todavía
+## Cómo quedó
 
-Deliberadamente sin resolver, para no cerrar opciones antes de tiempo:
+- **`AppSidebar2`** arma `NAV_ROUTES` (el piso) + una entrada por paquete
+  asignado + `ADMIN_ROUTES` (usuarios y catálogo, sólo superadmin).
+- **El proyecto sale de la URL** (`projectIdDeLaUrl`): no hay contexto global de
+  proyecto en la SPA, y crear uno era un cambio mayor que este menú. Sin
+  proyecto en la URL no se muestran paquetes — preferible a mostrar los de un
+  proyecto que el usuario no eligió.
+- **`Sidebar2NavItemData.children`** es el submenú: se despliega sólo con el
+  padre activo (si no, cuatro paquetes serían veinte entradas permanentes) y no
+  se muestra colapsado, donde no hay lugar para el texto.
+- **Fail-soft**: un 403 o un proyecto sin paquetes dejan el menú en su piso. El
+  sidebar no es lugar para mostrar un error de carga.
 
-- Dónde vive esa configuración (proyecto, organización, rol). Quién la edita sí
-  está decidido: el superadmin.
-- Si las entradas se derivan de los permisos que ya existen
-  (`packages/storage/src/permissions.ts` en `jarvis-agent`) o de una declaración
-  aparte.
-- Qué pasa con una entrada que el menú muestra pero cuya ruta el backend deniega
-  —y al revés—, que es donde esto se puede volver confuso.
-- La migración desde el sidebar actual.
+El modelo de lo que se muestra —paquete, módulo, utilidad y quién los
+configura— está en `docs/paquetes-y-modulos.md` del repo `jarvis-agent`.
 
-## Por qué está escrito antes de hacerse
+## Qué sigue abierto
 
-Para que la dirección sobreviva a la conversación donde se acordó. Cada decisión
-que se tome entra acá; cuando haya código, este documento cambia de WIP a
-CONSTRUIDO y dice qué parte quedó afuera — mismo criterio que
-`docs/bounded-contexts.md` de `jarvis-agent`, donde no distinguir lo diseñado de
-lo construido ya costó caro.
+- Si las entradas se derivan además de los permisos que ya existen
+  (`packages/storage/src/permissions.ts` en `jarvis-agent`) o siguen siendo un
+  eje aparte.
+- Qué pasa con una entrada que el menú muestra pero cuya ruta el backend
+  deniega. Hoy la asignación es lo único que decide, así que no puede pasar —
+  pero en cuanto los permisos entren en la cuenta, sí.
+- El piso fijo sigue teniendo Planes, Workspaces y Environments para todos.
+  Cuáles de esas son producto y cuáles herramienta interna es una decisión
+  pendiente.
+
+## Por qué este documento existe
+
+Nació antes que el código para que la dirección sobreviviera a la conversación
+donde se acordó. Ahora lleva su estado arriba y lo pendiente abajo — mismo
+criterio que `docs/bounded-contexts.md` de `jarvis-agent`, donde no distinguir
+lo diseñado de lo construido ya costó caro.

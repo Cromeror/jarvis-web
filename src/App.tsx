@@ -8,6 +8,8 @@ import { PlansPage } from './pages/PlansPage.js';
 import { EnvironmentsPage } from './pages/EnvironmentsPage.js';
 import { WorkspacesPage } from './pages/WorkspacesPage.js';
 import { LoginPage } from './pages/LoginPage.js';
+import { CatalogPage } from './pages/CatalogPage.js';
+import { PackagePage } from './pages/PackagePage.js';
 import { UsersPage } from './pages/UsersPage.js';
 import { AppLayout } from './components/layout/AppLayout.js';
 import { RequireAuth } from './components/layout/RequireAuth.js';
@@ -71,6 +73,11 @@ export default function App(): React.ReactElement {
           <Route path="/workspaces/:projectId/:workspaceId" element={<WorkspacesPage />} />
           <Route path="/workspaces/:projectId/:workspaceId/:view" element={<WorkspacesPage />} />
           <Route path="/users" element={<UsersPage />} />
+          <Route path="/catalogo" element={<CatalogPage />} />
+          {/* El proyecto va en la URL porque los paquetes son SUYOS: el mismo
+              slug puede estar asignado a dos proyectos y no son la misma vista. */}
+          <Route path="/paquetes/:projectId/:packageSlug" element={<PackagePage />} />
+          <Route path="/paquetes/:projectId/:packageSlug/:moduleSlug" element={<PackagePage />} />
           <Route path="/pipeline/:runId" element={<PipelineRunView />} />
           <Route path="/plan-runs/:runId" element={<PlanRunView />} />
         </Route>

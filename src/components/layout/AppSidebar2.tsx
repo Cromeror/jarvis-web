@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { fetchNavigation } from '../../lib/catalog-api.js';
+import type { CatalogPackage } from '../../lib/catalog-api.js';
 import { useCollapsible } from '../../hooks/useCollapsible.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { Sidebar2, type Sidebar2NavItemData } from '../ui/organisms/Sidebar2.js';
@@ -12,6 +14,14 @@ interface NavRoute extends Sidebar2NavItemData {
 
 const ACCENT_ROUTE: NavRoute = { id: 'dashboard', to: '/', label: 'Dashboard', icon: 'dashboard', end: true };
 
+/**
+ * El PISO del menú: lo que está siempre, para todos.
+ *
+ * Chat es el piso de cualquier usuario; el resto de estas entradas son
+ * herramientas del producto que hoy siguen fijas. Lo dinámico se suma a esto,
+ * no lo reemplaza — un menú que pueda quedar vacío es un usuario sin forma de
+ * llegar a ninguna parte.
+ */
 const NAV_ROUTES: NavRoute[] = [
   { id: 'chat', to: '/chat', label: 'Chat', icon: 'chat', end: false },
   { id: 'plans', to: '/plans', label: 'Planes', icon: 'plans', end: false },
@@ -19,7 +29,27 @@ const NAV_ROUTES: NavRoute[] = [
   { id: 'environments', to: '/environments', label: 'Environments', icon: 'environments', end: false },
 ];
 
-const USERS_ROUTE: NavRoute = { id: 'users', to: '/users', label: 'Usuarios', icon: 'users', end: false };
+/** Administración: usuarios y el catálogo del producto. Sólo el superadmin. */
+const ADMIN_ROUTES: NavRoute[] = [
+  { id: 'users', to: '/users', label: 'Usuarios', icon: 'users', end: false },
+  { id: 'catalog', to: '/catalogo', label: 'Catálogo', icon: 'settings', end: false },
+];
+
+/**
+ * De qué proyecto es el menú.
+ *
+ * Sale de la URL, que es donde vive hoy el proyecto activo (`/chat/:projectId`,
+ * `/plans/:projectId`, …): no hay un contexto global de proyecto, y inventar uno
+ * para esto sería un cambio mucho más grande que el menú. Sin proyecto en la
+ * URL no se muestran paquetes — es preferible a mostrar los de un proyecto que
+ * el usuario no eligió.
+ */
+function projectIdDeLaUrl(pathname: string): string | null {
+  const [, seccion, posibleProyecto] = pathname.split('/');
+  const CON_PROYECTO = ['chat', 'plans', 'environments', 'workspaces', 'paquetes'];
+  if (!seccion || !CON_PROYECTO.includes(seccion)) return null;
+  return posibleProyecto || null;
+}
 
 /**
  * Reemplaza a SideNav como el rail de navegación global (Sidebar2, portado
@@ -41,15 +71,68 @@ export function AppSidebar2({
   const location = useLocation();
   const navigate = useNavigate();
 
-  const routes = user?.account_type === 'operator' ? [...NAV_ROUTES, USERS_ROUTE] : NAV_ROUTES;
+  const projectId = projectIdDeLaUrl(location.pathname);
+  const [packages, setPackages] = useState<CatalogPackage[]>([]);
+
+  // Los paquetes asignados al proyecto de la URL. Un 403 o un proyecto sin
+  // paquetes dejan la lista vacía y el menú se queda con su piso: el sidebar no
+  // es lugar para mostrar un error de carga.
+  useEffect(() => {
+    if (!projectId) {
+      setPackages([]);
+      return;
+    }
+    let cancelado = false;
+    void fetchNavigation(projectId)
+      .then((p) => {
+        if (!cancelado) setPackages(p);
+      })
+      .catch(() => {
+        if (!cancelado) setPackages([]);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [projectId]);
+
+  /**
+   * Una entrada por paquete, con sus módulos de submenú.
+   *
+   * El id de cada ruta es la propia URL: los paquetes son datos, no constantes,
+   * así que no hay un id estable que escribir a mano y usar el path evita
+   * mantener un mapa aparte.
+   */
+  const packageRoutes: NavRoute[] = packages.map((pkg) => ({
+    id: `/paquetes/${projectId}/${pkg.slug}`,
+    to: `/paquetes/${projectId}/${pkg.slug}`,
+    label: pkg.name,
+    icon: 'workspaces',
+    end: false,
+    children: pkg.modules.map((mod) => ({
+      id: `/paquetes/${projectId}/${pkg.slug}/${mod.slug}`,
+      label: mod.name,
+      icon: 'plans',
+    })),
+  }));
+
+  const routes =
+    user?.account_type === 'operator'
+      ? [...NAV_ROUTES, ...packageRoutes, ...ADMIN_ROUTES]
+      : [...NAV_ROUTES, ...packageRoutes];
   const allRoutes = [ACCENT_ROUTE, ...routes];
-  const activeRoute = allRoutes.find((route) =>
-    route.end ? location.pathname === route.to : location.pathname.startsWith(route.to)
-  );
+  // El módulo activo gana sobre su paquete: los dos matchean por prefijo, y con
+  // el paquete primero un módulo abierto nunca se vería seleccionado.
+  const moduloActivo = packageRoutes
+    .flatMap((r) => r.children ?? [])
+    .find((child) => location.pathname === child.id);
+  const activeRoute =
+    allRoutes.find((route) => (route.end ? location.pathname === route.to : location.pathname.startsWith(route.to)));
 
   const handleSelect = (id: string): void => {
     const route = allRoutes.find((r) => r.id === id);
-    if (route) navigate(route.to);
+    // Los sub-ítems (módulos) no están en `allRoutes`: su id ES su path, así que
+    // navegar a él alcanza y no hace falta aplanar el árbol para buscarlos.
+    navigate(route ? route.to : id);
     onMobileClose();
   };
 
@@ -71,7 +154,7 @@ export function AppSidebar2({
           accentItem={ACCENT_ROUTE}
           items={routes}
           secondaryItems={[]}
-          activeId={activeRoute?.id}
+          activeId={moduloActivo?.id ?? activeRoute?.id}
           onSelect={handleSelect}
         />
 

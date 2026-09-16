@@ -7,6 +7,16 @@ export interface Sidebar2NavItemData {
   id: string;
   label: string;
   icon: Sidebar2IconName;
+  /**
+   * El submenú, que se despliega cuando el ítem está activo.
+   *
+   * Existe para los paquetes: un paquete es una entrada del menú y sus módulos
+   * el submenú del mismo. Se muestra SÓLO con el padre activo —si no, un
+   * usuario con cuatro paquetes tendría veinte entradas permanentes— y no se
+   * muestra colapsado, donde no hay lugar para el texto y un ícono de módulo no
+   * se distingue del de su paquete.
+   */
+  children?: Sidebar2NavItemData[];
 }
 
 const DEFAULT_ACCENT_ITEM: Sidebar2NavItemData = { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' };
@@ -72,17 +82,37 @@ export function Sidebar2({
         </>
       )}
 
-      {items.map((item) => (
-        <Sidebar2NavItem
-          key={item.id}
-          icon={item.icon}
-          label={item.label}
-          tone={item.id === activeId ? 'active' : 'default'}
-          size={size}
-          collapsed={collapsed}
-          onClick={() => onSelect?.(item.id)}
-        />
-      ))}
+      {items.map((item) => {
+        const activo = item.id === activeId;
+        // Un hijo activo mantiene abierto al padre: si no, seleccionar un módulo
+        // cerraría el submenú del que se acaba de elegir.
+        const hijoActivo = item.children?.some((c) => c.id === activeId) ?? false;
+        return (
+          <React.Fragment key={item.id}>
+            <Sidebar2NavItem
+              icon={item.icon}
+              label={item.label}
+              tone={activo || hijoActivo ? 'active' : 'default'}
+              size={size}
+              collapsed={collapsed}
+              onClick={() => onSelect?.(item.id)}
+            />
+            {!collapsed &&
+              (activo || hijoActivo) &&
+              item.children?.map((child) => (
+                <div key={child.id} className="w-full pl-4">
+                  <Sidebar2NavItem
+                    icon={child.icon}
+                    label={child.label}
+                    tone={child.id === activeId ? 'active' : 'default'}
+                    size="sm"
+                    onClick={() => onSelect?.(child.id)}
+                  />
+                </div>
+              ))}
+          </React.Fragment>
+        );
+      })}
 
       <div className="min-h-px w-full flex-1" />
 
