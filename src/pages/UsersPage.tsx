@@ -577,6 +577,17 @@ export function UsersPage(): React.ReactElement {
       )}
 
       <section className="mb-8">
+        <h2 className="mb-3 text-sm font-semibold text-white">Configuración de la organización</h2>
+        <OrganizationRolesPanel
+          users={users}
+          focusOrganizationId={orgEnfocada}
+          // Agregar o quitar un miembro cambia la columna «Organización» de la
+          // tabla de abajo: sin esto quedaría vieja hasta el próximo refresh.
+          onMembersChanged={() => void refresh()}
+        />
+      </section>
+
+      <section className="border-t border-white/10 pt-6">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-white">Usuarios</h2>
           <div className="flex items-center gap-2">
@@ -604,17 +615,6 @@ export function UsersPage(): React.ReactElement {
         ) : (
           <DataTable columns={columns} rows={visibles} getRowKey={(u) => u.id} />
         )}
-      </section>
-
-      <section className="border-t border-white/10 pt-6">
-        <h2 className="mb-3 text-sm font-semibold text-white">Configuración de la organización</h2>
-        <OrganizationRolesPanel
-          users={users}
-          focusOrganizationId={orgEnfocada}
-          // Agregar o quitar un miembro cambia la columna «Organización» de la
-          // tabla de arriba: sin esto quedaría vieja hasta el próximo refresh.
-          onMembersChanged={() => void refresh()}
-        />
       </section>
 
       {creandoOrg && (
