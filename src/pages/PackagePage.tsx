@@ -4,6 +4,7 @@ import { fetchNavigation } from '../lib/catalog-api.js';
 import type { CatalogPackage } from '../lib/catalog-api.js';
 import { StatusBadge } from '../components/ui/atoms/StatusBadge.js';
 import { moduleView } from '../modules/registry.js';
+import { UtilitiesRail, type UtilityRunResult } from '../components/modules/UtilitiesRail.js';
 
 /**
  * Un paquete asignado al proyecto: sus módulos, y las utilidades del módulo
@@ -24,6 +25,8 @@ export function PackagePage(): React.ReactElement {
   const navigate = useNavigate();
   const [packages, setPackages] = useState<CatalogPackage[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Lo último que devolvió una utilidad del rail. Se muestra en el área de trabajo, que es donde hay lugar. */
+  const [ultimaCorrida, setUltimaCorrida] = useState<UtilityRunResult | null>(null);
 
   useEffect(() => {
     if (!projectId) return;
@@ -73,7 +76,12 @@ export function PackagePage(): React.ReactElement {
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-[var(--app-bg)] p-6">
+    // El trabajo en el centro y las utilidades a la derecha, en el mismo lugar
+    // y con el mismo componente que el rail de opciones del chat: quien usa la
+    // app ya sabe que a la derecha están las acciones sobre lo que tiene
+    // enfrente, y aprender un segundo lugar para lo mismo es costo sin beneficio.
+    <div className="flex h-full gap-2 bg-[var(--app-bg)] p-2">
+      <div className="min-w-0 flex-1 overflow-y-auto p-4">
       <h1 className="text-lg font-semibold text-white">{paquete.name}</h1>
       {paquete.description && <p className="mt-1 text-sm text-slate-400">{paquete.description}</p>}
 
@@ -144,6 +152,40 @@ export function PackagePage(): React.ReactElement {
             </section>
           )}
         </>
+      )}
+
+      {/* El resultado de una utilidad corrida desde el rail. Vive acá y no en el
+          rail porque un JSON no entra en 350px — y porque es el resultado del
+          trabajo, no una opción. */}
+      {ultimaCorrida && (
+        <section className="mt-6 border-t border-white/10 pt-4">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold text-white">{ultimaCorrida.utility.name}</h3>
+            <button
+              type="button"
+              onClick={() => setUltimaCorrida(null)}
+              className="rounded-lg px-2 py-1 text-xs text-slate-400 hover:bg-white/10 hover:text-white"
+            >
+              Cerrar
+            </button>
+          </div>
+          {ultimaCorrida.error ? (
+            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              {ultimaCorrida.error}
+            </div>
+          ) : (
+            <pre className="max-h-96 overflow-auto rounded-lg border border-white/10 bg-black/30 p-3 font-mono text-xs text-slate-200">
+              {typeof ultimaCorrida.output === 'string'
+                ? ultimaCorrida.output
+                : JSON.stringify(ultimaCorrida.output, null, 2)}
+            </pre>
+          )}
+        </section>
+      )}
+      </div>
+
+      {modulo && projectId && (
+        <UtilitiesRail projectId={projectId} utilities={modulo.utilities} onResult={setUltimaCorrida} />
       )}
     </div>
   );
