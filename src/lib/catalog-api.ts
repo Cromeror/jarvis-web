@@ -14,6 +14,13 @@ export interface CatalogUtility {
   description: string | null;
   /** La tool que la ejecuta. `null` = declarada antes de que su tool exista. */
   tool_name: string | null;
+  /** El identificador del CÓDIGO. `null` = la escribieron a mano en la pantalla. */
+  key: string | null;
+  origin: 'code' | 'manual';
+  /** `missing` = el código dejó de declararla; sigue configurada, pero ya no resuelve. */
+  status: 'active' | 'missing';
+  /** `'*'` = abierta; lista = cerrada a esos `module.key`; `null` = sin declarar (entra en cualquiera). */
+  compatible_with: '*' | string[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -24,6 +31,11 @@ export interface CatalogModule {
   name: string;
   description: string | null;
   utilities: CatalogUtility[];
+  key: string | null;
+  origin: 'code' | 'manual';
+  status: 'active' | 'missing';
+  /** `any` = acepta también las utilidades abiertas; `declared` = sólo las que lo nombran. */
+  accepts: 'any' | 'declared';
   created_at: string;
   updated_at: string;
 }
@@ -162,6 +174,37 @@ export async function listAssignments(): Promise<Record<string, string[]>> {
 
 export async function setProjectPackages(projectId: string, ids: string[]): Promise<CatalogPackage[]> {
   return send('PUT', `/api/catalog/projects/${encodeURIComponent(projectId)}/packages`, { ids });
+}
+
+/**
+ * Si una utilidad puede colgarse de un módulo.
+ *
+ * Misma regla que el backend (`isUtilityCompatible` en `@jarvis/core`), acá para
+ * que la pantalla ofrezca sólo lo compatible en vez de dejar elegir algo que el
+ * servidor va a rechazar. El filtro es comodidad; la regla la aplica el backend.
+ *
+ * Sin compatibilidad declarada (`null`, las creadas a mano antes del registro)
+ * entra en cualquier módulo: si no, la pantalla escondería composiciones que ya
+ * existen.
+ */
+export function esCompatible(utility: CatalogUtility, module: CatalogModule): boolean {
+  if (utility.compatible_with === null) return true;
+  if (utility.compatible_with === '*') return module.accepts === 'any';
+  return module.key !== null && utility.compatible_with.includes(module.key);
+}
+
+/** Ejecuta una utilidad del menú del proyecto y devuelve lo que la tool respondió. */
+export async function runUtility(
+  projectId: string,
+  utilityId: string,
+  input: Record<string, unknown>,
+): Promise<unknown> {
+  const body = await send<{ output: unknown }>(
+    'POST',
+    `/api/catalog/projects/${encodeURIComponent(projectId)}/utilities/${encodeURIComponent(utilityId)}/run`,
+    { input },
+  );
+  return body.output;
 }
 
 /**

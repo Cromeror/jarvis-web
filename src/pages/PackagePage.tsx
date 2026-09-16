@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { fetchNavigation } from '../lib/catalog-api.js';
 import type { CatalogPackage } from '../lib/catalog-api.js';
 import { StatusBadge } from '../components/ui/atoms/StatusBadge.js';
+import { moduleView } from '../modules/registry.js';
 
 /**
  * Un paquete asignado al proyecto: sus módulos, y las utilidades del módulo
@@ -43,6 +44,7 @@ export function PackagePage(): React.ReactElement {
   // Sin módulo en la URL se muestra el primero: entrar a un paquete y ver una
   // pantalla vacía obligaría a un clic más para llegar a lo único que hay.
   const modulo = paquete?.modules.find((m) => m.slug === moduleSlug) ?? paquete?.modules[0] ?? null;
+  const Vista = moduleView(modulo?.key ?? null);
 
   if (error) {
     return (
@@ -99,27 +101,45 @@ export function PackagePage(): React.ReactElement {
               <h2 className="text-sm font-semibold text-white">{modulo.name}</h2>
               {modulo.description && <p className="mt-1 text-xs text-slate-400">{modulo.description}</p>}
 
-              {modulo.utilities.length === 0 ? (
-                <p className="mt-3 text-sm text-slate-400">Este módulo todavía no tiene utilidades.</p>
-              ) : (
-                <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {modulo.utilities.map((u) => (
-                    <div key={u.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="text-sm font-medium text-white">{u.name}</h3>
-                        {/* Una utilidad sin tool se muestra igual, marcada: se
-                            declaró antes de que exista lo que la ejecuta, y
-                            esconderla haría parecer que el módulo está vacío. */}
-                        {u.tool_name ? (
-                          <StatusBadge label={u.tool_name} tone="neutral" />
-                        ) : (
-                          <StatusBadge label="sin tool" tone="warning" />
-                        )}
-                      </div>
-                      {u.description && <p className="mt-2 text-xs text-slate-400">{u.description}</p>}
-                    </div>
-                  ))}
+              {Vista ? (
+                // El módulo está construido: manda su propia vista, y las
+                // utilidades las presenta ella (un botón, un paso de un
+                // asistente, lo que corresponda a ese trabajo).
+                <div className="mt-3">
+                  <Suspense fallback={<p className="text-sm text-slate-400">Cargando el módulo…</p>}>
+                    <Vista projectId={projectId as string} module={modulo} />
+                  </Suspense>
                 </div>
+              ) : (
+                <>
+                  {/* Sin vista construida se listan las utilidades, que es lo
+                      único que se sabe del módulo. No es un error: el front y la
+                      API se despliegan por separado, así que un módulo puede
+                      estar configurado antes de que este bundle lo tenga. */}
+                  <p className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                    Este módulo todavía no tiene una vista en esta versión de la aplicación. Abajo están sus
+                    utilidades configuradas.
+                  </p>
+                  {modulo.utilities.length === 0 ? (
+                    <p className="mt-3 text-sm text-slate-400">Este módulo todavía no tiene utilidades.</p>
+                  ) : (
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {modulo.utilities.map((u) => (
+                        <div key={u.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                          <div className="flex items-start justify-between gap-2">
+                            <h3 className="text-sm font-medium text-white">{u.name}</h3>
+                            {u.tool_name ? (
+                              <StatusBadge label={u.tool_name} tone="neutral" />
+                            ) : (
+                              <StatusBadge label="sin tool" tone="warning" />
+                            )}
+                          </div>
+                          {u.description && <p className="mt-2 text-xs text-slate-400">{u.description}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </section>
           )}

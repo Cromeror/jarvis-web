@@ -11,6 +11,7 @@ import {
   deleteModule,
   deletePackage,
   deleteUtility,
+  esCompatible,
   listAssignments,
   listCatalogTools,
   listModules,
@@ -352,9 +353,18 @@ export function CatalogPage(): React.ReactElement {
                       <button type="button" onClick={() => setModuleId(m.id)} className="flex-1 truncate text-left">
                         {m.name}
                         <span className="ml-2 text-xs text-slate-400">{m.utilities.length} utilidades</span>
+                        {/* De dónde salió la fila. Un módulo `code` lo declara el
+                            código y tiene vista; uno `manual` sirve para diseñar
+                            el menú pero no resuelve nada todavía. */}
+                        {m.origin === 'code' && <span className="ml-2 text-xs text-emerald-400">código</span>}
+                        {m.status === 'missing' && <span className="ml-2 text-xs text-amber-400">ya no existe en el código</span>}
                       </button>
                       <button
                         type="button"
+                        // Un módulo del código no se borra desde acá: el próximo
+                        // arranque lo recrearía, y el botón mentiría.
+                        disabled={m.origin === 'code'}
+                        title={m.origin === 'code' ? 'Lo declara el código: se va cuando se lo saque de ahí' : undefined}
                         onClick={() => {
                           if (!window.confirm(`¿Eliminar el módulo '${m.name}'?`)) return;
                           void conManejoDeError(async () => {
@@ -362,7 +372,7 @@ export function CatalogPage(): React.ReactElement {
                             if (moduleId === m.id) setModuleId(null);
                           });
                         }}
-                        className="rounded px-1 text-xs text-red-400 hover:bg-red-500/10"
+                        className="rounded px-1 text-xs text-red-400 hover:bg-red-500/10 disabled:opacity-30"
                       >
                         Eliminar
                       </button>
@@ -380,8 +390,14 @@ export function CatalogPage(): React.ReactElement {
               {modulo ? (
                 <Composicion
                   titulo={`Utilidades de ${modulo.name}`}
-                  vacio="Creá una utilidad abajo para poder ponerla en este módulo."
-                  opciones={utilities}
+                  vacio={
+                    utilities.length === 0
+                      ? 'Creá una utilidad abajo para poder ponerla en este módulo.'
+                      : 'Ninguna utilidad es compatible con este módulo. Una utilidad declara con qué módulos sirve; las abiertas sólo entran si el módulo acepta abiertas.'
+                  }
+                  // Sólo las compatibles: ofrecer una que el backend va a
+                  // rechazar hace perder el tiempo y enseña mal el modelo.
+                  opciones={utilities.filter((u) => esCompatible(u, modulo))}
                   seleccionados={modulo.utilities.map((u) => u.id)}
                   onGuardar={(ids) => conManejoDeError(() => setModuleUtilities(modulo.id, ids))}
                   etiqueta={(u) => {
@@ -414,7 +430,20 @@ export function CatalogPage(): React.ReactElement {
               {utilities.length === 0 && <p className="px-1 py-2 text-xs text-slate-500">Todavía no hay utilidades.</p>}
               {utilities.map((u) => (
                 <div key={u.id} className="flex items-center gap-2 rounded px-2 py-1 text-sm text-slate-200 hover:bg-white/5">
-                  <span className="flex-1 truncate">{u.name}</span>
+                  <span className="flex-1 truncate">
+                    {u.name}
+                    {u.origin === 'code' && <span className="ml-2 text-xs text-emerald-400">código</span>}
+                    {u.status === 'missing' && <span className="ml-2 text-xs text-amber-400">ya no existe en el código</span>}
+                    {/* La compatibilidad es lo que decide en qué módulos se puede
+                        colgar, así que se ve en la lista y no sólo al componer. */}
+                    <span className="ml-2 text-xs text-slate-500">
+                      {u.compatible_with === '*'
+                        ? 'abierta'
+                        : Array.isArray(u.compatible_with)
+                          ? `cerrada a ${u.compatible_with.join(', ')}`
+                          : 'sin compatibilidad declarada'}
+                    </span>
+                  </span>
                   {u.tool_name ? (
                     <StatusBadge label={u.tool_name} tone="neutral" />
                   ) : (
@@ -422,11 +451,13 @@ export function CatalogPage(): React.ReactElement {
                   )}
                   <button
                     type="button"
+                    disabled={u.origin === 'code'}
+                    title={u.origin === 'code' ? 'La declara el código: se va cuando se la saque de ahí' : undefined}
                     onClick={() => {
                       if (!window.confirm(`¿Eliminar la utilidad '${u.name}'?`)) return;
                       void conManejoDeError(() => deleteUtility(u.id));
                     }}
-                    className="rounded px-1 text-xs text-red-400 hover:bg-red-500/10"
+                    className="rounded px-1 text-xs text-red-400 hover:bg-red-500/10 disabled:opacity-30"
                   >
                     Eliminar
                   </button>
