@@ -4,6 +4,7 @@ import { AppSidebar2 } from './AppSidebar2.js';
 import { EnvironmentsMenu } from './EnvironmentsMenu.js';
 import { PipelinesMenu } from './PipelinesMenu.js';
 import { AppShellTemplate } from '../ui/templates/AppShellTemplate.js';
+import { FloatingChat } from '../Chat/FloatingChat.js';
 
 /**
  * Título de página según el primer segmento de la ruta — mismo criterio que
@@ -45,6 +46,10 @@ export function AppLayout(): React.ReactElement {
       onMenuClick={() => setMobileNavOpen(true)}
     >
       <Outlet />
+      {/* Va en el shell y no en cada página: el punto del chat flotante es estar
+          disponible sin importar dónde estés. Él decide no dibujarse en /chat,
+          que es donde sobra. */}
+      <FloatingChat />
     </AppShellTemplate>
   );
 }
