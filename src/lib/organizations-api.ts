@@ -93,7 +93,13 @@ export async function listOrganizations(): Promise<OrganizationSummary[]> {
 export async function createOrganization(input: {
   name: string;
   slug?: string;
-  owner_user_id: string;
+  /**
+   * Quién la administra. Opcional: sin nadie, la organización nace VACÍA —con
+   * su rol Administrador, pero sin miembros— y se puebla después dando de alta
+   * usuarios adentro. Es el único camino cuando todos los usuarios existentes
+   * ya pertenecen a alguna, que es lo habitual.
+   */
+  owner_user_id?: string;
 }): Promise<OrganizationSummary> {
   return handleResponse<OrganizationSummary>(
     await fetch('/api/organizations', { method: 'POST', headers: jsonHeaders, body: JSON.stringify(input) }),

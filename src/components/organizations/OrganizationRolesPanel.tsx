@@ -1,7 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ApiError,
-  createOrganization,
   createRole,
   deleteRole,
   fetchPermissionCatalog,
@@ -20,7 +18,7 @@ import type {
   RoleSummary,
 } from '../../lib/organizations-api.js';
 import type { UserSummary } from '../../lib/users-api.js';
-import { useAuth } from '../../hooks/useAuth.js';
+import { mensajeDeError } from './errores.js';
 import { DataTable, type DataTableColumn } from '../ui/organisms/DataTable.js';
 import { StatusBadge } from '../ui/atoms/StatusBadge.js';
 
@@ -33,16 +31,15 @@ const INPUT_CLASS =
  * Son dos clases y no una porque son dos superficies: un input claro sobre el
  * fondo oscuro —o uno oscuro dentro del modal blanco— se lee mal en el otro.
  */
+/**
+ * `[&>option]` no es cosmético: el popup de un `<select>` lo pinta el sistema,
+ * no la tarjeta, y las opciones heredan sólo el COLOR del control. Con
+ * `text-white` heredado sobre el fondo claro del popup el texto queda blanco
+ * sobre blanco — invisible salvo el ítem resaltado. Por eso las opciones llevan
+ * su propia superficie, explícita.
+ */
 const PAGE_INPUT_CLASS =
-  'w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-indigo-400';
-
-function mensajeDeError(err: unknown, fallback: string): string {
-  // Un 409 no es una falla: es el invariante del último administrador o un rol
-  // en uso, y su mensaje explica cómo salir. Perderlo detrás de un "error al
-  // guardar" deja a quien configura sin saber qué hacer.
-  if (err instanceof ApiError) return err.message;
-  return err instanceof Error ? err.message : fallback;
-}
+  'w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-indigo-400 [&>option]:bg-[#221f1d] [&>option]:text-white';
 
 interface RoleFormState {
   name: string;
@@ -203,118 +200,37 @@ function RoleFormModal({
   );
 }
 
-function OrganizationFormModal({
-  users,
-  onClose,
-  onCreated,
-}: {
-  users: UserSummary[];
-  onClose: () => void;
-  onCreated: (id: string) => void;
-}): React.ReactElement {
-  const [form, setForm] = useState({ name: '', slug: '', owner_user_id: '' });
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  async function handleSubmit(e: React.FormEvent): Promise<void> {
-    e.preventDefault();
-    setError(null);
-    setSaving(true);
-    try {
-      if (!form.name.trim()) throw new Error('La organización necesita un nombre');
-      if (!form.owner_user_id) throw new Error('Elegí quién la va a administrar');
-      const org = await createOrganization({
-        name: form.name.trim(),
-        slug: form.slug.trim() || undefined,
-        owner_user_id: form.owner_user_id,
-      });
-      onCreated(org.id);
-    } catch (err) {
-      setError(mensajeDeError(err, 'Error al crear la organización'));
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-900/30 px-4" onClick={onClose}>
-      <form
-        onSubmit={(e) => void handleSubmit(e)}
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-xl"
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-slate-900">Nueva organización</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg px-2 py-1 text-sm text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-          >
-            Cerrar
-          </button>
-        </div>
-
-        {error && <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>}
-
-        <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">Nombre</label>
-        <input
-          type="text"
-          value={form.name}
-          onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-          className={`mb-3 ${INPUT_CLASS}`}
-        />
-
-        <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">Slug (opcional)</label>
-        <input
-          type="text"
-          value={form.slug}
-          onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))}
-          placeholder="se deriva del nombre"
-          className={`mb-3 ${INPUT_CLASS}`}
-        />
-
-        <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">Administrador</label>
-        <select
-          value={form.owner_user_id}
-          onChange={(e) => setForm((f) => ({ ...f, owner_user_id: e.target.value }))}
-          className={`mb-1 ${INPUT_CLASS}`}
-        >
-          <option value="">Elegí un usuario…</option>
-          {users.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.username}
-            </option>
-          ))}
-        </select>
-        <p className="mb-4 text-[11px] text-slate-400">
-          Nace con un rol «Administrador» que tiene todo el catálogo, y esta persona adentro. Sin miembro fundador nadie
-          podría entrar a configurarla.
-        </p>
-
-        <button
-          type="submit"
-          disabled={saving}
-          className="w-full rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-        >
-          {saving ? 'Creando…' : 'Crear'}
-        </button>
-      </form>
-    </div>
-  );
-}
-
 /**
  * Configuración de roles y miembros de una organización.
  *
- * Vive en la sección "Usuarios" porque es la otra mitad de la misma pregunta:
- * el alta de usuarios dice QUIÉN entra, y esto dice QUÉ puede hacer. Los
- * permisos no se inventan acá — el catálogo lo sirve el backend
- * (`GET /api/organizations/permissions`), que es la única forma de que una
- * casilla tildada corresponda a un guard que existe.
+ * Es la segunda mitad de la misma pantalla que la tabla de usuarios: el alta
+ * dice QUIÉN entra y esto dice QUÉ puede hacer. Estaban en dos pestañas y la
+ * separación costaba caro — desde "Usuarios" no se veía a qué organización
+ * pertenecía cada uno, que es el dato con el que se decide.
+ *
+ * El alta de organizaciones NO vive acá: el botón está en la cabecera de la
+ * página, junto al de nuevo usuario. Acá sólo se configura la ya elegida.
  */
-export function OrganizationRolesPanel({ users }: { users: UserSummary[] }): React.ReactElement {
-  const { user: currentUser } = useAuth();
-  const puedeCrearOrganizaciones = currentUser?.account_type === 'operator';
+export function OrganizationRolesPanel({
+  users,
+  focusOrganizationId,
+  onMembersChanged,
+}: {
+  users: UserSummary[];
+  /**
+   * La organización que hay que mostrar, cuando la elige la página (recién
+   * creada desde la cabecera). Es un pedido de enfoque, no estado controlado:
+   * el panel sigue siendo dueño de la selección, así que cambiarla desde su
+   * propio select no obliga a la página a re-renderizar.
+   */
+  focusOrganizationId?: string | null;
+  /**
+   * Avisar que la membresía cambió. La tabla de usuarios de la página muestra a
+   * qué organización pertenece cada uno: sin esto, agregar o quitar un miembro
+   * acá deja esa columna mintiendo hasta el próximo refresh.
+   */
+  onMembersChanged?: () => void;
+}): React.ReactElement {
   const [organizations, setOrganizations] = useState<OrganizationSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [catalog, setCatalog] = useState<PermissionInfo[]>([]);
@@ -330,7 +246,6 @@ export function OrganizationRolesPanel({ users }: { users: UserSummary[] }): Rea
    */
   const [loadError, setLoadError] = useState<string | null>(null);
   const [editingRole, setEditingRole] = useState<RoleSummary | 'new' | null>(null);
-  const [creandoOrg, setCreandoOrg] = useState(false);
   const [nuevoMiembro, setNuevoMiembro] = useState<{ userId: string; roleId: string }>({ userId: '', roleId: '' });
 
   const selected = organizations.find((o) => o.id === selectedId) ?? null;
@@ -380,17 +295,37 @@ export function OrganizationRolesPanel({ users }: { users: UserSummary[] }): Rea
     if (selectedId) void refreshOrg(selectedId);
   }, [selectedId, refreshOrg]);
 
-  /** Los que todavía no son miembros — agregar a uno que ya está sería cambiarle el rol, y eso se hace en su fila. */
+  // Una organización recién creada desde la cabecera todavía no está en la
+  // lista local: hay que recargarla, no sólo seleccionar un id que el select no
+  // tiene (se vería vacío, con los roles de la anterior).
+  useEffect(() => {
+    if (focusOrganizationId) void refreshOrganizations(focusOrganizationId);
+  }, [focusOrganizationId, refreshOrganizations]);
+
+  /**
+   * A quién se puede agregar: los que no pertenecen a NINGUNA organización.
+   *
+   * No alcanza con excluir a los miembros de ésta. Una persona pertenece a una
+   * sola, así que alguien que ya está en otra vuelve con un 409 — ofrecerlo es
+   * ofrecer una opción que siempre falla. Y a los de esta misma organización no
+   * se los agrega: se les cambia el rol en su fila.
+   */
   const candidatos = useMemo(
-    () => users.filter((u) => !members.some((m) => m.user_id === u.id)),
+    () => users.filter((u) => !u.organization && !members.some((m) => m.user_id === u.id)),
     [users, members],
   );
 
-  async function conManejoDeError(accion: () => Promise<void>, fallback: string): Promise<void> {
+  async function conManejoDeError(
+    accion: () => Promise<void>,
+    fallback: string,
+    /** Si la acción tocó miembros, la tabla de usuarios de la página quedó vieja. */
+    tocaMiembros = false,
+  ): Promise<void> {
     setError(null);
     try {
       await accion();
       if (selectedId) await refreshOrg(selectedId);
+      if (tocaMiembros) onMembersChanged?.();
     } catch (err) {
       setError(mensajeDeError(err, fallback));
     }
@@ -472,9 +407,9 @@ export function OrganizationRolesPanel({ users }: { users: UserSummary[] }): Rea
           disabled={!puedeMiembros}
           onChange={(e) => {
             if (!selectedId) return;
-            void conManejoDeError(() => setMemberRole(selectedId, m.user_id, e.target.value), 'Error al cambiar el rol');
+            void conManejoDeError(() => setMemberRole(selectedId, m.user_id, e.target.value), 'Error al cambiar el rol', true);
           }}
-          className="rounded-lg border border-white/15 bg-white/5 px-2 py-1 text-xs text-[var(--card-text-secondary)] disabled:opacity-40"
+          className="rounded-lg border border-white/15 bg-white/5 px-2 py-1 text-xs text-[var(--card-text-secondary)] disabled:opacity-40 [&>option]:bg-[#221f1d] [&>option]:text-white"
         >
           {/* Si el rol se borró por debajo, se muestra como tal en vez de saltar a otro en silencio. */}
           {!roles.some((r) => r.id === m.role_id) && <option value={m.role_id}>{m.role_name ?? '(rol desconocido)'}</option>}
@@ -497,7 +432,7 @@ export function OrganizationRolesPanel({ users }: { users: UserSummary[] }): Rea
           onClick={() => {
             if (!selectedId) return;
             if (!window.confirm(`¿Sacar a '${m.username}' de la organización?`)) return;
-            void conManejoDeError(() => removeMember(selectedId, m.user_id), 'Error al quitar el miembro');
+            void conManejoDeError(() => removeMember(selectedId, m.user_id), 'Error al quitar el miembro', true);
           }}
           className="rounded-lg px-2 py-1 text-xs text-red-400 hover:bg-red-500/10 disabled:opacity-40"
         >
@@ -553,22 +488,10 @@ export function OrganizationRolesPanel({ users }: { users: UserSummary[] }): Rea
         >
           + Nuevo rol
         </button>
-        {puedeCrearOrganizaciones && (
-          <button
-            type="button"
-            onClick={() => setCreandoOrg(true)}
-            className="rounded-lg border border-white/15 px-3 py-2 text-sm font-medium text-white hover:bg-white/10"
-          >
-            + Nueva organización
-          </button>
-        )}
       </div>
 
       {organizations.length === 0 && (
-        <p className="text-sm text-slate-400">
-          Todavía no hay ninguna organización.
-          {puedeCrearOrganizaciones ? ' Creá la primera con el botón de arriba.' : ''}
-        </p>
+        <p className="text-sm text-slate-400">Todavía no hay ninguna organización. Creá la primera desde la cabecera.</p>
       )}
 
       {error && (
@@ -587,6 +510,16 @@ export function OrganizationRolesPanel({ users }: { users: UserSummary[] }): Rea
       <section>
         <h2 className="mb-2 text-sm font-semibold text-white">Miembros</h2>
         <DataTable columns={memberColumns} rows={members} getRowKey={(m) => m.user_id} />
+
+        {/* Una organización sin miembros ya no es un estado roto —se puede fundar
+            vacía— pero sí uno incompleto: conviene decir cómo se sale, porque las
+            dos salidas están en pantallas distintas. */}
+        {selected && members.length === 0 && (
+          <p className="mt-2 text-xs text-slate-400">
+            Esta organización todavía no tiene miembros. Sumá a alguien acá abajo, o dá de alta un usuario nuevo
+            eligiéndola como su organización.
+          </p>
+        )}
 
         {puedeMiembros && candidatos.length > 0 && roles.length > 0 && (
           <div className="mt-3 flex flex-wrap items-end gap-2">
@@ -620,10 +553,14 @@ export function OrganizationRolesPanel({ users }: { users: UserSummary[] }): Rea
               onClick={() => {
                 if (!selectedId) return;
                 const { userId, roleId } = nuevoMiembro;
-                void conManejoDeError(async () => {
-                  await setMemberRole(selectedId, userId, roleId);
-                  setNuevoMiembro({ userId: '', roleId: '' });
-                }, 'Error al agregar el miembro');
+                void conManejoDeError(
+                  async () => {
+                    await setMemberRole(selectedId, userId, roleId);
+                    setNuevoMiembro({ userId: '', roleId: '' });
+                  },
+                  'Error al agregar el miembro',
+                  true,
+                );
               }}
               className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
             >
@@ -632,17 +569,6 @@ export function OrganizationRolesPanel({ users }: { users: UserSummary[] }): Rea
           </div>
         )}
       </section>
-
-      {creandoOrg && (
-        <OrganizationFormModal
-          users={users}
-          onClose={() => setCreandoOrg(false)}
-          onCreated={(id) => {
-            setCreandoOrg(false);
-            void refreshOrganizations(id);
-          }}
-        />
-      )}
 
       {editingRole && selectedId && (
         <RoleFormModal

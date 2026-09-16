@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
 import { listProjects } from '../lib/projects-api.js';
@@ -8,8 +8,8 @@ import type { UserSummary, AccountType, ProjectRoleInput } from '../lib/users-ap
 import { listRoles, listOrganizations } from '../lib/organizations-api.js';
 import type { RoleSummary, OrganizationSummary } from '../lib/organizations-api.js';
 import { DataTable, type DataTableColumn } from '../components/ui/organisms/DataTable.js';
-import { Tab } from '../components/ui/atoms/Tab.js';
 import { OrganizationRolesPanel } from '../components/organizations/OrganizationRolesPanel.js';
+import { OrganizationFormModal } from '../components/organizations/OrganizationFormModal.js';
 import { StatusBadge } from '../components/ui/atoms/StatusBadge.js';
 
 /**
@@ -376,20 +376,66 @@ function UserFormModal({
 }
 
 /**
- * Las dos mitades de la misma pregunta: quién entra (usuarios) y qué puede
- * hacer (roles por organización). Son pestañas y no dos rutas porque configurar
- * un rol sin ver a quién le toca —y al revés— obliga a ir y volver.
+ * Compara sin distinguir mayúsculas ni acentos.
+ *
+ * Sin el `normalize`, buscar "ingenieria" no encuentra a «Ingeniería» — que es
+ * exactamente lo que alguien escribe cuando teclea rápido, y el resultado vacío
+ * se lee como "no existe" en vez de "lo escribiste sin tilde".
  */
-type UsersTab = 'usuarios' | 'organizaciones';
+function normalizar(texto: string): string {
+  return texto
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
 
+/**
+ * El texto sobre el que busca el filtro: exactamente lo que la fila MUESTRA.
+ *
+ * Que sea lo mostrado y no el objeto entero es la regla y no una comodidad. Un
+ * `JSON.stringify(u)` buscaría también sobre campos que la pantalla no enseña
+ * —ids internos, y mañana cualquier cosa que se agregue al DTO— y un acierto
+ * ahí devuelve una fila sin que se vea POR QUÉ coincidió. Los datos sensibles
+ * no llegan hasta acá (la API sirve `SafeUser`, sin `password_hash`), así que
+ * esto no es lo que protege la password: es lo que evita que un campo futuro se
+ * vuelva buscable sin que nadie lo haya decidido.
+ */
+function textoBuscable(user: UserSummary, projects: ProjectSummary[]): string {
+  const nombreDe = (id: string): string => projects.find((p) => p.id === id)?.name ?? id;
+  const partes = [
+    user.username,
+    user.account_type === 'operator' ? 'operador del producto' : 'cliente',
+    user.organization?.organization_name ?? '',
+    user.organization?.role_name ?? '',
+    !user.organization && user.account_type !== 'operator' ? 'sin organización' : '',
+    ...user.project_roles.map((a) => `${nombreDe(a.project_id)} ${a.role_name}`),
+    ...user.project_ids.filter((id) => !user.project_roles.some((a) => a.project_id === id)).map(nombreDe),
+  ];
+  return normalizar(partes.join(' '));
+}
+
+/**
+ * Una sola pantalla para las dos mitades de la misma pregunta: quién entra
+ * (usuarios, con la organización a la que pertenece cada uno) y qué puede hacer
+ * (los roles y miembros de esa organización).
+ *
+ * Eran dos pestañas y la separación no era neutral: una persona pertenece a UNA
+ * organización, así que "a cuál pertenece" es un atributo suyo y no un dato de
+ * otra pantalla. Sin esa columna, dar de alta a alguien o fundar una
+ * organización se hacía a ciegas — se elegía a un usuario y el backend rebotaba
+ * con un 409 recién al guardar.
+ */
 export function UsersPage(): React.ReactElement {
   const { user: currentUser } = useAuth();
-  const [tab, setTab] = useState<UsersTab>('usuarios');
   const [users, setUsers] = useState<UserSummary[]>([]);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<UserSummary | 'new' | null>(null);
+  const [creandoOrg, setCreandoOrg] = useState(false);
+  /** La recién creada, para que el panel de abajo la muestre sin buscarla a mano. */
+  const [orgEnfocada, setOrgEnfocada] = useState<string | null>(null);
+  const [busqueda, setBusqueda] = useState('');
 
   async function refresh(): Promise<void> {
     setLoading(true);
@@ -422,6 +468,23 @@ export function UsersPage(): React.ReactElement {
     }
   }
 
+  /**
+   * El filtro exige TODAS las palabras, cada una en cualquier parte del texto.
+   *
+   * Con la frase entera, "ana cliente" no encontraría nada (el orden del texto
+   * buscable es un detalle de implementación, no algo que alguien tenga que
+   * adivinar); pidiendo todas las palabras, cada una que se agrega achica el
+   * resultado, que es como se busca cuando hay muchas filas.
+   */
+  const visibles = useMemo(() => {
+    const terminos = normalizar(busqueda).split(/\s+/).filter(Boolean);
+    if (terminos.length === 0) return users;
+    return users.filter((u) => {
+      const texto = textoBuscable(u, projects);
+      return terminos.every((t) => texto.includes(t));
+    });
+  }, [users, projects, busqueda]);
+
   const columns: Array<DataTableColumn<UserSummary>> = [
     { key: 'username', header: 'Usuario', render: (u) => <span className="font-medium text-[var(--card-text-secondary)]">{u.username}</span> },
     {
@@ -431,6 +494,31 @@ export function UsersPage(): React.ReactElement {
       // sos respecto del producto (el operador de la instalación, o gente de un
       // cliente). Los roles de verdad son los de organización y los de proyecto.
       render: (u) => <StatusBadge label={u.account_type === 'operator' ? 'Operador del producto' : 'Cliente'} tone={u.account_type === 'operator' ? 'info' : 'neutral'} />,
+    },
+    {
+      key: 'organization',
+      header: 'Organización',
+      // La columna que faltaba, y el motivo de unificar las dos pestañas: una
+      // persona pertenece a UNA organización, así que es un atributo suyo. Sin
+      // verlo acá, elegir a alguien para fundar o para sumar a otra terminaba en
+      // un 409 al guardar, sin forma de anticiparlo.
+      render: (u) => {
+        if (u.account_type === 'operator') {
+          // No es un dato que falte: un operador opera el producto y por diseño
+          // no es de ningún cliente. Mostrarlo como "sin organización" lo haría
+          // parecer un estado a corregir.
+          return <span className="text-xs text-[var(--card-text-secondary)]">No aplica</span>;
+        }
+        if (!u.organization) {
+          return <StatusBadge label="Sin organización" tone="warning" />;
+        }
+        return (
+          <StatusBadge
+            label={`${u.organization.organization_name} · ${u.organization.role_name ?? '(rol desconocido)'}`}
+            tone="neutral"
+          />
+        );
+      },
     },
     {
       key: 'projects',
@@ -456,14 +544,13 @@ export function UsersPage(): React.ReactElement {
 
   return (
     // Fondo oscuro y no `bg-white`: es la superficie de la app
-    // (`--app-bg`, la misma que el shell y que ChatContent). Los dos
-    // componentes que viven acá ya estaban pensados para fondo oscuro y sobre
-    // blanco se veían mal — `Tab` pinta su texto con `rgba(255,255,255,.6)`
-    // (blanco sobre blanco) y `DataTable` trae su propio `--table2-bg: #221f1d`.
+    // (`--app-bg`, la misma que el shell y que ChatContent). Lo que vive acá ya
+    // estaba pensado para fondo oscuro y sobre blanco se veía mal — `DataTable`
+    // trae su propio `--table2-bg: #221f1d`.
     <div className="h-full overflow-y-auto bg-[var(--app-bg)] p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-white">Administración de usuarios</h1>
-        {tab === 'usuarios' && (
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-lg font-semibold text-white">Usuarios y organizaciones</h1>
+        <div className="flex gap-2">
           <button
             type="button"
             onClick={() => setEditing('new')}
@@ -471,24 +558,77 @@ export function UsersPage(): React.ReactElement {
           >
             + Nuevo usuario
           </button>
-        )}
-      </div>
-
-      <div className="mb-4 flex gap-1 border-b border-white/10">
-        <Tab label="Usuarios" size="sm" selected={tab === 'usuarios'} onClick={() => setTab('usuarios')} />
-        <Tab label="Roles por organización" size="sm" selected={tab === 'organizaciones'} onClick={() => setTab('organizaciones')} />
+          {/* Sólo el operador del producto funda organizaciones: es el alta de un
+              cliente, no algo que un cliente se haga a sí mismo. */}
+          {currentUser?.account_type === 'operator' && (
+            <button
+              type="button"
+              onClick={() => setCreandoOrg(true)}
+              className="rounded-lg border border-white/15 px-3 py-2 text-sm font-medium text-white hover:bg-white/10"
+            >
+              + Nueva organización
+            </button>
+          )}
+        </div>
       </div>
 
       {error && (
         <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>
       )}
 
-      {tab === 'organizaciones' ? (
-        <OrganizationRolesPanel users={users} />
-      ) : loading ? (
-        <p className="text-sm text-slate-400">Cargando…</p>
-      ) : (
-        <DataTable columns={columns} rows={users} getRowKey={(u) => u.id} />
+      <section className="mb-8">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-white">Usuarios</h2>
+          <div className="flex items-center gap-2">
+            <input
+              type="search"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar por usuario, organización, rol o proyecto…"
+              className="w-72 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 outline-none focus:border-indigo-400"
+            />
+            {/* El contador sólo aparece filtrando: con la lista entera repetiría
+                lo que ya se ve, y filtrando es el dato que falta —cuántas quedaron
+                afuera— para no leer un resultado corto como "no hay más". */}
+            {busqueda.trim() !== '' && (
+              <span className="text-xs text-slate-400">
+                {visibles.length} de {users.length}
+              </span>
+            )}
+          </div>
+        </div>
+        {loading ? (
+          <p className="text-sm text-slate-400">Cargando…</p>
+        ) : visibles.length === 0 && users.length > 0 ? (
+          <p className="text-sm text-slate-400">Ningún usuario coincide con «{busqueda.trim()}».</p>
+        ) : (
+          <DataTable columns={columns} rows={visibles} getRowKey={(u) => u.id} />
+        )}
+      </section>
+
+      <section className="border-t border-white/10 pt-6">
+        <h2 className="mb-3 text-sm font-semibold text-white">Configuración de la organización</h2>
+        <OrganizationRolesPanel
+          users={users}
+          focusOrganizationId={orgEnfocada}
+          // Agregar o quitar un miembro cambia la columna «Organización» de la
+          // tabla de arriba: sin esto quedaría vieja hasta el próximo refresh.
+          onMembersChanged={() => void refresh()}
+        />
+      </section>
+
+      {creandoOrg && (
+        <OrganizationFormModal
+          users={users}
+          onClose={() => setCreandoOrg(false)}
+          onCreated={(id) => {
+            setCreandoOrg(false);
+            setOrgEnfocada(id);
+            // La organización nueva se lleva a su dueño adentro, así que la
+            // columna «Organización» de la tabla cambió para esa persona.
+            void refresh();
+          }}
+        />
       )}
 
       {editing && (

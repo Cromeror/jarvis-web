@@ -13,6 +13,14 @@ export interface ProjectRoleAssignment extends ProjectRoleInput {
   role_name: string;
 }
 
+/** A qué organización pertenece un usuario y con qué rol adentro. */
+export interface UserOrganizationSummary {
+  organization_id: string;
+  organization_name: string;
+  role_id: string;
+  role_name: string | null;
+}
+
 export interface UserSummary {
   id: string;
   username: string;
@@ -26,6 +34,15 @@ export interface UserSummary {
   project_ids: string[];
   /** Lo que esta pantalla administra: las asignaciones explícitas (proyecto, rol). */
   project_roles: ProjectRoleAssignment[];
+  /**
+   * La organización a la que pertenece, con su rol adentro. Una sola: el modelo
+   * admite una por persona.
+   *
+   * `null` significa cosas distintas según la cuenta y la pantalla las muestra
+   * distinto: un `operator` no pertenece a ninguna a propósito; un `member` sin
+   * organización es un estado que no debería existir.
+   */
+  organization: UserOrganizationSummary | null;
   created_at: string;
   updated_at: string;
 }
