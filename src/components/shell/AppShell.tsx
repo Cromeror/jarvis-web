@@ -1,5 +1,5 @@
-import React from 'react';
-import { Rail } from './Rail.js';
+import React, { useState } from 'react';
+import { Sidebar } from './Sidebar.js';
 import { Topbar } from './Topbar.js';
 import { SideColumn } from './SideColumn.js';
 
@@ -45,33 +45,23 @@ export function AppShell({
   children?: React.ReactNode;
   contentRef?: React.Ref<HTMLDivElement>;
 }): React.ReactElement {
+  /* DOS ESTADOS, NO TRES: abierta y riel. No se cierra del todo porque el chat
+     es del shell y nunca se va — a lo sumo queda a un clic.
+
+     El estado vive acá y no en la columna porque el botón que lo alterna está en
+     la barra superior: son dos piezas separadas en el DOM mirando el mismo dato. */
+  const [columnaAbierta, setColumnaAbierta] = useState(true);
+
   return (
-    <div className="sw-side">
-      <Rail />
-
-      <aside className="sw-side__panel" aria-label="Objetos">
-        <div className="sw-side__search">
-          <span className="sw-side__sicon" />
-          <input type="search" placeholder="Buscar" aria-label="Buscar" />
-          <button
-            className="sw-side__filtro"
-            type="button"
-            aria-haspopup="true"
-            aria-expanded="false"
-            aria-label="Filtrar y ordenar"
-          />
-        </div>
-        <div className="sw-side__list" role="list" />
-        <div className="sw-side__pager" />
-        <div className="sw-side__veil" aria-hidden="true" />
-      </aside>
-
-      <section className="sw-side__detail" aria-label="Detalle" />
-
-      <div className="sw-pop" role="dialog" aria-label="Filtrar y ordenar" />
-
+    <Sidebar>
       <main className="sw-side__canvas">
-        <Topbar titulo={titulo} sub={sub} acciones={acciones} />
+        <Topbar
+          titulo={titulo}
+          sub={sub}
+          acciones={acciones}
+          columnaAbierta={columnaAbierta}
+          onAlternarColumna={() => setColumnaAbierta((v) => !v)}
+        />
 
         <div className="sw-container">
           {/* El slot es la CAJA y no scrollea; la zona de adentro sí. Es la
@@ -83,11 +73,16 @@ export function AppShell({
           {/* El chat tiene DOS ubicaciones y el usuario elige: inquilino de la
               columna, o tarjeta que flota sobre el área de trabajo. */}
           <aside className="sw-flota" hidden />
-          <SideColumn chat={chat} herramientas={herramientas} />
+          <SideColumn
+            chat={chat}
+            herramientas={herramientas}
+            riel={!columnaAbierta}
+            onAbrir={() => setColumnaAbierta(true)}
+          />
         </div>
 
         <div className="sw-dock-slot" />
       </main>
-    </div>
+    </Sidebar>
   );
 }

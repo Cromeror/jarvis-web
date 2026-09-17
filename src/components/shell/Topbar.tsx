@@ -23,10 +23,14 @@ export function Topbar({
   titulo,
   sub,
   acciones,
+  columnaAbierta,
+  onAlternarColumna,
 }: {
   titulo: string;
   sub?: string;
   acciones?: React.ReactNode;
+  columnaAbierta: boolean;
+  onAlternarColumna: () => void;
 }): React.ReactElement {
   return (
     <div className="sw-topbar">
@@ -63,7 +67,29 @@ export function Topbar({
       <div className="sw-topbar__fila sw-topbar__barra">
         <div className="sw-topbar__contexto" hidden />
         <div className="sw-toolbar-slot" />
-        <div className="sw-topbar__caja" />
+        {/* EL BOTÓN DE LA COLUMNA VIVE ACÁ, en la caja del header, y no en la
+            columna. Lo pone el shell una vez y para todas las superficies: el
+            template lo tuvo pegado a cada toolbar y era olvidable — una
+            superficie se lo olvidó y el botón desapareció justo ahí, sin un
+            error en ningún lado. Una barra a la que le falta un botón se ve
+            igual de bien que una completa.
+
+            ALTERNA ABIERTA/RIEL, nunca cierra del todo: la columna hospeda el
+            chat, que es del shell y no se va — a lo sumo queda a un clic. */}
+        <div className="sw-topbar__caja">
+          <div className="sw-toolbar__aside">
+            <button
+              className="sw-toolbar__btn sw-toolbar__btn--der"
+              type="button"
+              title="Columna lateral"
+              aria-label="Abrir o colapsar la columna"
+              aria-expanded={columnaAbierta}
+              onClick={onAlternarColumna}
+            >
+              <Icon name="panelRight" />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

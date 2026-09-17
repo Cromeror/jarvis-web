@@ -26,14 +26,26 @@ const PESTANAS: { id: Inquilino; icono: string; label: string }[] = [
 export function SideColumn({
   chat,
   herramientas,
+  riel,
+  onAbrir,
 }: {
   chat?: React.ReactNode;
   herramientas?: React.ReactNode;
+  /** Colapsada a riel. Son DOS estados, no tres: abierta y riel. */
+  riel: boolean;
+  onAbrir: () => void;
 }): React.ReactElement {
   const [activo, setActivo] = useState<Inquilino>('chat');
 
+  /* Elegir un inquilino con la columna colapsada LA ABRE: el clic dice qué
+     querés ver, y dejarla en riel sería contestar que no. */
+  const elegir = (id: Inquilino): void => {
+    if (riel) onAbrir();
+    else setActivo(id);
+  };
+
   return (
-    <div className="sw-side-col">
+    <div className={`sw-side-col${riel ? ' is-riel' : ''}`}>
       <div className="sw-side-col__switch">
         <div className="sw-side-col__tabs" role="tablist" aria-label="Qué ocupa la columna">
           {PESTANAS.map((t) => (
@@ -48,7 +60,7 @@ export function SideColumn({
               aria-label={t.label}
               aria-selected={activo === t.id}
               tabIndex={activo === t.id ? 0 : -1}
-              onClick={() => setActivo(t.id)}
+              onClick={() => elegir(t.id)}
             >
               <Icon name={t.icono} />
               <span className="sw-side-col__label">{t.label}</span>
