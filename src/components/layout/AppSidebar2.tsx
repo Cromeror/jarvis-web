@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { fetchNavigation } from '../../lib/catalog-api.js';
+import { useActiveProjectId } from '../../hooks/useActiveProject.js';
 import type { CatalogPackage } from '../../lib/catalog-api.js';
 import { useCollapsible } from '../../hooks/useCollapsible.js';
 import { useAuth } from '../../hooks/useAuth.js';
@@ -35,21 +36,6 @@ const ADMIN_ROUTES: NavRoute[] = [
   { id: 'catalog', to: '/catalogo', label: 'Catálogo', icon: 'settings', end: false },
 ];
 
-/**
- * De qué proyecto es el menú.
- *
- * Sale de la URL, que es donde vive hoy el proyecto activo (`/chat/:projectId`,
- * `/plans/:projectId`, …): no hay un contexto global de proyecto, y inventar uno
- * para esto sería un cambio mucho más grande que el menú. Sin proyecto en la
- * URL no se muestran paquetes — es preferible a mostrar los de un proyecto que
- * el usuario no eligió.
- */
-function projectIdDeLaUrl(pathname: string): string | null {
-  const [, seccion, posibleProyecto] = pathname.split('/');
-  const CON_PROYECTO = ['chat', 'plans', 'environments', 'workspaces', 'paquetes'];
-  if (!seccion || !CON_PROYECTO.includes(seccion)) return null;
-  return posibleProyecto || null;
-}
 
 /**
  * Reemplaza a SideNav como el rail de navegación global (Sidebar2, portado
@@ -71,7 +57,9 @@ export function AppSidebar2({
   const location = useLocation();
   const navigate = useNavigate();
 
-  const projectId = projectIdDeLaUrl(location.pathname);
+  // El proyecto activo, con su fallback al único accesible: sin eso, un usuario
+  // cliente entra al Dashboard y ve el menú sin sus paquetes.
+  const projectId = useActiveProjectId();
   const [packages, setPackages] = useState<CatalogPackage[]>([]);
 
   // Los paquetes asignados al proyecto de la URL. Un 403 o un proyecto sin

@@ -6,23 +6,9 @@ import type { ChatMessage } from '../../lib/chat-api.js';
 import { useChatStream } from '../../hooks/useChatStream.js';
 import { MessageList } from '../ui/molecules/MessageList.js';
 import { useWorkspaceAnchor } from '../layout/workspace-anchor.js';
+import { useActiveProjectId } from '../../hooks/useActiveProject.js';
 import { ExecutorLoginPrompt } from './ExecutorLoginPrompt.js';
 
-/**
- * De qué proyecto es la conversación: el de la URL.
- *
- * Misma resolución que el sidebar dinámico (`projectIdDeLaUrl`) y por la misma
- * razón: no hay un contexto global de proyecto en la SPA. Sin proyecto en la
- * ruta no hay a quién preguntarle, y el widget lo dice en vez de elegir uno
- * por su cuenta — abrir una conversación contra un proyecto que el usuario no
- * eligió es peor que no abrir ninguna.
- */
-function projectIdDeLaUrl(pathname: string): string | null {
-  const [, seccion, posibleProyecto] = pathname.split('/');
-  const CON_PROYECTO = ['chat', 'plans', 'environments', 'workspaces', 'paquetes'];
-  if (!seccion || !CON_PROYECTO.includes(seccion)) return null;
-  return posibleProyecto || null;
-}
 
 /**
  * El chat, en una ventana que acompaña al trabajo.
@@ -46,7 +32,7 @@ function projectIdDeLaUrl(pathname: string): string | null {
 export function FloatingChat(): React.ReactElement | null {
   const { pathname } = useLocation();
   const anchor = useWorkspaceAnchor();
-  const projectId = projectIdDeLaUrl(pathname);
+  const projectId = useActiveProjectId();
   const enChat = pathname.startsWith('/chat');
 
   const [abierto, setAbierto] = useState(false);
