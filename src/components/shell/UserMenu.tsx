@@ -75,38 +75,53 @@ export function UserMenu(): React.ReactElement {
             <span className="sw-user__perfil">{perfil}</span>
           </div>
 
-          <DropdownMenu.Separator />
+          <DropdownMenu.Separator asChild>
+            <hr />
+          </DropdownMenu.Separator>
 
           {/* El indicador de Radix se muestra solo según el valor elegido: no hay
               que sincronizar aria-checked a mano, como sí había que hacer con el
               JS de Basecoat. */}
           <DropdownMenu.RadioGroup value={tema.choice} onValueChange={(v) => tema.set(v as Tema)}>
             {TEMAS.map((t) => (
-              <DropdownMenu.RadioItem key={t.valor} value={t.valor}>
-                <Icon name={t.icono} />
-                <span>{t.etiqueta}</span>
-                <DropdownMenu.ItemIndicator data-indicator>
-                  <Icon name="check" />
-                </DropdownMenu.ItemIndicator>
+              {/* asChild + <button>: en el template cada ítem ES un botón, y el
+                  CSS de Basecoat cuelga de eso. Radix renderiza un <div> por
+                  defecto, que no recibe las mismas reglas. */}
+              <DropdownMenu.RadioItem key={t.valor} value={t.valor} asChild>
+                <button type="button">
+                  <Icon name={t.icono} />
+                  <span>{t.etiqueta}</span>
+                  <DropdownMenu.ItemIndicator data-indicator>
+                    <Icon name="check" />
+                  </DropdownMenu.ItemIndicator>
+                </button>
               </DropdownMenu.RadioItem>
             ))}
           </DropdownMenu.RadioGroup>
 
-          <DropdownMenu.Separator />
+          <DropdownMenu.Separator asChild>
+            <hr />
+          </DropdownMenu.Separator>
 
           {ACCIONES.map((a) => (
-            <DropdownMenu.Item key={a.etiqueta}>
-              <Icon name={a.icono} />
-              <span>{a.etiqueta}</span>
-              {a.atajo && <kbd className="kbd">{a.atajo}</kbd>}
+            <DropdownMenu.Item key={a.etiqueta} asChild>
+              <button type="button">
+                <Icon name={a.icono} />
+                <span>{a.etiqueta}</span>
+                {a.atajo && <kbd className="kbd">{a.atajo}</kbd>}
+              </button>
             </DropdownMenu.Item>
           ))}
 
-          <DropdownMenu.Separator />
+          <DropdownMenu.Separator asChild>
+            <hr />
+          </DropdownMenu.Separator>
 
-          <DropdownMenu.Item data-variant="destructive" onSelect={() => logout()}>
-            <Icon name="power" />
-            <span>Cerrar sesión</span>
+          <DropdownMenu.Item data-variant="destructive" onSelect={() => logout()} asChild>
+            <button type="button">
+              <Icon name="power" />
+              <span>Cerrar sesión</span>
+            </button>
           </DropdownMenu.Item>
         </DropdownMenu.Content>
       </DropdownMenu.Root>
