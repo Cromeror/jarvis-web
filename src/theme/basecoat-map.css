@@ -1,0 +1,124 @@
+/* ============================================================================
+   SpaceMyWork — MAPEO de Basecoat al sistema
+   ----------------------------------------------------------------------------
+   EL SEAM. Basecoat (src/vendor/basecoat.css) no se toca ni se forkea: se usa
+   tal cual sale del paquete. Todo lo propio vive en dos archivos —este y
+   basecoat-ext.css— que van despues. Cuando salga una version nueva de la
+   libreria se reemplaza el archivo de vendor y estos dos siguen en pie.
+
+   Este archivo hace UNA sola cosa: apuntar las variables de Basecoat a los
+   tokens del sistema. Ni un valor literal, ni una regla de componente.
+
+   POR QUE FUNCIONA. Casi todo el lenguaje visual de Basecoat sale de
+   variables, no de valores fijos — medido sobre su CSS:
+
+     · radio      todos derivan de --radius por calc()
+     · densidad   451 usos de calc(var(--spacing)*N), 2 rem literales
+     · tipografia --text-xs/sm/base/lg
+     · motion     --default-transition-duration, --ease-out
+     · fuente     --font-sans
+
+   Y su bundle NO trae utilidades de Tailwind: son 68 clases de componente
+   semanticas, mas cerca de nuestro .sw-* de lo que parecia.
+   ============================================================================ */
+
+:root, .dark {
+
+  /* ---------------------------------------------------------------
+     SUPERFICIE
+     shadcn tiene cuatro superficies; el sistema tiene cinco escalones
+     (regla 3). El mapeo respeta la escalera: `background` es el lienzo,
+     `card` es la fila o el nodo, y `popover` es lo unico que flota —y lo
+     unico que por eso lleva sombra.
+     --------------------------------------------------------------- */
+  --background:            var(--sw-ink);
+  --foreground:            var(--sw-text);
+  --card:                  var(--sw-raised);
+  --card-foreground:       var(--sw-text);
+  --popover:               var(--sw-raised-2);
+  --popover-foreground:    var(--sw-text);
+  --secondary:             var(--sw-surface-2);
+  --secondary-foreground:  var(--sw-text-2);
+  --muted:                 var(--sw-surface-2);
+  --muted-foreground:      var(--sw-muted);
+
+  /* ---------------------------------------------------------------
+     ACENTO — LEER ANTES DE TOCAR
+
+     En shadcn `--accent` NO es el acento de marca: es el fondo de hover.
+     El acento de marca es `--primary`. Cambiarlos de lugar pinta cada
+     hover de la app con el violeta y vuela la regla de escasez del acento
+     (<=0,5% de la superficie), que esta medida y sostenida desde la
+     decision 44. Es el error mas facil de cometer en todo este archivo.
+     --------------------------------------------------------------- */
+  /* El boton primario va con el acento SOLIDO y tinta blanca, no con
+     --sw-accent: ese es el acento de ESTADO —seleccion, foco, nav activo—
+     y en oscuro es demasiado claro para aguantar blanco (3,13:1 medido).
+     Ver el bloque del acento solido en tokens.css.
+
+     Ojo con el alcance: Basecoat usa --primary en el .btn y en el relleno
+     del slider. Los dos son rellenos, asi que los dos quieren el solido. */
+  --primary:               var(--sw-accent-solid);
+  --primary-foreground:    var(--sw-on-fill);
+  --accent:                var(--sw-hover);
+  --accent-foreground:     var(--sw-text);
+
+  --destructive:           var(--sw-error);
+  --border:                var(--sw-line);
+  --input:                 var(--sw-line);
+  --ring:                  var(--sw-accent-line);
+
+  /* ---------------------------------------------------------------
+     RIEL — el sidebar de Basecoat toma el chrome exterior
+     --------------------------------------------------------------- */
+  --sidebar:                     var(--sw-surface);
+  --sidebar-foreground:          var(--sw-text-2);
+  --sidebar-primary:             var(--sw-accent);
+  --sidebar-primary-foreground:  var(--sw-on-accent);
+  --sidebar-accent:              var(--sw-hover);
+  --sidebar-accent-foreground:   var(--sw-text);
+  --sidebar-border:              var(--sw-line);
+  --sidebar-ring:                var(--sw-accent-line);
+  --sidebar-width:               var(--sw-panel-w);
+
+  /* ---------------------------------------------------------------
+     FORMA
+     Basecoat deriva todos sus radios de --radius:
+       sm = radius-4px · md = radius-2px · lg = radius · xl = radius+4px
+     Con radius = r-md + 2 quedan sm=4 y md=6, que son EXACTAMENTE los dos
+     radios del sistema. El lg cae en 8 contra los 10 de --sw-r-lg: es la
+     unica desviacion de forma, y es de 2px en la superficie que menos se
+     repite.
+     --------------------------------------------------------------- */
+  --radius: calc(var(--sw-r-md) + 2px);
+
+  /* ---------------------------------------------------------------
+     DENSIDAD
+     Su escala entera se apoya en calc(var(--spacing)*N). Y da la
+     casualidad de que ya coincidia: la unidad del sistema es 4px y el
+     default de Basecoat es .25rem. Se escribe igual para que quede atado
+     al token y no a la coincidencia.
+     --------------------------------------------------------------- */
+  --spacing: var(--sw-s-1);
+
+  /* ---------------------------------------------------------------
+     TIPOGRAFIA — aca esta la diferencia real de densidad.
+     Basecoat viene de 16px base, que es medida de app de consumo. El
+     sistema es de 13px: densidad de instrumento (regla 4).
+     --------------------------------------------------------------- */
+  --font-sans:  var(--sw-font);
+  --font-mono:  var(--sw-font-mono);
+  --text-xs:    var(--sw-t-caption);
+  --text-sm:    var(--sw-t-body);
+  --text-base:  var(--sw-t-h2);
+  --text-lg:    var(--sw-t-h1);
+
+  /* ---------------------------------------------------------------
+     MOTION — la curva y la duracion corta del sistema (regla 5).
+     Lo que Basecoat anima MAL se corrige en basecoat-ext.css, no aca:
+     este archivo solo mapea variables.
+     --------------------------------------------------------------- */
+  --default-transition-duration:        var(--sw-d-micro);
+  --default-transition-timing-function: var(--sw-ease-out);
+  --ease-out:                           var(--sw-ease-out);
+}

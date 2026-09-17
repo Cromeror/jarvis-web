@@ -1,0 +1,20 @@
+/* Layout propio, encima del sistema. Sólo lo que posiciona — ni un color, ni un
+   radio, ni un tamaño de fuente. */
+
+/* EL CONTENEDOR DEL AMBIENTE — no existe en el template, y hace falta acá.
+   Allá las tres capas se cuelgan del bloque de la pantalla con `prepend`, y el
+   video se inserta después para quedar primero, o sea abajo. Con React el orden
+   de los hijos lo decide el JSX, así que un `prepend` desde un efecto cae
+   ARRIBA del video y la malla queda tapada: las capas no llevan z-index, es
+   puro orden de DOM.
+
+   Con este contenedor el orden vuelve a ser el del template —fondo, ambiente,
+   marco— y lo fija el JSX, no el momento en que corre un efecto. */
+.sw-acceso__ambiente {
+  position: absolute;
+  inset: 0;
+  /* El puntero lo escucha la pantalla entera, no esta caja: campo() recibe el
+     host por separado. Sin esto, el contenedor se comería los eventos del
+     formulario que tiene debajo. */
+  pointer-events: none;
+}

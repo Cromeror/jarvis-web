@@ -4,6 +4,30 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
     <title>Jarvis Flow UI</title>
+
+    <!-- LAS TRES FAMILIAS del template, que tokens.css nombra en --sw-font-*:
+         Inter para texto (--sw-font), JetBrains Mono para lo tabular y el
+         código (--sw-font-mono), y Raleway para la voz de la marca
+         (--sw-font-display) — el título de entrar, sus rótulos y sus campos.
+
+         RALEWAY VA CON EL PESO 100, que el index.html del template no pide: las
+         frases tipeadas de la pantalla de entrar son finas (--sw-w-thin: 100), y
+         sin ese peso el navegador lo simula adelgazando el 500 — se ve distinto
+         y salta cuando la fuente real termina de cargar. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Raleway:wght@100;500;600&display=swap" />
+
+    <script>
+      /* Antes de la primera pintura. Si la elección de tema se estampa desde
+         React, se ve un parpadeo del tema del sistema mientras monta. Es lo
+         único que justifica un script en el <head>. Sin valor guardado queda
+         en auto, que tokens.css resuelve por prefers-color-scheme. */
+      try {
+        var t = localStorage.getItem('sw.theme');
+        if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) { /* sin storage: arranca en auto */ }
+    </script>
   </head>
   <body>
     <div id="root"></div>

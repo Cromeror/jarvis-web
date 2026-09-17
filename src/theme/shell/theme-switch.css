@@ -1,0 +1,79 @@
+/* ---------------------------------------------------------------
+   CONMUTADOR DE TEMA — tres posiciones: auto · claro · oscuro
+   El CSS de shell/theme-switch.js. Vivía en chrome.css, con el JS en
+   chrome.js; se mudaron juntos cuando lo pidió la pantalla de entrar.
+
+   Reusa el indicador deslizante del sistema: una sola pastilla que
+   viaja, nunca tres fondos que prenden y apagan.
+   La pista va HUNDIDA (--sw-ink) y la pastilla ELEVADA (--sw-raised).
+   Ese escalón existe en los dos temas, así que el control se lee
+   igual en ambos sin una sola regla de color por tema.
+   --------------------------------------------------------------- */
+
+.sw-theme {
+  --sw-seg-w: 28px;
+  --sw-seg-h: 22px;
+
+  position: relative;
+  display: inline-grid;
+  grid-auto-flow: column;
+  /* GAP PROPIO, Y CERO, contra Basecoat: su `[role=radiogroup]` no está
+     acotado y le pone `gap: 12px` a cualquier elemento con ese rol. Así el
+     control pasó de 90 a 114px al enchufar la librería, y la pastilla —que
+     viaja de a un segmento— quedaba corrida del botón marcado. Declarado acá
+     le gana por orden de carga, que es lo que dice el punto 4 de
+     basecoat-ext.css: el que declara su propio gap no necesita blindaje. */
+  gap: 0;
+  padding: 2px;
+  background: var(--sw-ink);
+  border: var(--sw-border) solid var(--sw-line);
+  border-radius: var(--sw-r-md);
+}
+
+.sw-theme__pill {
+  position: absolute;
+  top: 2px; left: 2px;
+  width: var(--sw-seg-w);
+  height: var(--sw-seg-h);
+  border-radius: var(--sw-r-sm);
+  background: var(--sw-raised);
+  border: var(--sw-border) solid var(--sw-line);
+  pointer-events: none;
+  /* Recorrido máximo 56px → duración corta. La duración escala con la
+     distancia (tokens.css): esto no es una transición de pantalla. */
+  transition: transform var(--sw-d-short) var(--sw-ease-out);
+}
+
+/* Sin esto la pastilla viaja sola en la primera pintura si el usuario
+   tenía «oscuro» guardado. El movimiento inicial no comunica nada. */
+.sw-theme[data-ready="false"] .sw-theme__pill { transition: none; }
+
+.sw-theme[data-choice="light"] .sw-theme__pill { transform: translateX(var(--sw-seg-w)); }
+.sw-theme[data-choice="dark"]  .sw-theme__pill { transform: translateX(calc(var(--sw-seg-w) * 2)); }
+
+.sw-theme__opt {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: var(--sw-seg-w);
+  height: var(--sw-seg-h);
+  padding: 0; border: 0;
+  background: none;
+  color: var(--sw-muted);
+  cursor: pointer;
+  transition: color var(--sw-d-micro) var(--sw-ease-out);
+}
+.sw-theme__opt:hover { color: var(--sw-text-2); }
+.sw-theme__opt[aria-checked="true"] { color: var(--sw-text); }
+
+.sw-theme__opt svg { --sw-ico: var(--sw-ico-sm); }
+
+/* Táctil: acá NO sirve el hit area agrandado de 44px — tres áreas
+   adyacentes de 44px sobre segmentos de 28px se pisarían entre sí y el
+   dedo activaría la vecina. Con controles contiguos hay que agrandar el
+   control, no el área. */
+@media (pointer: coarse) {
+  .sw-theme { --sw-seg-w: 44px; --sw-seg-h: 38px; }
+  .sw-theme__opt svg { --sw-ico: var(--sw-ico-md); }
+}

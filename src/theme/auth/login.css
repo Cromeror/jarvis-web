@@ -1,0 +1,890 @@
+/* ============================================================================
+   SpaceMyWork — Entrar
+   ----------------------------------------------------------------------------
+   La pantalla de entrar: una tarjeta centrada sobre el enrejado del lienzo.
+
+   LAS PIEZAS SON DE BASECOAT (decisión 46): .card, .field, .label, .input,
+   .input-group y .btn. Lo que hay acá es la disposición y lo que la librería
+   no trae — el mensaje de error y el aviso de mayúsculas.
+   ============================================================================ */
+
+.sw-acceso {
+  /* `position` porque el enrejado se posiciona contra este bloque. */
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  /* ARRIBA Y ABAJO, 64px: lo que ocupa lo que flota arriba de la caja —la marca
+     (24) y su aire (16)— y el rincón del conmutador (16 + 28 + 16). Sin esto,
+     en una ventana baja la marca quedaba cortada contra el borde. Va en los dos
+     lados y no sólo arriba para que la tarjeta siga exactamente en el centro. */
+  padding-block: calc(var(--sw-s-4) * 4);
+  padding-inline: var(--sw-s-4);
+  background: var(--sw-ink);
+}
+/* Táctil: el conmutador crece a 44px de alto (theme-switch.css), y con él la
+   barra. */
+@media (pointer: coarse) {
+  .sw-acceso { padding-block: calc(var(--sw-s-4) * 5); }
+}
+
+/* ---- el fondo en movimiento ----
+   Debajo de todo el ambiente: video, velo, y encima el halo, la malla y el
+   vidrio. Es fondo y nada más, así que no recibe el puntero.
+
+   EL VIDEO ES MAS GRANDE QUE LA PANTALLA: un `filter: blur()` deja los cantos
+   transparentes —el desenfoque trae hacia adentro lo que no hay afuera—, y se
+   ve un marco lavado alrededor. Dos desenfoques de más por lado los saca de la
+   vista, y la caja que lo contiene recorta para que no agregue scroll.
+
+   width/height ADEMAS de inset, por lo mismo que el <canvas> del enrejado: un
+   <video> es un elemento reemplazado y con posición absoluta usa su tamaño
+   propio, no el que le dan los cuatro lados. */
+.sw-acceso__fondo {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.sw-acceso__video {
+  position: absolute;
+  inset: calc(var(--sw-acceso-video-blur) * -2);
+  width: calc(100% + var(--sw-acceso-video-blur) * 4);
+  height: calc(100% + var(--sw-acceso-video-blur) * 4);
+  /* SIN TOPE DE ANCHO. El reset de Basecoat le pone `max-width: 100%` a todo
+     <video>: frenaba el ancho y no el alto, y el video terminaba 32px antes del
+     canto derecho —medido: 1568 en una pantalla de 1600—, con el borde lavado
+     del desenfoque a la vista. */
+  max-width: none;
+  object-fit: cover;
+  filter: blur(var(--sw-acceso-video-blur));
+}
+.sw-acceso__velo {
+  position: absolute;
+  inset: 0;
+  background: var(--sw-acceso-velo);
+}
+/* MIENTRAS CORRE EL VIDEO, LOS ORBES SE VAN: video, orbes y malla eran tres
+   capas de movimiento, y dos halos sobre el mismo punteado ya se habían leído
+   como ruido (decisión 40). Si el video no carga, el atributo no se pone y los
+   orbes quedan: la pantalla de antes. */
+.sw-acceso[data-fondo="video"] .sw-canvas__orbes { display: none; }
+
+/* LA PAUSA, abajo a la derecha, con la forma del conmutador de tema —pista
+   hundida y filete— para que se lea como control sobre un fondo que se mueve. */
+.sw-acceso__pausa[data-variant="ghost"] {
+  position: absolute;
+  inset-block-end: var(--sw-s-4);
+  inset-inline-end: var(--sw-s-4);
+  background: var(--sw-ink);
+  border: var(--sw-border) solid var(--sw-line);
+}
+
+/* EL MARCO — el canto ancho, claro y translúcido de la caja de Immerse Layer
+   (su `dashboard__frame`), pedido por el dueño. Un vidrio claro alrededor de la
+   tarjeta, con la luz entrando en diagonal.
+
+   ES EL MARCO EL QUE DESENFOCA, y no la tarjeta, por una regla del navegador:
+   un elemento con backdrop-filter se vuelve la «raíz de fondo» de lo que tiene
+   adentro, y un segundo desenfoque anidado ya no ve la pantalla, sólo el marco.
+   Así que el marco desenfoca todo lo que tiene detrás —tarjeta incluida— y la
+   tarjeta sólo tiñe.
+
+   LOS RADIOS SON CONCENTRICOS: el del marco es el de la tarjeta más su relleno.
+   Con el mismo radio las dos curvas no corren paralelas y el canto se ve más
+   grueso en las esquinas que en los lados.
+
+   Y LLEVA `position` por el enrejado: los dos posicionados, manda el orden del
+   DOM, y el campo va primero (shell/ambience.css). */
+.sw-acceso__marco {
+  position: relative;
+  inline-size: 100%;
+  max-inline-size: calc(var(--sw-acceso-w) + var(--sw-s-2) * 2);
+  padding: var(--sw-s-2);
+  border-radius: calc(var(--radius-xl) + var(--sw-s-2));
+  background: var(--sw-vidrio-marco);
+  -webkit-backdrop-filter: blur(var(--sw-vidrio-denso-blur));
+  backdrop-filter: blur(var(--sw-vidrio-denso-blur));
+  box-shadow: var(--sw-e-marco);
+}
+
+/* LA TARJETA ES VIDRIO TRASLUCIDO adentro del marco: el escalón de lo que flota
+   al 35%, un canto fino translúcido y la línea de luz de arriba. La sombra la
+   lleva el marco, que es lo que flota.
+
+   EL CONTRASTE SE MIDE EN PIXELES y no contra un color, porque el vidrio no
+   tiene uno: tiene lo que deja pasar. login.cjs muestrea los márgenes de la
+   tarjeta y mide cada texto contra el peor punto. */
+.sw-acceso__tarjeta {
+  inline-size: 100%;
+  /* LA LUZ encima del tinte: en oscuro entra por arriba, en claro por abajo
+     (--sw-vidrio-luz, un valor por tema). */
+  background: var(--sw-vidrio-luz), var(--sw-vidrio-denso);
+  border: var(--sw-border) solid var(--sw-vidrio-borde);
+  box-shadow: var(--sw-e-vidrio);
+}
+
+/* QUIEN PIDIO MENOS TRANSPARENCIA la tiene opaca: la tarjeta en el escalón de
+   lo que flota y el marco un escalón abajo, sin dejar pasar nada. El vidrio es
+   adorno; leer el formulario, no. */
+@media (prefers-reduced-transparency: reduce) {
+  .sw-acceso__marco {
+    background: var(--sw-raised);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  /* La luz se queda: es un degradado sobre algo opaco, no deja pasar nada. */
+  .sw-acceso__tarjeta { background: var(--sw-vidrio-luz), var(--sw-raised-2); }
+}
+
+/* ---- el tema, en el rincón ----
+   Posicionado como el ambiente, así que queda encima de él por orden del DOM.
+   A 16px de los dos bordes: el mismo aire lateral que la pantalla le deja a la
+   tarjeta en angosto. */
+.sw-acceso__tema {
+  position: absolute;
+  inset-block-start: var(--sw-s-4);
+  inset-inline-end: var(--sw-s-4);
+}
+
+/* ---- lo que va arriba de la caja: las frases y la marca ----
+   UN SOLO BLOQUE POSICIONADO CONTRA EL MARCO y no en el flujo: así no empuja la
+   tarjeta, que sigue exactamente en el centro de la pantalla. Y ANCLADO POR
+   ABAJO: crece hacia arriba, así la marca queda siempre a 16px de la caja
+   aunque la frase ocupe uno, dos o tres renglones. */
+.sw-acceso__encima {
+  position: absolute;
+  inset-block-end: calc(100% + var(--sw-s-4));
+  inset-inline: 0;
+  display: flex;
+  flex-direction: column;
+  /* Entre la frase y la marca: crece con el alto de la pantalla, así la frase
+     sube y no queda pegada a la caja cuando ocupa dos renglones. */
+  gap: var(--sw-acceso-frase-aire);
+  pointer-events: none;
+}
+
+/* LA MARCA, AFUERA DE LA TARJETA Y PEGADA A ELLA (pedido del dueño). Adentro,
+   arriba del título, eran dos renglones de peso parecido compitiendo por ser
+   el primero; en el rincón de la pantalla quedaba lejos de lo que firma.
+
+   PEGADA AL BORDE IZQUIERDO DE LA CAJA (pedido del dueño). Estuvo sobre la línea
+   del título —corrida el relleno del marco, el canto y el relleno de la
+   tarjeta—, y en las dos cajas, la de entrar y la de los ajustes, se leía
+   corrida. El borde del marco es lo que la ata a la caja. */
+.sw-acceso__marca {
+  align-self: flex-start;
+  margin-inline-start: 0;
+}
+
+/* LAS FRASES, TIPEADAS EN GRANDE Y EN LO MAS FINO DE RALEWAY (pedido del dueño).
+   Más anchas que la caja y centradas sobre ella: un ítem de flex más grande
+   que su contenedor, centrado, desborda parejo a los dos lados.
+
+   `text-wrap: balance` REPARTE LOS RENGLONES PAREJOS, y se puede porque la
+   frase entera ya está diagramada desde la primera letra: el reparto no cambia
+   mientras se tipea. */
+.sw-acceso__frases {
+  align-self: center;
+  /* ESTIRADAS A LOS COSTADOS: casi todo el ancho de la pantalla, con 48px de
+     cada lado. Así van en un renglón mientras entren y pasan a dos sólo cuando
+     no (pedido del dueño). */
+  inline-size: min(var(--sw-acceso-frase-w), calc(100vw - var(--sw-s-6) * 4));
+  margin: 0;
+  font-family: var(--sw-font-display);
+  font-size: var(--sw-t-frase);
+  font-weight: var(--sw-w-thin);
+  line-height: var(--sw-lh-display);
+  color: var(--sw-text);
+  text-align: center;
+  text-wrap: balance;
+}
+/* Lo que falta escribir ocupa su lugar sin verse: es lo que fija el renglón. */
+.sw-acceso__falta { visibility: hidden; }
+
+/* EL CURSOR NO OCUPA ANCHO: un filete con margen negativo del mismo tamaño.
+   Con ancho propio empujaría lo que falta y el reparto de renglones podría
+   cambiar según en qué renglón esté. Un píxel, como el trazo más fino. */
+.sw-acceso__cursor {
+  display: inline-block;
+  inline-size: 0;
+  block-size: 0.9em;
+  vertical-align: -0.12em;
+  border-inline-start: var(--sw-border) solid currentColor;
+  margin-inline-end: calc(var(--sw-border) * -1);
+  animation: sw-acceso-parpadeo var(--sw-d-parpadeo) steps(1, end) infinite;
+}
+/* Pausado es quieto del todo: el cursor tampoco titila. */
+.sw-acceso__frases[data-pausado] .sw-acceso__cursor { animation: none; }
+@keyframes sw-acceso-parpadeo { 50% { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .sw-acceso__cursor { visibility: hidden; animation: none; }
+}
+
+/* EN UNA VENTANA BAJA NO HAY LUGAR, y las frases se van en vez de subirse
+   encima del conmutador o salirse por arriba. Medido con las frases estiradas:
+   en 1280×720 la de dos renglones arranca en 35px, encima del conmutador (que
+   termina en 44); en 1366×768 arranca en 50 y en 1536×730 van todas en un
+   renglón. Es un número de media query porque los tokens no llegan ahí. */
+@media (max-height: 720px) {
+  .sw-acceso__frases { display: none; }
+}
+
+/* ---- la marca: la letra y el monograma ---- */
+
+.sw-acceso__marca {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-s-2);
+  /* Sólo arriba y abajo: el margen de la izquierda lo decide el bloque de
+     «arriba de la caja», y un `margin: 0` acá, que viene después, lo pisaría. */
+  margin-block: 0;
+  font-family: var(--sw-font-display);
+  font-size: var(--sw-t-h2);
+  font-weight: var(--sw-w-medium);
+  color: var(--sw-text);
+}
+/* EL MONOGRAMA CON SU COLOR, que es la excepción declarada del registro de
+   íconos: la misma que .sw-side__logo en sidebar.css. */
+.sw-acceso__marca svg {
+  --sw-ico: var(--sw-ico-xl);
+  fill: var(--sw-brand);
+  stroke: none;
+}
+
+.sw-acceso__titulo {
+  margin: 0;
+  font-size: var(--sw-t-h1);
+  line-height: var(--sw-lh-h1);
+  font-weight: var(--sw-w-medium);
+  color: var(--sw-text);
+}
+
+/* ---- los campos ---- */
+
+.sw-acceso__campos {
+  display: grid;
+  gap: var(--sw-s-4);
+}
+
+/* LOS CAMPOS SE HUNDEN EN EL VIDRIO. Con el fondo translúcido, el filete del
+   campo se fundía y el de contraseña —sin texto de ejemplo— no se veía. El
+   relleno sale de --sw-vidrio-pozo; el borde, el foco y el error siguen siendo
+   los del grupo. login.cjs mide que el campo se separe del vidrio por lo menos
+   un escalón de la escalera del tema. */
+.sw-acceso__tarjeta .input-group { background: var(--sw-vidrio-pozo); }
+
+/* ---- la letra: la de la marca ----
+   El título, los rótulos y los campos van en Raleway (--sw-font-display), la
+   letra de la marca, para que la pantalla hable con una sola voz (pedido del
+   dueño). El enlace, el botón y los errores siguen en la letra del sistema.
+
+   LOS CAMPOS LLEVAN `lining-nums`. Raleway trae por defecto cifras antiguas
+   —suben y bajan de la línea como las minúsculas—, y en un correo o una
+   contraseña con números se leen como un error de tipeo. Los pesos son los que
+   login.html baja: 500 y 600. */
+.sw-acceso__titulo,
+.sw-ajustes__h,
+.sw-ajustes__h3,
+.sw-acceso__tarjeta .label,
+.sw-acceso__tarjeta .input-group > input {
+  font-family: var(--sw-font-display);
+}
+.sw-acceso__tarjeta .input-group > input { font-variant-numeric: lining-nums; }
+
+/* EL ERROR VA CON LA TINTA DEL ESTADO y no con el semántico crudo: --sw-error
+   está calibrado para bordes e íconos y como texto no llega a 4,5:1 en todos
+   los escalones (ESTADO, «texto escrito con el semántico crudo»).
+   Vacío no ocupa lugar: el elemento está siempre, porque es la región que el
+   lector anuncia al llenarse. */
+.sw-acceso__error {
+  margin: 0;
+  font-size: var(--sw-t-body-sm);
+  color: var(--sw-on-error);
+}
+.sw-acceso__error:empty { display: none; }
+
+.sw-acceso__aviso {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-s-1);
+  margin: 0;
+  font-size: var(--sw-t-body-sm);
+  color: var(--sw-text-2);
+}
+.sw-acceso__aviso:empty { display: none; }
+.sw-acceso__aviso svg { --sw-ico: var(--sw-ico-sm); }
+
+/* ---- el pie ---- */
+
+/* EL BOTON NO VA A TODO EL ANCHO, y el motivo es la regla 2 medida. A lo ancho
+   de la tarjeta —310×36— el relleno de acento ocupaba él solo 0,67% de una
+   pantalla de 1600×1000, contra un techo de 0,5%; y a 1920×1080, 0,54%. Con su
+   ancho natural queda como todo primario de la app, y el pie se lee como el del
+   asistente: lo secundario a la izquierda, lo que avanza a la derecha. */
+.sw-acceso__pie {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sw-s-3);
+}
+
+/* EL ENLACE NO VA EN ACENTO. La variante `link` de Basecoat lo pinta con
+   --primary, que acá es --sw-accent-solid: vale lo mismo en los dos temas y
+   como texto sobre la tarjeta oscura da 2,03:1. Y aunque pasara, sería un
+   segundo acento al lado del botón de entrar (regla 2: un CTA por pantalla).
+   Con --sw-text-2: 7,85 en claro y 5,72 en oscuro. El subrayado al pasar el
+   puntero lo sigue poniendo la librería.
+
+   Y SIN EL RELLENO LATERAL de .btn, que la variante `link` conserva: la caja
+   arrancaba en la línea de los campos pero el TEXTO quedaba 11px adentro, y lo
+   que el ojo alinea es el texto. El alto —lo que se aprieta— no cambia. */
+/* LA FLECHA DEL BOTON, al tamaño de ícono chico del sistema. Basecoat la lleva a
+   16px con `.btn svg:not([class*=size-])`, que pesa (0,2,1) y le gana a .sw-ico;
+   en un botón de 32px al lado de un texto de 13, 16 se ve grande. Se declara con
+   el mismo peso y gana por orden de carga.
+
+   Y AVANZA DOS PIXELES al pasar o al enfocar: sólo transform, en la duración
+   corta (regla 5 y 7). No dice nada que el botón no diga; es la respuesta. */
+.sw-acceso__pie .sw-acceso__entrar svg {
+  width: var(--sw-ico-sm);
+  height: var(--sw-ico-sm);
+  transition: transform var(--sw-d-micro) var(--sw-ease-out);
+}
+.sw-acceso__pie .sw-acceso__entrar:hover svg,
+.sw-acceso__pie .sw-acceso__entrar:focus-visible svg {
+  transform: translateX(var(--sw-ico-aire));
+}
+@media (prefers-reduced-motion: reduce) {
+  .sw-acceso__pie .sw-acceso__entrar svg { transition: none; }
+}
+
+.sw-acceso__olvide[data-variant="link"] {
+  color: var(--sw-text-2);
+  padding-inline: 0;
+}
+
+/* ---- la configuración de la primera vez: un modal de ajustes ----
+   LA MISMA CAJA DE VIDRIO DEL LOGIN (pedido del dueño), más grande y armada
+   como los ajustes de Claude: a la izquierda las secciones, a la derecha
+   «Ajustes» y el panel con sus filas, y el pie abajo. Lo que separa las zonas es el canto
+   de la tarjeta (--sw-vidrio-borde): sobre vidrio, un --sw-line se lee como
+   una raya pintada encima.
+
+   EL MARCO SE ENSANCHA mientras la muestra. El cambio pasa con la caja
+   invisible —en la fase `entrando`—, así que no se anima ningún ancho (regla 7). */
+.sw-acceso__marco:has(> .sw-acceso__config:not([hidden])) {
+  max-inline-size: calc(var(--sw-acceso-config-w) + var(--sw-s-2) * 2);
+}
+/* ALTO FIJO: al cambiar de sección la caja no salta, y lo que no entra se
+   desplaza adentro del panel.
+
+   CON TOPE EN LA PANTALLA: en una ventana baja la caja se achica lo que haga
+   falta para que arriba entren el canto del marco, el aire y la marca (24px
+   medidos), el aire hasta la consigna, un renglón de ella y el rincón del
+   conmutador de tema (16 + 28 y un respiro: 48). Medido en 1280×800: con el
+   alto fijo la consigna quedaba en y=0, y con 16 de margen pisaba el
+   conmutador. Se reserva lo mismo abajo porque la caja va centrada.
+
+   Y CON PISO (--sw-acceso-config-h-min). Donde el piso no deja lugar arriba
+   —ventanas de menos de 776px de alto—, la consigna no se muestra.
+
+   LA DIVISION LLEGA HASTA ARRIBA (pedido del dueño): dos columnas —las
+   secciones y el cuerpo— desde el canto de arriba hasta el pie, y «Ajustes»
+   es la cabecera del cuerpo en vez de cruzar la caja. `.tabs` se disuelve
+   en esta grilla (display: contents) para que el título, la lista y los
+   paneles se ubiquen en ella sin dejar de ser, para Basecoat, las pestañas de
+   siempre: sus reglas miran la relación en el documento, que no cambia.
+
+   EL PANEL EN minmax(0, 1fr): con `1fr` a secas el mínimo es el contenido más
+   ancho que no se parte, y en angosto la fila de secciones empujaba la caja a
+   596px en una pantalla de 400. */
+.sw-acceso__config {
+  display: grid;
+  grid-template-columns: var(--sw-acceso-config-nav) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  block-size: max(var(--sw-acceso-config-h-min), min(var(--sw-acceso-config-h),
+    calc(100dvh - (var(--sw-s-2) + var(--sw-s-4) + var(--sw-s-6) + var(--sw-s-12) +
+                   var(--sw-acceso-frase-aire) + var(--sw-t-frase) * var(--sw-lh-display)) * 2)));
+  gap: 0;
+  padding-block: 0;
+}
+@media (max-height: 775px) {
+  .sw-acceso__marco:has(> .sw-acceso__config:not([hidden])) .sw-acceso__frases { display: none; }
+}
+.sw-acceso__config > .sw-ajustes { display: contents; }
+/* «AJUSTES» ES LA CABECERA DEL CUERPO (pedido del dueño): arriba del panel, en
+   la columna de la derecha, y quieta mientras el panel se desplaza. Las
+   secciones quedan solas en la suya, desde el canto de arriba.
+
+   LOS TITULOS VAN EN RALEWAY ULTRA FINA (pedido del dueño), la de las frases de
+   la pantalla de entrar. Por eso cada uno sube un escalón de tamaño: a peso 100
+   un título de 16px es un hilo. */
+/* ES UNA CABECERA, y se dibuja como tal (pedido del dueño): el mismo aire abajo
+   que arriba y el canto del vidrio como línea que la separa del panel. */
+.sw-ajustes__titulo {
+  grid-column: 2;
+  grid-row: 1;
+  margin: 0;
+  padding: var(--sw-s-5) var(--sw-s-6);
+  border-block-end: var(--sw-border) solid var(--sw-vidrio-borde);
+  font-size: var(--sw-t-display);
+  line-height: var(--sw-lh-display);
+  font-weight: var(--sw-w-thin);
+}
+.sw-acceso__config > footer {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  padding: var(--sw-s-3) var(--sw-s-6);
+  border-block-start: var(--sw-border) solid var(--sw-vidrio-borde);
+}
+.sw-ajustes__nota {
+  margin: 0;
+  font-size: var(--sw-t-body-sm);
+  line-height: var(--sw-lh-body-sm);
+  color: var(--sw-ajustes-tinta-2);
+}
+
+/* LAS SECCIONES: las pestañas verticales de Basecoat en una columna negra con
+   opacidad (pedido del dueño), de punta a punta, con una línea doble entre
+   cada una —un surco oscuro y el brillo del vidrio abajo: la hendidura, con su
+   sombra y su luz— y la elegida más clara, con una barra de acento de dos
+   píxeles. Es el «nav activo» que la regla 2 admite para el acento.
+
+   EL TEXTO DE LAS NO ELEGIDAS VA EN --sw-text, no en el --sw-muted de
+   basecoat-ext.css (punto 7): sobre el vidrio oscuro --sw-muted daba 3,65:1 y
+   --sw-text-2 4,42:1, medidos —arriba el vidrio es más claro, porque la luz
+   entra por ahí—. Lo que separa a la elegida es la luz y la barra, no el color
+   del texto. */
+.sw-ajustes > .sw-ajustes__nav {
+  grid-column: 1;
+  grid-row: 1 / 3;
+  align-self: stretch;
+  justify-content: flex-start;
+  gap: 0;
+  width: auto;
+  height: auto;
+  min-block-size: 0;
+  overflow-y: auto;
+  padding: var(--sw-s-5) 0 var(--sw-s-3);
+  background: var(--sw-ajustes-nav);
+  border-radius: 0;
+  /* La esquina de arriba sigue la curva de la tarjeta: el negro no se asoma. */
+  border-start-start-radius: calc(var(--radius-xl) - var(--sw-border));
+  border-inline-end: var(--sw-border) solid var(--sw-vidrio-borde);
+}
+.sw-ajustes > .sw-ajustes__nav > [role="tab"] {
+  flex: 0 0 auto;
+  width: 100%;
+  gap: var(--sw-s-2);
+  padding: var(--sw-s-3) var(--sw-s-5);
+  border: 0;
+  border-radius: 0;
+  font-size: var(--sw-t-body);
+}
+/* LA LINEA DOBLE ENTRE SECCIONES: el surco arriba y el brillo justo abajo. */
+.sw-ajustes > .sw-ajustes__nav > [role="tab"] + [role="tab"] {
+  border-block-start: var(--sw-border) solid var(--sw-ajustes-surco);
+  box-shadow: inset 0 var(--sw-border) 0 var(--sw-vidrio-brillo);
+}
+.sw-ajustes > .sw-ajustes__nav > [role="tab"]:hover { background: var(--sw-ajustes-hover); }
+/* LA ELEGIDA: más luz y la barra de acento a la izquierda, sin perder el brillo
+   de su línea. Sombra interior y no borde: la barra no mueve el texto. */
+.sw-ajustes > .sw-ajustes__nav > [role="tab"][aria-selected="true"] {
+  background: var(--sw-ajustes-activo);
+  box-shadow: inset calc(var(--sw-border) * 2) 0 0 var(--sw-accent), inset 0 var(--sw-border) 0 var(--sw-vidrio-brillo);
+}
+/* (0,5,0): le gana a la regla de basecoat-ext.css para la no elegida (0,4,0). */
+.sw-acceso__config .sw-ajustes > .sw-ajustes__nav > [role="tab"]:not([aria-selected="true"]) {
+  color: var(--sw-text);
+}
+.sw-ajustes > .sw-ajustes__nav > [role="tab"] svg { --sw-ico: var(--sw-ico-md); }
+
+.sw-ajustes__panel {
+  grid-column: 2;
+  grid-row: 2;
+  min-inline-size: 0;
+  min-block-size: 0;
+  overflow-y: auto;
+  padding: var(--sw-s-5) var(--sw-s-6);
+}
+.sw-ajustes__h {
+  margin: 0 0 var(--sw-s-1);
+  font-size: var(--sw-t-h1);
+  line-height: var(--sw-lh-h1);
+  font-weight: var(--sw-w-thin);
+  color: var(--sw-text);
+}
+/* Un título adentro de la sección —«Niveles de uso»—: separa lo que se lee de
+   lo que se elige. */
+.sw-ajustes__h3 {
+  margin: var(--sw-s-5) 0 var(--sw-s-1);
+  font-size: var(--sw-t-h2);
+  line-height: var(--sw-lh-h2);
+  font-weight: var(--sw-w-thin);
+  color: var(--sw-text);
+}
+
+/* UNA FILA POR AJUSTE: el nombre y su ayuda a la izquierda, el control a la
+   derecha, y el canto del vidrio entre filas. */
+.sw-ajustes__fila {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sw-s-2) var(--sw-s-6);
+  padding-block: var(--sw-s-3);
+  border-block-start: var(--sw-border) solid var(--sw-vidrio-borde);
+}
+:is(.sw-ajustes__h, .sw-ajustes__h3) + .sw-ajustes__fila { border-block-start: 0; }
+/* Las casillas son una lista: el nombre queda a la altura de la primera. */
+.sw-ajustes__fila[data-tipo="checks"] { align-items: start; }
+/* El fondo apila: las muestras y el botón no entran al lado del nombre. */
+.sw-ajustes__fila[data-tipo="fondo"] { grid-template-columns: minmax(0, 1fr); }
+.sw-ajustes__fila[data-tipo="fondo"] .sw-ajustes__control {
+  justify-self: start;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.sw-ajustes__texto {
+  display: grid;
+  gap: calc(var(--sw-s-1) / 2);
+  min-inline-size: 0;
+}
+.sw-ajustes__nombre {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-s-2);
+  margin: 0;
+  font-size: var(--sw-t-body);
+  line-height: var(--sw-lh-body-sm);
+  font-weight: var(--sw-w-medium);
+  color: var(--sw-text);
+}
+.sw-ajustes__nombre svg { --sw-ico: var(--sw-ico-md); }
+.sw-ajustes__ayuda {
+  margin: 0;
+  font-size: var(--sw-t-body-sm);
+  line-height: var(--sw-lh-body-sm);
+  color: var(--sw-ajustes-tinta-2);
+}
+.sw-ajustes__control {
+  display: flex;
+  align-items: center;
+  justify-self: end;
+  gap: var(--sw-s-3);
+}
+
+/* LOS BOTONES DE UNA ELECCION: el segmentado del conmutador de tema, con
+   texto. La pista hundida y la elegida levantada —el mismo escalón en los dos
+   temas— y sin acento. `gap` y `display` propios contra el [role=radiogroup]
+   sin acotar de Basecoat, que le pondría una grilla con 12px de hueco. */
+.sw-ajustes__opciones {
+  position: relative;
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 0;
+  padding: calc(var(--sw-border) * 2);
+  background: var(--sw-vidrio-pozo);
+  border: var(--sw-border) solid var(--sw-vidrio-borde);
+  border-radius: var(--sw-r-md);
+}
+/* LA PASTILLA QUE VIAJA (pedido del dueño: que se anime suave). Los botones
+   miden lo mismo —grid-auto-columns: 1fr— para que llegar a cualquiera sea
+   sólo trasladarse: un ancho que cambiara habría que animarlo, y la regla 7 no
+   deja. login.js le pasa la cantidad y el índice en --sw-seg-n y --sw-seg-i.
+   Recorre como mucho el ancho del control: --sw-d-short (regla 5). */
+.sw-ajustes__pastilla {
+  position: absolute;
+  inset-block: calc(var(--sw-border) * 2);
+  inset-inline-start: calc(var(--sw-border) * 2);
+  inline-size: calc((100% - var(--sw-border) * 4) / var(--sw-seg-n, 1));
+  background: var(--sw-raised);
+  border: var(--sw-border) solid var(--sw-line);
+  border-radius: var(--sw-r-sm);
+  transform: translateX(calc(var(--sw-seg-i, 0) * 100%));
+  transition: transform var(--sw-d-short) var(--sw-ease-out);
+  pointer-events: none;
+}
+.sw-ajustes__opciones > [role="radio"] {
+  position: relative;
+  padding: var(--sw-s-1) var(--sw-s-3);
+  border: var(--sw-border) solid transparent;
+  border-radius: var(--sw-r-sm);
+  background: none;
+  font: inherit;
+  font-size: var(--sw-t-body-sm);
+  line-height: var(--sw-lh-body-sm);
+  color: var(--sw-text-2);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--sw-d-micro) var(--sw-ease-out);
+}
+.sw-ajustes__opciones > [role="radio"]:hover { color: var(--sw-text); }
+.sw-ajustes__opciones > [role="radio"][aria-checked="true"] { color: var(--sw-text); }
+/* Táctil: segmentos contiguos, así que crece el control y no el área (regla 9). */
+@media (pointer: coarse) {
+  .sw-ajustes__opciones > [role="radio"] { padding-block: var(--sw-s-3); }
+}
+
+.sw-ajustes__checks {
+  display: grid;
+  gap: var(--sw-s-2);
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.sw-ajustes__check {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-s-2);
+  font-size: var(--sw-t-body);
+  line-height: var(--sw-lh-body-sm);
+  color: var(--sw-text);
+  cursor: pointer;
+}
+
+/* EL CAMPO: el pozo de los campos del login (.sw-acceso__tarjeta .input-group),
+   con un ancho. */
+.sw-ajustes__campo { inline-size: var(--sw-ajustes-campo-w); }
+
+/* LAS MUESTRAS DEL FONDO, con la proporción de la columna del chat. La elegida
+   se marca con una línea en la tinta del texto y no con acento (regla 2): lo
+   elegido acá es un gusto, no un estado. */
+.sw-ajustes__fondos {
+  display: flex;
+  gap: var(--sw-s-3);
+}
+.sw-ajustes__fondo {
+  display: grid;
+  justify-items: center;
+  gap: var(--sw-s-1);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--sw-t-body-sm);
+  line-height: var(--sw-lh-body-sm);
+  color: var(--sw-ajustes-tinta-2);
+  cursor: pointer;
+}
+.sw-ajustes__fondo[aria-checked="true"] { color: var(--sw-text); }
+.sw-ajustes__muestra {
+  display: flex;
+  inline-size: var(--sw-ajustes-muestra-w);
+  block-size: var(--sw-ajustes-muestra-h);
+  overflow: hidden;
+  border: var(--sw-border) solid var(--sw-vidrio-borde);
+  border-radius: var(--sw-r-md);
+  background-color: var(--sw-block-chrome);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  /* La línea de la elegida está siempre, transparente: así se funde al
+     elegirla en vez de aparecer de golpe. */
+  outline: var(--sw-border) solid transparent;
+  outline-offset: var(--sw-border);
+}
+/* «Color pleno» es el material de siempre: el chrome con su atmósfera. */
+.sw-ajustes__muestra[data-muestra="pleno"] { background-image: var(--sw-atmosfera); }
+/* «Con fondo», partida: la imagen del claro y la del oscuro. */
+.sw-ajustes__muestra > span {
+  flex: 1;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+.sw-ajustes__fondo[aria-checked="true"] .sw-ajustes__muestra { outline-color: var(--sw-text); }
+
+/* LOS NIVELES DE USO: la barra de Basecoat sin su acento —un consumo no es un
+   estado (regla 2)—: el relleno en la tinta secundaria sobre el pozo del vidrio.
+   El número al lado, en cifras tabulares y con ancho propio, para que las
+   barras de las tres filas empiecen en el mismo lugar. */
+.sw-ajustes__uso {
+  inline-size: var(--sw-ajustes-uso-w);
+  background: var(--sw-vidrio-pozo);
+}
+.sw-ajustes__uso > span {
+  inline-size: calc(var(--sw-uso, 0) * 1%);
+  background: var(--sw-text-2);
+}
+.sw-ajustes__uso-n {
+  min-inline-size: var(--sw-s-16);
+  font-size: var(--sw-t-body-sm);
+  line-height: var(--sw-lh-body-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  color: var(--sw-ajustes-tinta-2);
+}
+
+/* LA CASILLA SIN MARCAR Y EL INTERRUPTOR APAGADO SE VEN SOBRE EL VIDRIO.
+   Basecoat dibuja los dos con --color-input, que basecoat-map apunta a
+   --sw-line —el valor de la card dibujado como línea (regla 3)—: sobre el
+   vidrio claro la casilla «Correo» no se veía en absoluto. Acá pasan al gris
+   de los rótulos, y login.cjs mide que se separen del vidrio por lo menos 3:1
+   (WCAG 1.4.11).
+
+   SE REDEFINE EN EL CONTROL Y NO EN LA CAJA: --color-input también es el borde
+   de los campos y de los botones delineados, que ya estaban medidos. Y va
+   --color-input y no --input porque Basecoat resuelve una en la otra UNA VEZ,
+   en :root: cambiar --input acá abajo no llega. En la app el defecto sigue: es
+   del sistema y está anotado en ESTADO. */
+.sw-acceso__config input[type="checkbox"] { --color-input: var(--sw-muted); }
+
+/* ---- el movimiento de los ajustes ----
+   Pedido del dueño: las interacciones se sentían duras. Todo con transform,
+   opacidad y color (regla 7), y la duración según lo que recorre (regla 5): lo
+   que sólo cambia de color, --sw-d-micro; lo que se desplaza unos pocos
+   píxeles —la perilla, la pastilla, lo que aparece—, --sw-d-short. Con
+   movimiento reducido lo apaga la regla global de base.css. */
+
+/* LA PERILLA DEL INTERRUPTOR recorre 14px, y Basecoat la mueve con `translate`
+   en 110ms: para ese recorrido se lee como un salto. */
+.sw-acceso__config input[role="switch"],
+.sw-acceso__config input[role="switch"]::before {
+  transition-duration: var(--sw-d-short);
+  transition-timing-function: var(--sw-ease-out);
+}
+
+/* LA TILDE DE LA CASILLA llega desde un poco más chica, como lo nuevo. */
+@keyframes sw-ajustes-tilde {
+  from { opacity: 0; transform: scale(var(--sw-acceso-zoom-llega)); }
+}
+.sw-acceso__config input[type="checkbox"]:not([role="switch"]):checked::after {
+  animation: sw-ajustes-tilde var(--sw-d-short) var(--sw-ease-out);
+}
+
+/* LO QUE APARECE —la marca «Conectado», el panel de una sección— entra
+   fundiéndose con un desplazamiento corto. */
+@keyframes sw-ajustes-aparece {
+  from { opacity: 0; transform: translateY(var(--sw-s-1)); }
+}
+.sw-acceso__config .sw-ajustes__control > .badge,
+.sw-ajustes__panel {
+  animation: sw-ajustes-aparece var(--sw-d-short) var(--sw-ease-out);
+}
+
+/* APRETAR SE SIENTE: los botones y las muestras ceden un poco. Las muestras
+   suman la transición que Basecoat les da a los botones. */
+.sw-ajustes__muestra {
+  transition-property: outline-color, transform;
+  transition-duration: var(--sw-d-micro);
+  transition-timing-function: var(--sw-ease-out);
+}
+.sw-acceso__config .btn:active,
+.sw-ajustes__fondo:active .sw-ajustes__muestra { transform: scale(var(--sw-cede)); }
+
+/* ANGOSTO: las secciones pasan arriba en una fila que se desplaza, y cada
+   ajuste apila el control debajo del nombre. La caja deja de tener alto fijo:
+   la pantalla entera se desplaza. */
+@media (max-width: 640px) {
+  .sw-acceso__config {
+    block-size: auto;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+  }
+  .sw-ajustes__titulo { grid-column: 1; grid-row: 1; }
+  /* `width: auto` (arriba) contra el `fit-content` de Basecoat: en fila, eso es
+     el ancho de todas las secciones juntas, y la fila salía de la caja (medido:
+     578px en una caja de 368) en vez de desplazarse adentro. */
+  .sw-ajustes > .sw-ajustes__nav {
+    grid-row: 2;
+    flex-direction: row;
+    padding: 0;
+    overflow-x: auto;
+    border-start-start-radius: 0;
+    border-inline-end: 0;
+    border-block-end: var(--sw-border) solid var(--sw-vidrio-borde);
+  }
+  /* Basecoat le da a la pestaña vertical el ancho entero: en fila se veía una
+     sola sección por vez. */
+  .sw-ajustes > .sw-ajustes__nav > [role="tab"] { width: auto; }
+  /* En fila la línea doble y la barra giran: entre secciones van de arriba
+     abajo, y la barra de la elegida, abajo. */
+  .sw-ajustes > .sw-ajustes__nav > [role="tab"] + [role="tab"] {
+    border-block-start: 0;
+    border-inline-start: var(--sw-border) solid var(--sw-ajustes-surco);
+    box-shadow: inset var(--sw-border) 0 0 var(--sw-vidrio-brillo);
+  }
+  .sw-ajustes > .sw-ajustes__nav > [role="tab"][aria-selected="true"] {
+    box-shadow: inset 0 calc(var(--sw-border) * -2) 0 var(--sw-accent), inset var(--sw-border) 0 0 var(--sw-vidrio-brillo);
+  }
+  .sw-ajustes__panel { grid-column: 1; grid-row: 3; overflow: visible; }
+  .sw-acceso__config > footer { grid-row: 4; }
+  .sw-ajustes__fila { grid-template-columns: minmax(0, 1fr); }
+  .sw-ajustes__control { justify-self: start; }
+  .sw-ajustes__fila[data-tipo="texto"] .sw-ajustes__control { justify-self: stretch; }
+  .sw-ajustes__campo { inline-size: 100%; }
+  /* La caja apilada es más alta que la pantalla: la consigna, que cuelga arriba
+     de ella, quedaba cortada contra el borde (medido: y=-61 en 400×800). */
+  .sw-acceso__marco:has(> .sw-acceso__config:not([hidden])) .sw-acceso__frases { display: none; }
+}
+
+/* ==================================================================
+   LA ENTRADA — la explosión al apretar «Entrar» (login.js explica los
+   tres tiempos). Todo con transform y opacidad (regla 7).
+
+   LAS TRANSICIONES EXISTEN SOLO DURANTE LA FASE: declaradas siempre, le
+   reemplazarían al botón de pausa las suyas —una `transition` en una regla
+   más específica reemplaza la lista, no le suma (pruebas/LEEME.md)—.
+   ================================================================== */
+
+/* Lo que el lector anuncia: invisible, pero leído. */
+.sw-acceso__estado {
+  position: absolute;
+  inline-size: var(--sw-border);
+  block-size: var(--sw-border);
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* MIENTRAS DURA, NADA SE SALE: lo que crece hacia la cámara agregaría barras de
+   scroll por un instante. */
+.sw-acceso[data-fase] { overflow: hidden; }
+
+/* 1 · EXPLOTA: cada capa hacia la cámara a su profundidad, acelerando, y la
+   caja CON su contenido. Hubo un tiempo previo en que el formulario se apagaba
+   solo, y la caja vacía que explotaba después se leía como un bug. */
+.sw-acceso[data-fase="zoom"] :is(.sw-acceso__fondo, .sw-canvas__glow, .sw-canvas__orbes,
+  .sw-empty-canvas__field, .sw-acceso__marco, .sw-acceso__tema, .sw-acceso__pausa) {
+  transition: transform var(--sw-d-macro) var(--sw-ease-in), opacity var(--sw-d-macro) var(--sw-ease-in);
+}
+.sw-acceso:is([data-fase="zoom"], [data-fase="entrando"]) .sw-acceso__fondo {
+  transform: scale(var(--sw-acceso-zoom-fondo));
+  opacity: 0;
+}
+.sw-acceso:is([data-fase="zoom"], [data-fase="entrando"]) :is(.sw-canvas__glow, .sw-canvas__orbes) {
+  transform: scale(var(--sw-acceso-zoom-halo));
+  opacity: 0;
+}
+.sw-acceso:is([data-fase="zoom"], [data-fase="entrando"]) .sw-empty-canvas__field {
+  transform: scale(var(--sw-acceso-zoom-malla));
+  opacity: 0;
+}
+.sw-acceso[data-fase="zoom"] .sw-acceso__marco {
+  transform: scale(var(--sw-acceso-zoom-caja));
+  opacity: 0;
+}
+.sw-acceso:is([data-fase="zoom"], [data-fase="entrando"]) :is(.sw-acceso__tema, .sw-acceso__pausa) {
+  opacity: 0;
+}
+
+/* 2 · LO QUE SIGUE LLEGA DESDE EL FONDO. `entrando` es el punto de partida, sin
+   transición: la caja salta atrás mientras todo está apagado. `volviendo`
+   devuelve cada capa a su lugar, frenando. */
+.sw-acceso[data-fase="entrando"] :is(.sw-acceso__fondo, .sw-canvas__glow, .sw-canvas__orbes,
+  .sw-empty-canvas__field, .sw-acceso__marco, .sw-acceso__tema, .sw-acceso__pausa) {
+  transition: none;
+}
+.sw-acceso[data-fase="entrando"] .sw-acceso__marco {
+  transform: scale(var(--sw-acceso-zoom-llega));
+  opacity: 0;
+}
+.sw-acceso[data-fase="volviendo"] :is(.sw-acceso__fondo, .sw-canvas__glow, .sw-canvas__orbes,
+  .sw-empty-canvas__field, .sw-acceso__marco, .sw-acceso__tema, .sw-acceso__pausa) {
+  transition: transform var(--sw-d-macro) var(--sw-ease-out), opacity var(--sw-d-macro) var(--sw-ease-out);
+}

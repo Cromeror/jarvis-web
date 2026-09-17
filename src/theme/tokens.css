@@ -1,0 +1,1775 @@
+/* ============================================================================
+   SpaceMyWork — Design Tokens
+   ----------------------------------------------------------------------------
+   FUENTE DE VERDAD UNICA. Ningun componente escribe un color, un tamano de
+   fuente ni un radio literal. Todo sale de aca.
+
+   PALETA DEFINITIVA — decision 44 (9 sep 2026).
+   Supersede en VALORES a las decisiones 22 (ciruela), 24 (escalera clara) y
+   37 (acento cian). La 38 sigue vigente en su regla; sus dos valores se
+   recalcularon. La estructura no se toco: cinco escalones, regla 8, decision
+   26, blanco roto.
+
+   PROCEDENCIA
+   28 referencias en capturas/referencias/ (18 oscuras, 10 claras), medidas
+   con design/measure-colors.mjs —k-means k=8 sobre 160.000 px, merge por ΔE—
+   mas una segunda pasada para el acento: el acento ocupa <=0,5% de la
+   superficie, asi que un k-means sobre la imagen entera NUNCA lo aisla, queda
+   comido por el cluster de fondo. Se midio filtrando por croma (C>0,07) y
+   agrupando por matiz en 36 bins.
+
+   QUE MIDIO EL CORPUS
+   - Oscuro: matiz H287, concentracion R=0,87. Senal fuerte, no ruido. Cuatro
+     referencias independientes de UI de trabajo convergen en el mismo suelo:
+     L22,3 / L22,8 / L23,1 / L23,2. Croma medio C0,0146.
+   - Claro: R=0,23. NO hay senal de matiz. Las referencias claras son neutras
+     (C medio 0,0031) y muy altas (masa en L90-100).
+   - Cobertura cromatica total 0,60% en oscuro: el corpus confirma por
+     medicion la regla de escasez del acento.
+
+   REGLA DE DERIVACION DE TEMA — sin cambios
+   La superficie elevada se acerca al blanco en AMBOS temas; el ground se
+   aleja. En oscuro: ground #1b1b23 -> raised-2 #46454e. En claro: ground
+   #d9d9dc -> raised-2 #fbfbfe. NO es una inversion numerica.
+
+   LAS TRES DERIVACIONES QUE NO SON MEDICION
+   1. El matiz claro se HEREDA del oscuro (H287) a croma casi nulo, porque el
+      corpus claro no tiene matiz propio que medir. Es la unica forma de que
+      los dos temas sean una familia y no dos productos.
+   2. Matiz y croma de los semanticos se COPIAN de la paleta anterior; solo se
+      re-resolvio la L. Las referencias no traen sistema de estados que medir.
+   3. El acento se eligio entre las familias que el corpus si entrego. Ver
+      abajo.
+
+   EL COSTO, DICHO DERECHO
+   La escalera clara viaja 1,36:1 en vez de 1,83:1. Con el suelo claro en
+   L88,6 —lo que muestran las referencias— no hay lugar para cinco escalones
+   tan separados como los del oscuro. La consecuencia esta anotada en el
+   filete claro: es la desviacion declarada de este archivo.
+
+   El archivo anterior quedo en src/styles/tokens-old.css. No se borro: la
+   paleta ciruela se evaluo y se descarto, y el proximo que lea necesita
+   saber que se evaluo.
+   ============================================================================ */
+
+:root {
+  /* Le dice al navegador de qué tema son los controles nativos que no
+     pinta el CSS: scrollbars, caret, autocompletado, checkbox. Sin esto
+     el tema oscuro muestra scrollbars claras. Se sobrescribe en cada
+     bloque de tema para que una eleccion explicita tambien mande aca. */
+  color-scheme: light dark;
+
+  /* ---------------------------------------------------------------
+     SUPERFICIE — tema claro (default)
+     Cinco pasos en H287 a C0,004. La L de cada escalon esta MEDIDA:
+       ink       L88,5  <- #dedddb L89,8 · #d5d4d6 L87,1 · #d1d5d9 L87,1
+       surface   L91,8  <- #e1e4e9 L91,8 · #e5e5e5 L92,2 · #dddfe6 L90,4
+       surface-2 L94,8  <- #ededeb L94,6 (x2) · #eceeea L94,6 · #eff0f4 L95,6
+       raised    L97,0  <- #f8f8fa L98,0
+       raised-2  L99,0  <- #fdfeff L99,7 · #fdfdfd L99,4 · #fafaf9 L98,5
+     El paso mas alto sigue siendo un blanco ROTO, nunca #FFFFFF.
+     --------------------------------------------------------------- */
+  --sw-ink:         #d9d9dc;   /* ground del canvas */
+  --sw-surface:     #e3e3e6;   /* riel, barra — el chrome exterior */
+  --sw-surface-2:   #ededf0;   /* panel de lista — el chrome interior */
+  --sw-raised:      #f5f5f8;   /* nodo, card, fila, inspector */
+  --sw-raised-2:    #fbfbfe;   /* menu, popover — ademas lleva sombra */
+
+  /* ---------------------------------------------------------------
+     SUPERFICIE TEÑIDA — las cajas del BLOQUE DE TRABAJO.
+
+     La usan la toolbar del bloque y la columna lateral con sus dos
+     inquilinos, para que el bloque de trabajo se lea como una pieza
+     distinta del chrome del shell (topbar y riel), que se quedan en
+     --sw-surface.
+
+     QUÉ ES, medido: el escalón --sw-raised con la familia ciruela encima.
+     El valor oscuro lo eligió dirección (#3a3343) y al medirlo contra la
+     escalera resultó estar a ΔE 2,0 de --sw-raised —el escalón más cercano
+     por lejos, contra 3,5 del panel y 6,2 del flotante— con ΔL de sólo
+     0,014. O sea: mismo escalón, otro material. No es un valor suelto.
+
+     EL CLARO NO SE INVENTÓ NI SE INVIRTIÓ: es --sw-raised claro (#f5f5f8)
+     con el matiz del oscuro (H 304,8), que es lo que manda trasladar entre
+     temas — la relación, no el valor. El croma quedó en 0,0179 y no en los
+     0,0292 del oscuro porque a esa luminosidad el sRGB no da más: se
+     recortó el CROMA contra el borde del gamut, sin tocar L ni H. Clipear
+     RGB directo habría girado el matiz 9° y sería otro color.
+
+     RELACIONES RESULTANTES:
+       contra el lienzo   1,413 oscuro / 1,289 claro
+       contra el riel     1,268 oscuro / 1,172 claro
+     El claro va más corto, y no es un error de derivación: la escalera
+     clara viaja 1,36:1 contra 1,83:1 la oscura — está anotado en la
+     decisión 44 como propiedad del sistema, no como deuda.
+
+     TEXTO ENCIMA, verificado: --sw-text 10,64 / 15,78, --sw-text-2 7,33 /
+     7,42, --sw-muted 6,05 / 6,06. Nada que recalcular.
+
+     Esto NO es volver a la ciruela como paleta (la decisión 44 la descartó
+     como escalera completa, y sigue descartada). Son dos cajas teñidas.
+     --------------------------------------------------------------- */
+  --sw-surface-tint: #f8f3ff;
+
+  /* DESVIACION DECLARADA — el filete claro cambia de lado.
+     En oscuro el filete vale casi lo mismo que la card (1,026:1) y se lee
+     contra el panel (1,213:1): es "el valor de la card, dibujado como linea".
+     En claro eso ya no entra. La card quedo en L97,1 y el panel en L94,7:
+     entre los dos hay 1,066:1, asi que un filete a 1,20 del panel caeria
+     ENCIMA de la card. No hay valor que cumpla las dos relaciones a la vez.
+     Se elige la que hace el trabajo: 1,207:1 contra la card, la superficie
+     que el filete bordea de verdad. Queda por DEBAJO, no por arriba. Es lo
+     que hacen las referencias claras —bordes grises visibles sobre paneles
+     casi blancos— y es lo que compensa que la escalera clara viaje menos. */
+  --sw-line:        #e1e0e5;   /* hairline 1px, el unico borde del sistema */
+  --sw-hover:       #edecef;   /* un escalon ARRIBA de cualquier superficie */
+  --sw-line-strong: #bdbcc1;   /* divisor de grupo */
+  /* EL FILETE DE LA CAJA DE HERRAMIENTAS — el borde del panel y el de sus
+     campos y combos. En claro es --sw-line, el de siempre (1,21:1 contra el
+     panel). En oscuro NO: ahí --sw-line se funde a propósito —1,01:1— y el dueño
+     pidió que los campos se distingan. Pasa a --sw-line-strong, 1,36:1. Se probó
+     copiar el 1,21 y en oscuro no se leía como borde: en claro lo ayuda la sombra
+     corta que Basecoat pone en los campos, que sobre oscuro no se ve. */
+  --sw-tools-filete: var(--sw-line);
+  /* EL FILETE ENTRE FILAS DE UNA TABLA. El mismo caso que la caja: en claro no
+     cambia; en oscuro --sw-line se funde —medido en la tabla de Contabilidad,
+     1,03:1 entre filas— y el dueño pidió que se vea. */
+  --sw-tabla-filete:  var(--sw-line);
+  /* EL RIEL DEL INTERRUPTOR APAGADO. Basecoat lo rellena con --color-input, que es
+     --sw-line: en claro da 1,21:1 contra la tarjeta y en oscuro 1,03 —sólo se veía
+     la perilla—. El dueño pidió que se note. En oscuro va --sw-line-strong
+     (1,36:1), el mismo paso que ya usan el filete de la caja y el de la tabla; el
+     relleno de los combos daba 1,20 y en claro bajaba a 1,05, así que no sirve para
+     los dos. */
+  --sw-interruptor-riel: var(--sw-line);
+  /* EL RELIEVE — un filete hundido: la línea oscura del surco y un píxel de
+     brillo pegado abajo. Lo lleva la franja de la barra del header. */
+  --sw-relieve-surco:  rgb(0 0 0 / .08);
+  --sw-relieve-brillo: rgb(255 255 255 / .7);
+  /* COSTURA — el filete que se lee sobre --sw-surface (el riel y el topbar).
+     Dos usos hoy: parte las cajas del shell que se tocan —el topbar contra el
+     bloque de trabajo— y bordea los controles que viven en la barra.
+
+     No alcanza con --sw-line, y el motivo esta medido: ese filete esta
+     resuelto contra la CARD (1,207:1 en claro, decision 44), pero la costura
+     se apoya sobre el RIEL —--sw-surface—, que es otro escalon. Ahi el mismo
+     valor da 1,025:1 en claro: invisible. En oscuro daba 1,384 y se veia, o
+     sea que el mismo token producia dos cosas distintas segun el tema.
+
+     Este token copia la RELACION, no el valor: 1,384:1 contra --sw-surface
+     en oscuro, 1,388:1 en claro. La misma linea tenue en los dos. */
+  --sw-seam:        #c2c2c5;
+
+  /* TEXTO — objetivos 9,1 · 5,7 · 4,7 · 3,0, resueltos contra la PEOR
+     superficie del tema, no contra la card. En claro la peor es `ink` (la mas
+     oscura); en oscuro es `raised-2` (la mas clara). Resolver contra la card
+     —lo que hacia la paleta anterior— deja el extremo opuesto de la escalera
+     por debajo de AA: la escala clara vieja medida daba 7,84 / 4,89 / 4,04 /
+     2,60 contra su propia card, o sea que ya no llegaba a sus propios
+     objetivos, y `muted` quedaba en 3,64 contra el ground. Asi los cuatro
+     pasos pasan AA contra los CINCO escalones. */
+  --sw-text:        #343039;   /* primario — nunca negro puro */
+  --sw-text-2:      #524e58;   /* secundario, subtitulo de nodo */
+  --sw-muted:       #5f5b65;   /* labels, placeholders, metadatos */
+  --sw-faint:       #7e7984;   /* deshabilitado */
+
+  /* ACENTO — violeta H293, MEDIDO en el corpus: aparece en cuatro
+     referencias oscuras, 7,3% de los pixeles cromaticos.
+
+     Se eligio probando contra los semanticos las diez familias cromaticas
+     que el corpus entrego. Ocho de las diez chocan con un estado que el
+     producto ya tiene:
+
+       lima H122    ΔE 5,5 con attention     CHOCA
+       rosa H4      ΔE 5,9 con error         CHOCA
+       rojo H356    ΔE 7,4 con error         CHOCA
+       coral H14    ΔE 3,5 con error         CHOCA
+       coral H24    ΔE 3,0 con error         CHOCA
+       coral H18    ΔE 4,2 con error         CHOCA
+       ambar H82    ΔE 4,4 con attention     CHOCA
+       ambar H79    ΔE 4,0 con warning       CHOCA
+       magenta H324 ΔE 8,8 con presence      CHOCA
+       violeta H293 pasa — es este
+
+     La familia mas COMPARTIDA del corpus es el rojo/coral —siete referencias
+     oscuras, cuatro claras, y es el acento real de las dos referencias claras
+     mas afines al producto—, y es justamente la inservible: un acento rojo
+     sobre un sistema que ya usa rojo para error convierte la seleccion en una
+     alarma. El corpus no puede entregar ese dato porque ninguno de esos
+     productos carga cinco estados semanticos; SpaceMyWork si.
+
+     RIESGO ACEPTADO, ANOTADO. El violeta esta a 6 grados de matiz del chrome
+     (H287), no a 57 como estaba el cian. Se separa por valor y croma —ΔE 28,6
+     contra raised-2 en oscuro, 33,3 contra ink en claro— pero no por familia:
+     la seleccion se lee como el mismo material mas encendido, no como otra
+     sustancia. Se eligio mirandolo en el layout, no en una tabla.
+
+     El par mas ajustado del sistema es acento/presence: ΔE 13,1 en oscuro y
+     12,1 en claro. Pasa el piso de 10, pero es el primero que se rompe si
+     alguno de los dos se mueve.
+
+     Los dos pasos estan resueltos por la restriccion mas dura de las dos:
+     3:1 contra el peor escalon y 4,5:1 bajo la tinta de la decision 38. En
+     claro manda la segunda. */
+  --sw-accent:      #7a6ab0;
+  --sw-accent-lit:  #6c5ba0;   /* hover — un paso que SE ALEJA de la escalera, o sea gana contraste. ΔE 5,1 del acento: perceptible sin ser un salto. */
+  --sw-accent-weak: #7a6ab014; /* fondo de estado activo */
+  --sw-accent-line: #7a6ab0;   /* el acento como LINEA: foco, borde de boton */
+
+  /* ---------------------------------------------------------------
+     EL ACENTO SOLIDO — el relleno de un boton primario, con tinta BLANCA.
+
+     UN SOLO VALOR PARA LOS DOS TEMAS, y por eso se declara una vez sola
+     aca y no se redefine mas abajo. No es un descuido de la regla 8: es
+     que este token no cambia de lado entre temas, igual que --sw-on-fill.
+
+     POR QUE EXISTE. --sw-accent tiene un trabajo distinto: separarse de
+     los cinco escalones de superficie, y para eso en oscuro tiene que
+     quedar POR ENCIMA de la escalera (#9688cf). Un violeta tan claro no
+     aguanta tinta blanca: medido, da 3,13:1 para una etiqueta de 13px,
+     debajo del piso de 4,5. Y no hay violeta que resuelva las dos cosas
+     —tomar blanco pide oscurecer, separarse de la escalera en oscuro pide
+     aclarar—; eso ya estaba escrito en la decision 37 y se volvio a medir
+     acá.
+
+     Asi que se separan los dos trabajos. El acento SOLIDO es el paso claro
+     del mismo violeta, el que el tema claro ya usaba: blanco encima da
+     4,65:1 en los dos temas.
+
+     DONDE SE PUEDE USAR, y es una restriccion medida, no una recomendacion:
+     sobre el lienzo (3,68:1) y sobre el riel (3,30:1). NO sobre --sw-raised
+     ni --sw-raised-2 en oscuro, donde cae a 2,45 y 2,03 — un boton primario
+     dentro de un modal oscuro se despegaria apenas del modal. Si hace falta
+     uno ahi, se resuelve con borde, no subiendo este valor.
+
+     La tinta es --sw-on-fill, el blanco fijo que ya existe para los
+     rellenos que no cambian de lado entre temas. No hace falta uno nuevo.
+     --------------------------------------------------------------- */
+  /* ---------------------------------------------------------------
+     LA BANDA DE CONTRASTE — una superficie oscura en los DOS temas.
+
+     UN SOLO VALOR Y NO SE REDEFINE ABAJO, igual que --sw-accent-solid y que los
+     rellenos semánticos. No es un descuido de la regla 8: es que esta superficie
+     NO CAMBIA DE LADO entre temas. Una banda que en claro es casi negra y en
+     oscuro casi blanca no es la misma pieza vista con otra luz — es otra pieza,
+     y el encabezado de una factura tiene que leerse igual en los dos.
+
+     EL VALOR ES EL LIENZO DEL TEMA OSCURO, y eso tampoco es casualidad: ya está
+     medido contra toda la escalera y contra la tinta clara, así que no entra un
+     gris nuevo al vocabulario. En claro es una banda oscura sobre una tarjeta
+     clara; en oscuro es un escalón por debajo de la tarjeta, o sea la misma
+     relación —la banda está más hundida que lo que envuelve— dicha con los
+     valores que cada tema puede decir.
+
+     LA TINTA ES --sw-on-fill, el blanco fijo que ya existe para los rellenos que
+     no cambian de lado. 16,1:1 en los dos temas: no hace falta uno nuevo.
+     --------------------------------------------------------------- */
+  --sw-contraste: #1b1b23;
+
+  /* ---------------------------------------------------------------
+     LA CAJA QUE AGRUPA — un dato y su rótulo adentro de lo mismo.
+
+     NO ES UN ESCALON DE LA ESCALERA, y por eso tiene token propio: la escalera
+     mide contra las superficies del sistema, y esta caja vive sobre el HEADER,
+     que no es una superficie sino la atmósfera. Medido entre dos cajas, el
+     header da #faf5ff en claro y #25242c en oscuro — o sea que en claro está
+     por ENCIMA de `--sw-raised` y en oscuro entre `ink` y `surface`.
+
+     Se pidió `#f5f5f5` y no se puede: contra ese header da **1,014:1**, menos
+     que el filete que el sistema ya considera «fundido» (1,026). El valor que
+     sí se ve y va en esa dirección es un paso más claro que el lienzo.
+
+     LO QUE SE TRASLADA ES LA RELACION, NO EL VALOR (regla 8). La caja está un
+     escalón por debajo de lo que la rodea en los dos temas, y eso se dice con
+     valores distintos porque el header no es el mismo color en cada uno:
+
+       claro   #eeeeee  →  1,08:1 contra el header
+       oscuro  #1b1b23  →  1,11:1 contra el header
+
+     Y ES NEUTRO PURO, no el escalón `--sw-surface-2` (#ededf0) que le queda al
+     lado. Los escalones de la escalera clara llevan un punto de azul —#ededf0 es
+     R237 G237 B240— porque están calibrados para convivir con el chrome violeta
+     del sistema. Esta caja no es chrome: es el papel sobre el que se apoya un
+     dato, y ahí el gris no tiene que tomar partido. La diferencia es de tres
+     puntos en un canal, o sea invisible a solas y perceptible al lado del panel.
+
+     Dos centésimas de diferencia entre temas. Un mismo valor en los dos habría
+     dado 1,014 en claro y 1,348 en oscuro: la caja desapareciendo de un lado y
+     elevándose del otro, que es lo contrario de lo que tiene que hacer.
+     --------------------------------------------------------------- */
+  --sw-caja-agrupa: #eeeeee;
+  /* Y LA PIEZA QUE VA ADENTRO, que es su par: el escalón sólo existe si los dos
+     se eligen juntos. Blanco puro en claro y no `--sw-raised` (#f5f5f8), que
+     contra #eeeeee daba 1,066:1 — por debajo del filete que el sistema ya llama
+     fundido. Con blanco da 1,19 y el escalón se ve sin ayuda.
+
+     EL BLANCO NO ESTA EN LA ESCALERA A PROPOSITO: su paso más alto es
+     `--sw-raised-2` (#fbfbfe), que lleva un punto de azul para convivir con el
+     chrome. Acá hace falta lo contrario —el papel, que no toma partido— y por eso
+     esto es un token aparte y no un escalón más. */
+  --sw-caja-pieza: #ffffff;
+
+  /* ---------------------------------------------------------------
+     EL RELLENO DE UN BOTON QUE PESA SIN GASTAR ACENTO.
+
+     La regla 2 da UN CTA de acento por pantalla, y en Contabilidad ya lo tiene
+     «Traer facturas de la DIAN», que es la acción que mueve el trabajo del día.
+     Pero una acción puede ser importante sin ser LA acción, y entonces necesita
+     leerse como botón: un texto con ícono al lado de un primario relleno parece
+     una etiqueta.
+
+     NO SIRVE `--sw-contraste`, que es lo primero que se prueba: vale #1b1b23 en
+     los DOS temas, y en oscuro eso es casi el color del header — medido, 1,114:1.
+     El negro que en claro grita, en oscuro desaparece.
+
+     El par que mide parejo se aleja del fondo en la dirección que cada tema
+     permite: en claro hacia abajo, en oscuro hacia arriba.
+
+       claro   #d9d9dc  →  1,314:1 contra el header
+       oscuro  #3a3942  →  1,348:1 contra el header
+
+     Son los mismos valores de `--sw-ink` y `--sw-raised`, y aun así va aparte:
+     aquéllos son escalones de la escalera —miden contra las superficies del
+     sistema— y éste mide contra la atmósfera del header. Que hoy coincidan no
+     los hace lo mismo; el día que un escalón se mueva, este relleno se
+     recalcula contra el header y no contra la escalera.
+     --------------------------------------------------------------- */
+  --sw-relleno-2: #d9d9dc;
+  /* El hover del contraste SE ALEJA, igual que el del acento: un relleno que ya
+     es el extremo de la escalera no puede ganar contraste oscureciéndose. */
+  --sw-contraste-hover: #2e2e3a;
+
+  /* ---------------------------------------------------------------
+     EL GLOBO DE AVISOS — relleno pleno con el número en blanco.
+
+     NO SALE DE `--sw-error` aunque sea rojo, y eso no es capricho: `--sw-error`
+     está calibrado para TEXTO, así que en oscuro es un rojo CLARO (#f69b96) que
+     con un número blanco encima no llega ni a 2:1. Un token de relleno y uno de
+     texto no son el mismo color aunque sean la misma familia.
+
+     Los dos pasos están medidos contra blanco: 5,18:1 en claro y 5,05:1 en
+     oscuro. El claro estuvo en `--sw-error` tal cual (#c54f51) y daba 4,55: pasa,
+     pero cinco centésimas de margen sobre el piso no son un margen.
+
+     Y ES ROJO POR DECISION DEL DUEÑO DEL PRODUCTO, con el precio anotado donde
+     se usa (chrome.css): el rojo ya significa «algo falló» en este sistema.
+     --------------------------------------------------------------- */
+  --sw-globo-bg:    #bd4547;
+  --sw-globo-tinta: var(--sw-on-fill);
+
+  --sw-accent-solid:     #7a6ab0;
+  --sw-accent-solid-lit: #6c5ba0;   /* hover: se aleja, o sea gana contraste */
+  /* decision 38: la tinta es el extremo OPUESTO de la escalera. En claro el
+     acento va por debajo de los cinco escalones, asi que la tinta va al mas
+     alto: raised-2, 4,50:1. */
+  --sw-on-accent:   #fbfbfe;
+
+  /* SEMANTICOS — matiz y croma COPIADOS de la paleta anterior; solo se
+     re-resolvio la L para conservar el contraste que cada uno tenia contra la
+     card. Las referencias no traen estados que medir, y re-elegirlos a ojo
+     habria roto separaciones ya resueltas. */
+  --sw-success:     #356f59;
+  --sw-warning:     #945512;
+  --sw-error:       #c54f51;
+  --sw-attention:   #747d0a;
+  --sw-presence:    #b1449a;
+
+  /* decision 26 intacta: en CLARO relleno pastel con tinta del mismo tono, en
+     OSCURO tinte translucido con texto del color del estado. El componente
+     escribe siempre background:var(--sw-*-bg) y color:var(--sw-on-*) — lo que
+     cambia entre temas es el token, no el CSS. Las cuatro tintas dan
+     4,50-4,54:1 sobre su propio pastel. */
+  --sw-success-bg:  #c7e4d7;
+  --sw-warning-bg:  #f9d5b8;
+  --sw-error-bg:    #ffcfcc;
+  /* EL VELO DE BORRADO — el rojo que avanza sobre una fila que se esta
+     quitando. NO es --sw-error-bg: ese par sigue la decision 26 y por eso
+     cambia de MECANISMO entre temas —pastel opaco en claro, tinte al 12% en
+     oscuro— que es lo correcto para un badge y lo incorrecto para un velo:
+     en claro taparia el texto de la fila y en oscuro casi no se veria. Un
+     velo tiene que hacer lo MISMO en los dos temas.
+  
+     Asi que es el rojo semantico de cada tema al 25%: el tono lo pone el
+     tema y el efecto es identico. Medido con el velo entero encima, el
+     nombre del archivo sigue por arriba del piso de 4,5:1. */
+  --sw-error-velo: #c54f5140;
+  --sw-attention-bg:#dae2b3;
+  --sw-mute-bg:     #dcdcdf;
+
+  /* ---------------------------------------------------------------
+     EL BLOQUE DESTACADO — una banda a sangre, celeste
+
+     Marca el grupo de una ficha que no es como los otros: en la factura, el
+     CUFE y el consecutivo, que son los códigos con los que la DIAN y el
+     software contable la identifican. Va a sangre —tocando los dos cantos, como
+     la banda del monto— y no como una tarjeta con margen: lo que dice es «esta
+     parte es de otra naturaleza», no «esta parte está encima».
+
+     ES UNA SEPTIMA FAMILIA CROMATICA, y eso se pagó a sabiendas. La decisión 50
+     había descartado un celeste para las ilustraciones justamente por eso, y la
+     diferencia es que allá el color decoraba y acá distingue un bloque que el
+     usuario tiene que poder saltear con la vista. El valor claro está tomado del
+     píxel de la referencia (`capturas/referencias/componentes/invoice-3.jpg`).
+
+     NO CHOCA CON NINGUN SEMANTICO: está en H201 y el más cercano es
+     --sw-success a 42 grados; el acento, a 51. Es el hueco que quedaba libre en
+     el vocabulario.
+
+     El oscuro NO es el claro invertido: es el celeste que da la MISMA relación
+     contra su carta —1,093:1 en claro, 1,095:1 en oscuro— y además deja leer el
+     rótulo encima (5,18:1 contra --sw-muted, sobre un piso de 4,5). De todos los
+     que cumplían las dos cosas se eligió el de más croma, porque con poca se
+     lee gris y entonces el color no dice nada. */
+  --sw-destacado-bg: #e2f4fe;
+
+  /* ---------------------------------------------------------------
+     TINTA DE ILUSTRACION — tres pasos de gris, y ningún color
+
+     Es la tinta con la que se dibujan las ilustraciones de estado vacío. NO
+     SIGNIFICA NADA: no marca selección, ni actividad, ni error. Si aparece en
+     un control, está mal usada.
+
+     POR QUE TOKENS PROPIOS SI SON GRISES. Porque ninguna escalera existente da
+     los tres pasos que un dibujo necesita. La de filetes está calibrada para
+     SEPARAR SUPERFICIES —--sw-line-strong da 1,73:1 contra el panel en claro y
+     1,36:1 en oscuro, o sea un dibujo que no se ve— y la de tinta está calibrada
+     para TEXTO, donde el piso es 4,5:1 y todo lo que hay por debajo es
+     deshabilitado. Un contorno de ilustración vive en el medio: tiene que
+     leerse sin pesar como texto. Dibujar con --sw-faint funcionaba (3,89 / 3,62)
+     pero dejaba el contorno, la masa y los renglones todos del mismo tono, y la
+     maqueta se leía como cuatro barras sueltas en vez de una página.
+
+     LOS TRES PASOS SALEN DE LA REFERENCIA, no del gusto
+     (capturas/referencias/placeholders/animation-doc.mp4). Ahí el dibujo da
+     2,09:1 el contorno, 1,52:1 la masa y 1,18:1 los renglones contra su fondo.
+     Lo que se copia es esa ESCALERA —contorno fuerte, masa media, renglones
+     apenas— no los valores: en una ilustración de 146px dentro de un panel,
+     2,09:1 no se ve. Los tres se recalcularon contra --sw-raised de cada tema
+     en 3,40 / 2,30 / 1,75.
+
+     Y NO SON GRIS PURO: van en H268 con 4,5% de croma, que es la familia de la
+     escalera neutra del sistema (--sw-faint claro da H267 con 4,3%). Un gris
+     puro al lado de neutros templados se lee frío y se nota.
+
+     En claro el dibujo va por DEBAJO de la superficie y en oscuro por encima,
+     que es la misma regla que sigue el acento: se traslada la relación medida,
+     nunca el valor. --------------------------------------------------------- */
+  --sw-dibujo-trazo: #88838d;   /* el contorno de la hoja        3,40:1 */
+  --sw-dibujo-masa:  #a6a2aa;   /* el bloque de imagen           2,31:1 */
+  --sw-dibujo-tinta: #bdbbc0;   /* los renglones                 1,75:1 */
+  /* LOS DOS RELLENOS, que la escalera original no tenía: los tres pasos de
+     arriba están pensados para DIBUJAR —contorno, bloque, renglones— y una
+     ilustración de masas necesita roles, no pasos. Sin esto, «el papel es lo más
+     claro» y «el frente es más claro que el cuerpo» se dan vuelta al cambiar de
+     tema, porque en claro `--tinta` está por encima de `--masa` y en oscuro por
+     debajo. Lo que se traslada es la RELACION CONTRA EL CUERPO, no el valor. */
+  --sw-dibujo-papel: #ffffff;   /* la hoja           2,51:1 contra --masa */
+  --sw-dibujo-claro: #c9c6ce;   /* la masa clara     1,49:1 contra --masa */
+  /* UN PASO MAS HONDO QUE --masa, para el pie del degradado del frente. No
+     alcanzaba con los que ya estaban: «más oscuro que la masa» es `--trazo` en
+     claro y `--tinta` en oscuro, o sea tokens distintos según el tema — que es
+     justo lo que no se hace. Y el frente NO puede terminar en `--claro`: ahí
+     tendría el mismo valor que el pie de la solapa de atrás y las dos piezas se
+     fundirían en la costura, que en la versión vacía es lo único que separa los
+     dos planos. */
+  --sw-dibujo-hondo: #9e99a2;   /* el pie del frente */
+
+  /* EL COLOR DEL FORMATO — planilla, presentación, PDF (pedido del dueño).
+     Es el único caso donde el color dice algo que la forma no puede: un archivo
+     se reconoce por su color antes que por su rótulo.
+
+     Y SON TRES FAMILIAS NUEVAS EN UNA PALETA CERRADA (la decisión 51 dejó
+     anotado que el celeste era «la última que quedaba»), así que el criterio no
+     es el gusto sino la SEPARACION: cada uno está corrido de su semántico más
+     cercano, porque un informe verde que se lea como «éxito» o uno naranja como
+     «advertencia» diría algo que no es.
+
+       verde    corrido del petróleo de --sw-success (#356f59) hacia un verde
+                más limpio y más saturado
+       naranja  corrido del ámbar de --sw-warning (#945512) hacia el rojo, pero
+                sin llegar a --sw-error (#c54f51)
+       azul     el más cómodo: el único cercano es --sw-destacado-bg, que es un
+                fondo y no una tinta
+
+     Van en una parte CHICA del dibujo —la pastilla del documento—, no en el
+     papel entero: tres documentos enteros pintados serían una mancha de color
+     en una pantalla que es gris y violeta. */
+  --sw-formato-planilla: #2e9e5b;
+  --sw-formato-presenta: #cc4b1f;
+  --sw-formato-pdf:      #2f6fb5;
+  /* EL PIE LO FIJA EL NUMERO, NO EL DIBUJO. La cuenta de documentos vive abajo a
+     la derecha del frente, o sea justo sobre este paso, y a cuerpo 11px le
+     corresponde 4,5:1. Con el primer valor (#938e97) medía 4,03:1 en claro: el
+     degradado se comía la legibilidad de un dato. Se aclaró hasta pasar el piso.
+     En oscuro no hace falta —ahí el mismo cambio subió a 6,17:1, porque el fondo
+     más hondo favorece a la tinta clara—, y por eso el otro bloque no se tocó. */
+
+  --sw-on-success:  #326c56;
+  --sw-on-warning:  #90510a;
+  --sw-on-error:    #ab373c;
+  --sw-on-attention:#5f6700;
+  --sw-on-mute:     #616166;
+
+  /* ELEVACION
+     La profundidad se construye escalonando VALOR + hairline. La sombra
+     existe SOLO en superficies que flotan sobre el contenido.
+     En claro ahora carga mas: la escalera viaja 1,36:1 en vez de 1,83:1, asi
+     que la sombra y el filete sostienen la separacion que antes hacia el
+     escalon de valor. Es lo que hacen las referencias claras. */
+  --sw-e-flat:  none;
+  --sw-e-pop:   0 8px 24px rgba(0, 0, 0, .12);
+  /* EL MODAL — lo que más flota de toda la app: arriba del velo, arriba del
+     bloque, arriba de todo. La llevan los diálogos de Basecoat y las cajas de
+     la pantalla de entrar —la de entrar y la de los ajustes—, sumada a su canto
+     de vidrio (--sw-e-marco).
+
+     UNA SOLA CAPA Y METIDA ABAJO, por decisión del dueño: se probaron las dos
+     capas negras de Material —la ancha que separa y la corta que apoya el
+     canto— y eligió esta. El radio negativo la mete debajo del objeto y la deja
+     caer hacia abajo, en vez de asomar por los cuatro lados.
+
+     NEGRA, NO AZUL PIZARRA. Llegó como `rgb(38 57 77)` y el dueño la vio azul:
+     sobre oscuro ese pizarra es MÁS CLARO que el lienzo (#1b1b23), así que en vez
+     de sombra dibujaba un halo celeste. Negro con alfa oscurece lo que tenga
+     debajo en los dos temas; el alfa sube en oscuro, como en --sw-e-pop. */
+  --sw-e-modal: rgb(0 0 0 / .5) 0 20px 30px -10px;
+
+  /* LO QUE SE LEVANTA AL RESPONDER — la tarjeta que el puntero toca o que quedó
+     elegida. Más corta que la del modal: no flota sobre la pantalla, se despega
+     de la superficie que tiene debajo.
+
+     EL AZUL NO ES UN DESCUIDO. `rgba(50, 50, 93, .25)` no es negro puro: una
+     sombra negra sobre una superficie clara se lee gris sucio, y un azul muy
+     oscuro se lee como falta de luz. Es la misma razón por la que el chrome del
+     sistema tampoco es gris neutro.
+
+     Y LOS RADIOS NEGATIVOS son los que la meten debajo del objeto en vez de
+     dejarla asomar por los cuatro lados: −5 y −8 recortan la sombra hacia
+     adentro, así que lo que se ve es la parte de abajo. Sin eso, una tarjeta con
+     esta difusión parece envuelta en humo. */
+  --sw-e-levanta: rgba(50, 50, 93, .25) 0 13px 27px -5px,
+                  rgba(0, 0, 0, .30) 0 8px 16px -8px;
+  /* EL CORTE — el contenido sigue abajo del canto.
+
+     No es elevación: es lo contrario. `pop` y `modal` dicen «esto flota sobre
+     el contenido»; el corte dice «el contenido sigue debajo de esto». Va hacia
+     ADENTRO, y por eso se pinta contra el padding box: en un contenedor que
+     scrollea eso queda pegado al canto solo, sin `sticky` y sin un
+     pseudo-elemento que se anclaría al contenido y viajaría con él.
+
+     El radio de dispersión negativo —el cuarto valor— es lo que la recorta a
+     una sola arista: sin él la sombra entra por los cuatro lados y la tarjeta
+     parece hundida en vez de cortada.
+
+     Y ACA SI VALE EN OSCURO, a diferencia de `--sw-e-canto`, que va plano. No
+     es contradicción: `e-canto` es un HIGHLIGHT de 1px, y un highlight claro
+     sobre una superficie oscura no separa nada. Esto es una sombra, como
+     `--sw-e-pop`, que en oscuro sube a .45 en vez de apagarse. */
+  --sw-e-corte: inset 0 -10px 12px -10px rgba(0, 0, 0, .16);
+
+  /* RELIEVE DE LAS CAPAS DEL SIDEBAR — riel, panel y detalle.
+
+     Es una EXCEPCION ANOTADA a la regla 3, que dice "sombra unicamente en lo
+     que flota sobre el contenido: menu, popover, modal". Estas tres capas no
+     flotan sobre nada: son chasis. Se les da sombra igual, y el motivo es que
+     el numero no sale del gusto sino de medir la referencia
+     (capturas/referencias/componentes/color-acento-2.gif): su pastilla
+     flotante cae de #f8f8f8 a #e5e6e5 —9% de oscurecimiento— repartido en
+     34px. Enorme y casi invisible a la vez. Nuestro --sw-e-pop ya era
+     0 8px 24px al 12%: el vocabulario ya estaba, faltaba donde usarlo.
+
+     DECRECE CON LA PROFUNDIDAD, y eso es lo unico que hace el trabajo: el
+     riel proyecta mas que el panel, el panel mas que el detalle. Con una
+     sombra pareja se ven tres cajas; con la sombra decreciente se ve una
+     PILA. Es la jerarquia que ya existe —z-index 5, 4, 3— hecha visible.
+
+     PROYECTA A LA DERECHA porque el riel esta ARRIBA: el panel sale de abajo
+     suyo al abrirse. Una sombra hacia la izquierda no se ve —medido: 227 →
+     237, cero oscurecimiento—, porque se dibuja debajo de la capa que tiene
+     al lado. Para tirarla a la izquierda habria que invertir el z-index, y
+     ese orden es funcional, no estetico.
+
+     SOLO EN CLARO. En oscuro valen 'none': una sombra negra sobre superficies
+     ya oscuras no tiene a donde ir, y ahi la separacion la siguen haciendo el
+     escalon de valor y el filete, como dice la regla 3. */
+  --sw-e-capa-1: 6px 0 18px rgba(0, 0, 0, .10);
+  --sw-e-capa-2: 6px 0 18px rgba(0, 0, 0, .07);
+  --sw-e-capa-3: 6px 0 18px rgba(0, 0, 0, .05);
+  /* La arista de luz del canto superior. Es un bisel, no un borde: --sw-raised-2
+     es el escalon mas alto, o sea la luz. Lo que convierte tres superficies en
+     tres planchas. */
+  --sw-e-canto:  inset 0 1px 0 var(--sw-raised-2);
+  --sw-backdrop: rgba(0, 0, 0, .35);
+
+  /* GRILLA PUNTEADA — la firma visual del producto.
+     Se conserva el CONTRASTE del punto contra su suelo, no el alfa. El ground
+     claro subio de L79,6 a L88,6, asi que el mismo alfa habria endurecido la
+     grilla: baja de .13 a .108 para que el punto se lea igual. El punto es el
+     ink oscuro — una sola sustancia para los dos temas. */
+  --sw-grid-dot:     rgba(27, 27, 35, .108);
+  --sw-grid-step:    32px;
+  /* LA MALLA DE LA PANTALLA DE ENTRAR: puntos más separados y unidos por una
+     línea (pedido del dueño, sólo para esa pantalla). El doble de la grilla y
+     no un número suelto: si la grilla cambia de paso, la malla sigue siendo
+     su múltiplo. Va escrito y no con calc() porque ambience.js lo lee con
+     getComputedStyle, y una custom property sin registrar devuelve el calc()
+     sin resolver. */
+  --sw-malla-paso:   64px;
+  /* Reactiva al mouse en el canvas nodal (canvas.js): mismo punto, mismo
+     matiz, sólo más alfa — la relación que se copia entre temas es esa
+     ganancia, no un color nuevo. Nunca el acento: serían decenas de puntos
+     pintados de estado por segundo, muy por encima de la regla de escasez. */
+  --sw-grid-dot-lit: rgba(27, 27, 35, .455);
+  --sw-grid-fx-d:    780px;   /* diametro del halo que sigue al cursor */
+
+  /* ARISTAS — token propio: tienen que leerse sin competir con el texto.
+     Mas fuerte que --sw-line, mas debil que --sw-text-2. Alineadas al matiz
+     de familia (H287). Da 1,54:1 contra el ground, la misma relacion que
+     tenia antes. */
+  --sw-edge:        #b0afb8;
+  --sw-edge-active: var(--sw-accent);
+
+  /* MARCA. Es lo unico del sistema que es MARCA y no estado: el acento dice
+     «esto esta pasando / esto esta elegido» y esto dice «esto es el producto».
+     Por eso es un token aparte y no un paso del acento.
+
+     RESUELTA por la decision 45, y la destrabo el acento violeta. Mientras el
+     acento era cian, el paso profundo de marca que llegaba a 3:1 quedaba a
+     ΔE 9,7 del acento: el que se veia, se confundia. Con el acento fuera del
+     cian ese conflicto desaparecio, asi que la marca puede bajar hasta ser
+     visible. Ahora tiene un paso por tema, como el acento:
+
+       claro  #0089c8 — 3,03:1 sobre --sw-surface, que es donde vive el logo
+                        (.sw-side__logo, en el riel). ΔE 11,7 del acento.
+       oscuro #03a9f4 — 5,84:1 sobre el riel. ΔE 13,1 del acento.
+
+     El piso es 3:1 y no 4,5 porque es un grafico, no texto. */
+  --sw-brand:       #0089c8;
+
+  /* ORBES DE COLOR — EN PRUEBA, sin decision tomada.
+     Medidos sobre capturas/orbe.jpeg: el violeta es el pico de saturacion del
+     orbe de la referencia (#ad5cff); el calido sale de restarle el fondo al
+     orbe de arriba —rgb(74,52,51) sobre rgb(29,34,42)— y llevar esa
+     diferencia a brillo pleno.
+
+     ATENCION antes de darlos por buenos: son DOS TONOS NUEVOS que no estan en
+     la paleta, y el calido cae encima del significado que ya tiene
+     --sw-attention («esto esta pasando ahora mismo», decision 21).
+
+     CERRADOS por la decision 45. Son DECORACION, no estado, y quedan fuera
+     del sistema semantico: nunca se leen, nunca marcan nada, no entran en el
+     presupuesto del acento.
+
+     El choque con --sw-attention no existe al nivel que se ve. Nadie ve
+     #ff6633: ve el COMPUESTO sobre el lienzo, que es #322325 en oscuro y
+     #ddcecb en claro, a ΔE 63,7 y 31,2 de attention respectivamente. La
+     medicion se hace sobre el compuesto, que es lo que existe, no sobre el
+     valor fuente.
+
+     La opacidad ahora sale del token y cambia por tema, que es la parte que
+     si habia que ajustar: sobre el ciruela los orbes se fundian en un fondo
+     ya tintado, y sobre el neutro nuevo el mismo alfa se lee como mancha.
+     Medido contra el suelo: .10 en oscuro da ΔE 5,6 —atmosfera— y en claro
+     daria 3,0, que sobre un campo neutro ya se ve como sucio. .05 en claro
+     da ΔE 1,6: luz, no mancha. */
+  --sw-orbe-calido: #ff6633;
+  --sw-orbe-frio:   #ad5cff;
+  --sw-orbe-op:     .05;
+
+  /* ==========================================================================
+     RECUPERADOS EL 11 DE SEPTIEMBRE. Lo de acá abajo se perdió y se repuso.
+
+     Este archivo se guardó desde un editor con un buffer viejo y se llevó 32
+     tokens: la atmósfera, el vidrio, los orbes, el hilo del anidamiento, la
+     hoja entera. Vino además con una `z` suelta en la primera línea, que
+     convertía este mismo `:root` en el selector `z :root` — o sea que ni
+     siquiera la paleta base llegaba a aplicarse.
+
+     Los valores NO están re-derivados a ojo: salieron del transcript de la
+     sesión, que guarda el texto exacto con el que se escribieron. Importa
+     porque la regla del proyecto es que los colores se miden, y estimarlos
+     los corre 10+ de ΔE.
+
+     Lo único que NO volvió fueron tres tokens que resultaron ser errores y no
+     pérdidas: `--sw-ok` y `--sw-lh-tight` nunca existieron acá (ahora los
+     consumidores usan `--sw-success` y `--sw-lh-h2`), y `--sw-text-rgb` sólo
+     aparecía dentro de un comentario que justamente dice que no existe.
+     ========================================================================== */
+  /* ---------------------------------------------------------------
+     EL MATERIAL DEL BLOQUE DE TRABAJO
+     --------------------------------------------------------------- */
+  --sw-block-chrome: var(--sw-surface-tint);
+  --sw-block-seam:   var(--sw-line);
+  --sw-canvas-bg:    var(--sw-ink);
+
+  /* LOS TRES CUERPOS DE LA ATMÓSFERA, Y POR QUÉ VARÍAN EN MATIZ Y CASI NO EN
+     CLARIDAD.
+
+     La primera versión los hizo con escalones de la escalera —luz arriba,
+     sombra abajo— y no se veía: todo el recorrido de la escalera clara es
+     1,15:1, y después el vidrio deja pasar una fracción de eso. Subir la
+     amplitud por claridad era el camino obvio y es el equivocado, porque el
+     contraste del texto se calcula sobre luminancia: mover claridad es
+     exactamente mover el contraste del hilo.
+
+     EL MATIZ NO CUESTA CONTRASTE. A claridad fija, girar el tono es de lo más
+     visible que hay y deja la luminancia prácticamente donde estaba. Por eso
+     los tres cuerpos se declaran con sintaxis de color relativa: `l` sale del
+     chrome del tema —el que sea— y sólo se reemplazan croma y tono. Un solo
+     juego de tokens sirve para los dos temas y el oscuro no se toca (regla 8,
+     y el pedido explícito de no mover el dark).
+
+     Los tres tonos son vecinos, no un arcoíris: 293 es la familia ciruela del
+     propio chrome, 232 y 330 son sus laterales. Se lee como luz atravesando
+     algo, que es el punto — no como tres manchas de colores. */
+  --sw-atm-a: oklch(from var(--sw-block-chrome) calc(l + .035) .06  293);
+  --sw-atm-b: oklch(from var(--sw-block-chrome) l              .05  232);
+  --sw-atm-c: oklch(from var(--sw-block-chrome) calc(l - .02)  .045 330);
+  --sw-atmosfera:
+    radial-gradient(115% 75% at 12% -6%,  var(--sw-atm-a) 0%, transparent 64%),
+    radial-gradient(100% 68% at 95% 30%,  var(--sw-atm-b) 0%, transparent 66%),
+    radial-gradient(140% 82% at 44% 110%, var(--sw-atm-c) 0%, transparent 62%);
+
+  /* EL VIDRIO. Lo que deja pasar de la atmósfera. Se pudo abrir tanto
+     justamente porque la atmósfera varía en TONO y no en claridad: lo que
+     entra tiñe, no aclara ni oscurece, así que el contraste del hilo se queda
+     donde estaba. El paso claro es más abierto que el oscuro porque en claro
+     la escalera viaja menos y hace falta dejar pasar más para que se vea. */
+  --sw-vidrio:      color-mix(in oklab, var(--sw-block-chrome) 45%, transparent);
+  --sw-vidrio-blur: 3px;
+
+  /* EL VIDRIO DE LA PANTALLA DE ENTRAR, pedido por el dueño sobre su plantilla
+     Immerse Layer: una tarjeta translúcida adentro de un MARCO de vidrio claro,
+     como su `dashboard__frame`. Es otro vidrio que el de arriba —aquel deja
+     pasar la atmósfera del chrome con 3px— y se afinó dos veces mirándolo.
+
+     LA PRIMERA VERSION SE VEIA PLENA, y era medible: relleno al 70% y 24px de
+     desenfoque, los valores de la referencia. Pero detrás de la referencia hay
+     un GIF de colores ya desenfocado, y detrás de ésta un suelo casi neutro con
+     líneas de 1px: al 70% el suelo neutro se lee como tarjeta sólida, y a 24px
+     una línea de 1px se reparte en ~50px y desaparece — el desenfoque estaba y
+     no se veía. Al 35% y con 8px pasa la luz de los orbes y el brillo de la
+     malla cuando el mouse la enciende por detrás.
+
+     El relleno sale del escalón de lo que flota y se resuelve solo por tema,
+     porque --sw-raised-2 cambia en el mismo :root. Lo que se declara por tema es
+     el canto, el marco y su sombra.
+
+     --sw-vidrio-borde es el canto fino de la tarjeta; --sw-vidrio-brillo, la
+     línea de luz de arriba (`inset 0 1px 0` de la referencia). */
+  --sw-vidrio-denso:      color-mix(in oklab, var(--sw-raised-2) 35%, transparent);
+  --sw-vidrio-denso-blur: 8px;
+  --sw-vidrio-borde:      rgb(255 255 255 / .7);
+  --sw-vidrio-brillo:     rgb(255 255 255 / .8);
+  --sw-e-vidrio:          inset 0 1px 0 var(--sw-vidrio-brillo);
+  /* EL MARCO: el canto ANCHO y claro. Es el `--frame-glass` de la referencia
+     —un degradado de blanco translúcido a 145°, la luz entrando por arriba a la
+     izquierda— y su `--frame-shadow`: un anillo interior, la línea de luz, y la
+     sombra de dos capas de lo que flota (regla 3, decisión 57). */
+  --sw-vidrio-marco:
+    linear-gradient(145deg, rgb(255 255 255 / .6), rgb(255 255 255 / .25) 40%,
+                            rgb(255 255 255 / .12) 60%, rgb(255 255 255 / .4));
+  --sw-e-marco:
+    inset 0 0 0 1px rgb(255 255 255 / .5), inset 0 1px 0 0 rgb(255 255 255 / .8),
+    0 0 0 1px rgb(0 0 0 / .04), var(--sw-e-modal);
+  /* LA LUZ SOBRE LA TARJETA (pedido del dueño): en oscuro entra por ARRIBA, en
+     claro por ABAJO. Invertir la dirección y no el signo es a propósito: en
+     claro la alternativa era oscurecer la parte de arriba, y una sombra encima
+     del vidrio claro lo ensucia y le baja contraste al texto oscuro. Una luz que
+     sube desde abajo mantiene la física y el contraste.
+
+     Una elipse ancha y no una línea recta: con el centro en el canto, la luz
+     llega a los costados más débil que al medio, que es como cae una fuente de
+     luz y no una franja pintada. */
+  --sw-vidrio-luz: radial-gradient(ellipse 130% 70% at 50% 100%, rgb(255 255 255 / .6), transparent 70%);
+  /* EL POZO DE UN CAMPO SOBRE EL VIDRIO. Sobre la tarjeta opaca un campo se
+     sostenía con su filete —1,17:1 en oscuro, ya al límite—; sobre el vidrio
+     ese filete se funde del todo y el campo de contraseña, que no tiene texto
+     de ejemplo, desaparecía: quedaban el rótulo y el ojo flotando. Se hunde con
+     el suelo del lienzo, que en los dos temas es más oscuro que lo que flota,
+     así que se lee como pozo en los dos con un solo valor. */
+  /* Al 70% y no al 50%: con la tarjeta al 35%, el vidrio oscuro ya es casi el
+     suelo, y al 50% el campo quedaba justo en un escalón —1,20 contra 1,20—. */
+  --sw-vidrio-pozo:       color-mix(in oklab, var(--sw-ink) 70%, transparent);
+
+  /* LA IMAGEN DE FONDO DEL CHAT, que se elige en los ajustes (auth/login.js).
+     shell/preferences.js pone la de cada tema en `--sw-fondo-img-claro` y
+     `-oscuro`; acá se toma la del tema, y sin elección no hay imagen.
+
+     LA MEZCLA LE PONE PISO AL CONTRASTE, y por eso cambia con el tema: en claro
+     `lighten` —la foto nunca queda más oscura que el chrome, así que el texto
+     oscuro no pierde— y en oscuro `darken`, el espejo —nunca más clara, así que
+     el texto claro tampoco—. Medido con las dos imágenes en los dos temas: con
+     una sola mezcla, la clara bajo el oscuro dejaba la columna blanca con los
+     controles oscuros encima, y la oscura bajo el claro apagaba «Conversación».
+     Así, una imagen del tono contrario al tema casi no se ve, que es lo que
+     tiene que pasar. */
+  --sw-fondo-img:    var(--sw-fondo-img-claro, none);
+  --sw-fondo-mezcla: lighten;
+  /* EL VELO SOBRE LA IMAGEN: un tinte del chrome por encima (pedido del dueño:
+     en oscuro la imagen quedaba demasiado presente para escribir encima). Va
+     arriba de la mezcla, así que el piso de contraste no se mueve: el chrome es
+     justo el límite que la mezcla no deja pasar.
+
+     SE ELIGE POR LO QUE DEJA LEER, no a ojo (pedido del dueño): la trama del
+     fondo no puede variar más que un escalón de la escalera del tema, que es lo
+     que el sistema ya usa para separar superficies sin que compitan. Medido con
+     las ondas desenfocadas: al 50% variaba 1,37:1 contra un escalón de 1,35; al
+     55%, 1,33 —justo—; al 60%, 1,30, con margen. En claro no hace falta:
+     `lighten` ya deja los velos en 1,09 contra 1,18. login.cjs lo mide. */
+  --sw-fondo-velo:   transparent;
+
+  /* LOS ORBES DEL LIENZO — claro.
+     Tres orbes asimétricos medidos de la referencia: el azul pesado arriba a
+     la izquierda, el rosa sobre el borde derecho y una crema donde los otros
+     dos se cruzan. Dos orbes simétricos se leen como un par de manchas; tres
+     asimétricos se leen como luz. */
+  --sw-orbe-1: #a5ace0;   /* azul, tono 233 — el fuerte, arriba a la izquierda */
+  --sw-orbe-2: #f5d4db;   /* rosa, tono 347 — borde derecho */
+  --sw-orbe-3: #faf2ef;   /* crema, croma 11 — donde los otros dos se cruzan */
+  --sw-orbe-op: 1;
+  --sw-orbe-tela:
+    radial-gradient(72% 52% at 6% 2%,    var(--sw-orbe-1) 0%, transparent 68%),
+    radial-gradient(55% 46% at 100% 18%, var(--sw-orbe-2) 0%, transparent 70%),
+    radial-gradient(46% 32% at 62% 0%,   var(--sw-orbe-3) 0%, transparent 72%);
+
+  /* TINTA DEL ACENTO SOBRE SUPERFICIE. No es --sw-accent: aquel es el acento
+     de estado y quedó a 4,51:1, pasando por centésimas. Éste es el paso
+     resuelto para texto. */
+  --sw-accent-text: #625392;
+
+  /* El placeholder, un escalón más gris que --sw-muted en claro. En oscuro no
+     hay margen para agrisar, así que se queda donde está. */
+  --sw-placeholder: #6f6a75;
+
+  /* EL HILO DEL ANIDAMIENTO del sidebar: la línea continua que recorre riel,
+     panel y estado activo. En oscuro no hace falta —la escalera ya separa— y
+     va en transparent. */
+  --sw-nido: #d0d0d3;
+  /* Los dos filetes del separador de la toolbar: uno oscuro y uno claro, para
+     que la separación se lea sobre cualquier superficie. */
+  --sw-sep-oscura: var(--sw-nido);
+  --sw-sep-clara:  var(--sw-raised-2);
+
+  /* EL HILO DE MENSAJES del chat: el ancho de la columna del hilo y el
+     diámetro del nodo. La línea cae en el MEDIO del nodo, no al costado — de
+     ahí que las dos medidas vivan juntas. */
+  --sw-hilo-w: var(--sw-s-6);
+  --sw-nodo-d: 7px;
+
+  /* Alto de los controles del compositor, y su equivalente táctil (regla 9:
+     controles contiguos, se agranda el control y no el área). */
+  --sw-comp-h:        20px;
+  /* LA ALTURA MEDIA — la de un panel de propiedades.
+
+     El sistema tenia dos: 20px para el pie del composer (controles muy
+     densos, pegados) y 36 para lo tactil. La caja de herramientas quedaba
+     obligada a elegir entre un control que no entra el texto y uno que se
+     come el panel: con 36px, cinco chips de destino y once botones de
+     estilo hacian que la caja se leyera como un formulario y no como un
+     panel de instrumento (regla 4: densidad de instrumento).
+
+     28 es el paso que faltaba. No sale de la escala de ESPACIADO —que
+     salta de 24 a 32— porque las alturas de control son su propia familia
+     en este archivo, igual que --sw-comp-h. Sigue siendo multiplo de la
+     unidad de 4px de la regla 4. */
+  --sw-comp-h-med:    28px;
+  --sw-comp-h-tactil: 36px;
+  /* LA CASILLA. Es cuadrada y tiene su propio lado: no es una altura de
+     control —no lleva texto adentro— ni un tamaño de ícono, porque un ícono
+     se dibuja dentro de su caja y esto ES la caja. Dieciséis es el lado que
+     usan las referencias y es múltiplo de la unidad de 4px (regla 4). */
+  --sw-casilla: 16px;
+  /* Los chevrons de Lucide dibujan su trazo dentro del 50% del viewBox, así
+     que al mismo --sw-ico rinden la mitad de tinta que el resto. Necesitan
+     caja propia o se ven a medio peso. */
+  --sw-ico-flecha: 15px;
+
+  /* La tarjeta del chat cuando sale de la caja de herramientas. */
+  --sw-flota-w: 420px;
+  --sw-flota-h: 560px;
+
+  /* LA TARJETA DE ENTRAR (src/login.html). Sale de la referencia y no del
+     ojo: el login de shadcn usa `max-w-sm`, 384px con texto de 14. Este sistema
+     es de 13 —es la misma conversión que hace basecoat-map.css con --text-sm—
+     así que 384 × 13/14 = 357, y 360 en la unidad de 4. */
+  --sw-acceso-w: 360px;
+  /* EL TOPE DE ANCHO DE LAS FRASES. Se estiran a los costados —el dueño las
+     prefiere en un renglón y en dos sólo cuando no entran—, así que el ancho lo
+     pone la pantalla (login.css) y esto sólo frena en monitores muy anchos.
+     Medido con Raleway 100: en 1920×1080 las cuatro van en un renglón; en
+     1600×1000 sólo la más larga pasa a dos. */
+  --sw-acceso-frase-w: 1920px;
+  /* EL AIRE ENTRE LA FRASE Y LA MARCA, que crece con el alto de la pantalla. Con
+     24px fijos, una frase de dos renglones quedaba pegada a la caja (lo dijo el
+     dueño). 5vh y no 6: medido en diez pantallas, con 6 una frase de dos
+     renglones subía hasta el conmutador en 1366×768 y 1024×768; con 5 sólo en
+     1280×720, donde las frases ya se ocultan. Da 50px en 1000 de alto y 38 en
+     768 —siempre más del doble de lo que separa la marca de la caja—. */
+  --sw-acceso-frase-aire: clamp(24px, 5vh, 64px);
+  /* LA CAJA DE LA CONFIGURACION — un modal de ajustes: las secciones a la
+     izquierda y las filas a la derecha (pedido del dueño: como los ajustes de
+     Claude). El alto es FIJO y no mínimo: al cambiar de sección la caja no
+     salta, y lo que no entra se desplaza adentro del panel. `-nav` es la
+     columna de las secciones. */
+  --sw-acceso-config-w: 860px;
+  --sw-acceso-config-h: 560px;
+  /* Y SU PISO en ventanas bajas: más chica, el panel ya no muestra una sección
+     entera sin desplazarse (auth/login.css). */
+  --sw-acceso-config-h-min: 400px;
+  --sw-acceso-config-nav: 200px;
+  /* Adentro de los ajustes: el ancho de un campo, el de una barra de uso y la
+     muestra del fondo del chat, que tiene la proporción de la columna. */
+  --sw-ajustes-campo-w:   240px;
+  --sw-ajustes-uso-w:     180px;
+  --sw-ajustes-muestra-w: 64px;
+  --sw-ajustes-muestra-h: 88px;
+  /* LA TINTA SECUNDARIA DE LOS AJUSTES: la ayuda, la nota y los rótulos chicos.
+     En claro es --sw-text-2; en oscuro sube a --sw-text. Medido: con la caja
+     dividida hasta arriba el panel empieza en el canto de arriba, donde el vidrio
+     oscuro es más claro —la luz entra por ahí—, y --sw-text-2 daba 4,36:1. La
+     jerarquía la sostienen el tamaño y el peso. */
+  --sw-ajustes-tinta-2:   var(--sw-text-2);
+  /* LA COLUMNA DE LAS SECCIONES (pedido del dueño): negra con opacidad sobre el
+     vidrio, una línea doble entre sección y sección —un surco oscuro y el
+     brillo del vidrio abajo— y la elegida más clara. `-nav` es el tinte de la
+     columna; `-surco`, la línea oscura; `-activo` y `-hover`, la luz de la
+     elegida y la de pasar el mouse. En oscuro todo sube: sobre un vidrio oscuro
+     el negro tiene que ser más denso para leerse, y la luz, más tenue. */
+  --sw-ajustes-nav:       rgb(0 0 0 / .06);
+  --sw-ajustes-surco:     rgb(0 0 0 / .09);
+  --sw-ajustes-activo:    rgb(255 255 255 / .55);
+  --sw-ajustes-hover:     rgb(255 255 255 / .28);
+
+  /* LA EXPLOSION AL ENTRAR (pedido del dueño): todo hace zoom hacia la cámara,
+     y CADA CAPA A SU PROFUNDIDAD. Si todo creciera igual se leería como agrandar
+     una foto; que lo de adelante vuele más rápido que lo de atrás es lo que se
+     lee como atravesar la pantalla. De atrás hacia adelante: el fondo, el halo,
+     la malla y la caja. `-llega` es desde qué distancia aparece lo nuevo —la
+     configuración, la app, la tilde de una casilla—. */
+  --sw-acceso-zoom-fondo: 1.25;
+  --sw-acceso-zoom-halo:  1.6;
+  --sw-acceso-zoom-malla: 2.4;
+  --sw-acceso-zoom-caja:  4;
+  --sw-acceso-zoom-llega: .85;
+  /* LO QUE SE APRIETA CEDE —un botón, una muestra—, apenas: se tiene que
+     sentir, no ver. */
+  --sw-cede: .97;
+
+  /* LA TELE QUE SE APAGA AL CERRAR SESION (shell/tele.css). Negra, con una luz
+     blanca que tira a azul y un halo azulado alrededor (pedido del dueño), igual
+     en los dos temas a propósito: es una tele, no una superficie del sistema. Y
+     ese azul no es el acento: no marca nada.
+     `-punto` es hasta dónde se achica la app; `-luz-d`, el diámetro de la luz;
+     `-linea-*`, cuánto se estira y se aplana —de costado, más ancha que la
+     pantalla, para que llegue a los bordes (pedido del dueño)—; `-halo-*`, cuánto
+     crece el halo alrededor del punto y cuánto alto le da a la línea; `-sosten`,
+     cuánto se queda estirada antes de apagarse (pedido del dueño: que se vea). */
+  --sw-tele-fondo:   #050507;
+  --sw-tele-luz:     radial-gradient(circle, rgb(255 255 255) 0%, rgb(214 232 255 / .9) 30%, rgb(120 170 255 / 0) 70%);
+  --sw-tele-halo:    radial-gradient(circle, rgb(110 160 255 / .55) 0%, rgb(70 120 255 / .22) 40%, rgb(70 120 255 / 0) 70%);
+  --sw-tele-punto:   .01;
+  --sw-tele-luz-d:   24px;
+  --sw-tele-linea-x: 100;
+  --sw-tele-linea-y: .12;
+  --sw-tele-halo-punto: 3;
+  --sw-tele-halo-y:  2.2;
+  --sw-tele-sosten:  360ms;
+
+  /* EL FONDO EN MOVIMIENTO DE LA PANTALLA DE ENTRAR (pedido del dueño): un video
+     que no se mira —sólo da movimiento detrás de la malla—, así que va
+     desenfocado y hundido bajo un velo.
+
+     EL VELO ES EL SUELO DEL LIENZO: en oscuro oscurece y en claro aclara, así el
+     video queda del lado del fondo en los dos. CUANTO, SE MIDE CONTRA EL VIDEO:
+     login.cjs toma cinco cuadros del bucle y cada texto se queda con el peor.
+
+     OSCURO AL 80%: al 70 el error daba 4,42:1. CLARO AL 70%: estuvo en 90 —el
+     peor caso teórico, un píxel negro sin desenfocar— y el video no se distinguía
+     (lo dijo el dueño). Detrás de los textos de la tarjeta el marco desenfoca
+     8px, así que ese peor caso no llega a la letra. Con el degradado del GIF,
+     medido en cinco cuadros: en claro al 70 el error da 4,53:1 —a un pelo del
+     piso— y en oscuro al 80 el enlace 4,76:1. Es el margen más chico de la
+     pantalla; por debajo de estos valores, no. Si cambia el fondo, estos dos
+     números se vuelven a medir. */
+  /* 1px: el dueño lo fue pidiendo con menos desenfoque (16 → 8 → 4 → 1). Al
+     principio el archivo traía además un desenfoque propio —gblur 4 a 640px,
+     ~10px en pantalla— que ponía un piso: por debajo de eso esta variable no
+     afilaba nada. Para el 1px se recodificó SIN ese gblur (ver la receta en
+     ESTADO.md), y ahora lo que se ve es esta variable. */
+  --sw-acceso-video-blur: 1px;
+  --sw-acceso-velo:       color-mix(in oklab, var(--sw-ink) 70%, transparent);
+
+  /* Los segmentos del interruptor de tema — tres posiciones (auto/claro/
+     oscuro), así que el pill se desplaza en múltiplos de --sw-seg-w. */
+  --sw-seg-w: 28px;
+  --sw-seg-h: 22px;
+
+  /* El ciclo entero de «cavilando»: 5 iconos, ~700ms cada uno. Más rápido se
+     lee como parpadeo y más lento parece colgado. No entra en la escala de
+     duraciones a propósito — aquella mide transiciones, que escalan con la
+     distancia recorrida (regla 5); esto es un bucle ambiental y no recorre
+     ninguna distancia. */
+  --sw-d-cavila: 3500ms;
+
+  /* ---------------------------------------------------------------
+     LA HOJA — el espacio de trabajo apoyado en el lienzo.
+
+     794px es un A4 a 96dpi, que es la resolución de referencia de CSS. No es
+     nostalgia de papel: es el ancho donde un texto a 13px cae en unos 95
+     caracteres por línea, y de ahí sale la medida de lectura de 68ch que se
+     aplica adentro.
+     --------------------------------------------------------------- */
+  --sw-hoja-w:   794px;
+  --sw-hoja-pad: var(--sw-s-16);
+  /* EL AIRE ENTRE HOJAS. Tiene que leerse como que son dos objetos y no una
+     hoja con una línea en el medio, así que es más grande que cualquier
+     separación de adentro del documento: la mayor de adentro es el salto
+     entre párrafos, y ésta tiene que ganarle sin dudar. */
+  --sw-hoja-sep: var(--sw-s-8);
+  /* EL PAPEL. En claro es el escalón más alto —lo más claro de la pantalla,
+     que es lo que hace que se lea como hoja sobre una mesa—.
+
+     EN OSCURO TAMBIÉN ES PAPEL CLARO (pedido del dueño). Antes era el escalón
+     que flota, --sw-raised-2 oscuro: una hoja gris oscura con letra clara. Ahora
+     es un gris muy claro —no blanco, que sobre el lienzo oscuro encandila:
+     #fbfbfe daría 16,4:1 contra --sw-ink, éste da 12,1— con la tinta del tema
+     claro encima. La hoja pasa a ser una isla clara, y por eso tiene sus propias
+     tintas: sheet.css las pone en lugar de las del tema adentro de .sw-hoja.
+
+     En claro son todas alias de las del tema: no cambia nada. */
+  --sw-hoja-bg:      var(--sw-raised-2);
+  --sw-hoja-borde:   var(--sw-line);
+  --sw-hoja-tinta:   var(--sw-text);
+  --sw-hoja-tinta-2: var(--sw-text-2);
+  --sw-hoja-tenue:   var(--sw-muted);
+  --sw-hoja-apagada: var(--sw-faint);
+  --sw-hoja-acento:  var(--sw-accent-line);
+
+  /* El nivel de zoom en grande: no entra en la escala tipográfica —que va de
+     10 a 28px y describe INTERFAZ— porque esto no es texto de interfaz, es un
+     dato momentáneo que se lee de un golpe y se va. */
+  --sw-t-nivel: 100px;
+  --sw-d-nivel: 1400ms;
+  /* Aire entre el canto derecho de la hoja y la tira de pistas. */
+  --sw-hoja-pista-aire: 10px;
+  /* TINTA DEL NIVEL DE ZOOM. Token propio y no --sw-faint ni --sw-muted
+     porque lo que tiene que ser constante entre temas es la RELACIÓN, no el
+     valor: ~3,6:1 contra la hoja en los dos. Es texto GRANDE (64px), así que
+     el piso que le toca es 3:1, no 4,5. */
+  --sw-nivel-tinta: #87828d;   /* 3,63:1 sobre la hoja clara */
+}
+
+/* Tema oscuro por preferencia de sistema.
+   Guardado con :not([data-theme="light"]) para que una eleccion explicita
+   de claro le gane a un SO en oscuro. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    /* Cinco pasos en H287 a C0,015. La L de cada escalon esta MEDIDA:
+         ink       L22,5  <- #1b1c21 L22,8 · #1a1d24 L23,1 · #1d1d20 L23,2
+                             · #1b1b1d L22,3   (cuatro referencias de UI)
+         surface   L26,5  <- #252525 L26,4 · #262632 L27,4 · #25292f L27,9
+         surface-2 L30,5  <- #2a2b2f L29,0 · #2f2f30 L30,6 · #31303e L31,6
+         raised    L35,0  <- #3a3744 L34,5 · #383a34 L34,4 · #3b3b46 L35,7
+         raised-2  L39,5  <- #3e4046 L37,2 · #414246 L38,0 · #4a4154 L39,2
+       Recorrido total 1,81:1 (la paleta anterior daba 1,76). */
+    --sw-ink:         #1b1b23;
+    --sw-surface:     #25242c;
+    --sw-surface-2:   #2e2e36;
+    --sw-raised:      #3a3942;
+    --sw-raised-2:    #46454e;
+    --sw-surface-tint: #3a3343;
+    /* aca si se copia la relacion completa: 1,026:1 contra la card (la
+       anterior daba 1,020) y 1,213:1 contra el panel (1,200). El filete
+       oscuro se funde en la card y se lee en el panel, como debe. */
+    --sw-line:        #3b3b43;
+    --sw-hover:       #3f3f47;
+    --sw-line-strong: #4d4d56;
+    --sw-seam:        #3b3b43;   /* 1,384:1 contra el riel — ver el claro */
+    --sw-tools-filete: var(--sw-line-strong);   /* 1,36:1 contra el panel — ver el claro */
+    --sw-tabla-filete:  var(--sw-line-strong);  /* 1,36:1 contra la fila — ver el claro */
+    --sw-interruptor-riel: var(--sw-line-strong);  /* 1,36:1 contra la tarjeta — ver el claro */    --sw-relieve-surco:  rgb(0 0 0 / .45);
+    --sw-relieve-brillo: rgb(255 255 255 / .06);
+
+    --sw-text:        #fcfaff;   /* blanco tibio — nunca #FFF puro */
+    --sw-text-2:      #cdc7d4;
+    --sw-muted:       #bbb5c2;
+    --sw-faint:       #948f9c;
+
+    --sw-accent:      #9688cf;
+    --sw-accent-lit:  #a698e0;
+    --sw-accent-weak: #9688cf22;
+    --sw-accent-line: #9688cf;
+    /* en oscuro el acento va por ENCIMA de la escalera, asi que la tinta baja
+       al escalon mas hondo: ink, 5,47:1 (decision 38). */
+    --sw-on-accent:   #1b1b23;
+
+    --sw-success:     #81b2a1;
+    --sw-warning:     #ca8035;
+    --sw-error:       #f69b96;
+    --sw-attention:   #d8e854;
+    --sw-presence:    #e474ce;
+
+    --sw-success-bg:  #81b2a11f;
+    --sw-warning-bg:  #ca80351f;
+    --sw-error-bg:    #f69b961f;
+    /* Ver el bloque claro: el velo es el rojo del tema al 25%. */
+    --sw-error-velo: #f69b9640;
+    --sw-attention-bg:#d8e8541f;
+    --sw-mute-bg:     var(--sw-hover);
+
+    /* Ver el bloque claro: el celeste que da la misma relación contra la carta
+       oscura, elegido entre los que dejan leer el rótulo encima. */
+    --sw-destacado-bg: #214457;
+
+    /* Ver el bloque claro: la escalera de la referencia, recalculada contra
+       --sw-raised oscuro. Acá el dibujo va por ENCIMA de la superficie. */
+    --sw-dibujo-trazo: #8f8b95;   /* 3,41:1 */
+    --sw-dibujo-masa:  #736e79;   /* 2,30:1 */
+    --sw-dibujo-tinta: #605c65;   /* 1,74:1 */
+    /* Ver el bloque claro: los dos rellenos, con la misma relación contra el
+       cuerpo. Acá el papel NO puede ser blanco ni `--sw-raised`: sobre la carta
+       oscura quedaría más oscuro que la carpeta y se leería como un hueco. */
+    --sw-dibujo-papel: #bfbcc4;   /* 2,65:1 contra --masa */
+    --sw-dibujo-claro: #8d8893;   /* 1,42:1 contra --masa */
+    /* Ver el bloque claro: el pie del degradado del frente, un paso por debajo
+       de --masa también acá. */
+    --sw-dibujo-hondo: #625d68;
+    /* Ver el bloque claro: los tres del formato, subidos para leerse sobre la
+       carta oscura. La separación contra los semánticos se comprueba en los DOS
+       temas — un color de formato que se confunde con «advertencia» en oscuro es
+       el mismo defecto aunque en claro separe bien. */
+    --sw-formato-planilla: #58b37e;
+    --sw-formato-presenta: #e07a52;
+    --sw-formato-pdf:      #6ba3dd;
+    /* La tinta del badge oscuro YA NO es un alias de --sw-*. El tinte es
+       translucido, asi que se aclara con la superficie que tiene debajo: el
+       mismo texto que pasa sobre el panel se cae sobre una card y mas sobre un
+       flotante. Con el alias, los cinco fallaban sobre card —warning daba
+       3,08:1— y el primero que se pusiera ahi nacia roto.
+       Estos valores estan resueltos contra el tinte sobre --sw-raised-2, el
+       PEOR escalon del tema, asi que el badge funciona en las cinco
+       superficies: 4,5+ sobre flotante, 5,3+ sobre card, 6,2+ sobre panel.
+       La decision 26 no se toca: el componente sigue escribiendo
+       background:var(--sw-*-bg) y color:var(--sw-on-*) — cambia el token.
+       Corrimiento maximo de matiz respecto de su semantico: 13deg. */
+    --sw-on-success:  #9dcfbd;
+    --sw-on-warning:  #ffb01f;
+    --sw-on-error:    #ffb3a4;
+    --sw-on-attention:#c9d841;
+    --sw-on-mute:     var(--sw-muted);
+
+    --sw-e-pop:   0 8px 24px rgba(0, 0, 0, .45);
+    /* LA DE LEVANTAR SUBE EN OSCURO. Una sombra negra sobre una superficie
+       oscura casi no se ve: el sistema ya lo resuelve así en `--sw-e-pop`, que
+       pasa de .12 a .45. Y su azul se va —sobre oscuro no aporta temperatura,
+       sólo la aclara— así que acá sus dos capas son negras. La del modal
+       también, con más alfa (ver el bloque claro). */
+    --sw-e-modal: rgb(0 0 0 / .75) 0 20px 30px -10px;
+    --sw-e-levanta: rgba(0, 0, 0, .50) 0 13px 27px -5px,
+                    rgba(0, 0, 0, .55) 0 8px 16px -8px;
+    --sw-e-corte: inset 0 -10px 12px -10px rgba(0, 0, 0, .55);
+    /* El rojo del globo BAJA en oscuro en vez de subir, al revés que el resto del
+       vocabulario: es un relleno con texto blanco encima, no un texto. */
+    --sw-globo-bg: #c04447;
+    /* La caja se hunde igual en oscuro, con el valor que este tema puede decir. */
+    --sw-caja-agrupa: #1b1b23;
+    /* Y su pieza sube lo que la escalera sube: el blanco acá sería un foco. Es
+       el mismo escalón dicho con el valor que este tema puede decir. */
+    --sw-caja-pieza: var(--sw-raised);
+    /* En oscuro el relleno se aleja del header hacia ARRIBA: el negro que en
+       claro pesa, acá es el fondo. */
+    --sw-relleno-2: var(--sw-raised);
+  /* Plano en oscuro. Van en '0 0 transparent' y NO en 'none': una lista de
+     sombras no admite 'none' como item —`box-shadow: none, none` es
+     invalido— y el navegador descarta la declaracion entera, con lo cual se
+     pierde tambien la del tema claro. Medido: las tres capas daban 'none' en
+     los dos temas. */
+  --sw-e-capa-1: 0 0 transparent;
+  --sw-e-capa-2: 0 0 transparent;
+  --sw-e-capa-3: 0 0 transparent;
+  --sw-e-canto:  0 0 transparent;
+    /* Plano en oscuro. Van en '0 0 transparent' y NO en 'none': una lista de
+     sombras no admite 'none' como item —`box-shadow: none, none` es
+     invalido— y el navegador descarta la declaracion entera, con lo cual se
+     pierde tambien la del tema claro. Medido: las tres capas daban 'none' en
+     los dos temas. */
+    --sw-e-capa-1: 0 0 transparent;
+    --sw-e-capa-2: 0 0 transparent;
+    --sw-e-capa-3: 0 0 transparent;
+    --sw-e-canto:  0 0 transparent;
+    --sw-backdrop: rgba(0, 0, 0, .55);
+
+    --sw-grid-dot:     rgba(255, 255, 255, .05);
+    --sw-grid-dot-lit: rgba(255, 255, 255, .537);
+
+    --sw-edge: #4f4f58;
+    --sw-brand: #03a9f4;
+    /* sobre el lienzo oscuro el mismo alfa se lee como atmosfera y no como
+       mancha: ΔE 5,6 del suelo contra los 3,0 que daria en claro. */
+    --sw-orbe-op: .10;
+
+    --sw-block-chrome: #3a3343;
+    --sw-vidrio:       color-mix(in oklab, var(--sw-block-chrome) 72%, transparent);
+    /* El vidrio de la pantalla de entrar, en oscuro (ver el bloque claro). El
+       marco sube un poco sobre la referencia (.12 → .16): su fondo es de
+       colores y éste casi negro, y con los mismos blancos el canto no se veía. */
+    --sw-vidrio-borde:  rgb(255 255 255 / .10);
+    --sw-vidrio-brillo: rgb(255 255 255 / .08);
+    --sw-vidrio-marco:
+      linear-gradient(145deg, rgb(255 255 255 / .16), rgb(255 255 255 / .07) 40%,
+                              rgb(255 255 255 / .04) 60%, rgb(255 255 255 / .12));
+    --sw-e-marco:
+      inset 0 0 0 1px rgb(255 255 255 / .08), inset 0 1px 0 0 rgb(255 255 255 / .15),
+      0 0 0 1px rgb(255 255 255 / .05), var(--sw-e-modal);
+    /* El velo del video de la pantalla de entrar, en oscuro (ver el bloque claro). */
+    --sw-acceso-velo: color-mix(in oklab, var(--sw-ink) 80%, transparent);
+    /* El fondo del chat, en oscuro: su imagen y la mezcla espejo (ver el bloque claro). */
+    --sw-fondo-img:    var(--sw-fondo-img-oscuro, none);
+    --sw-fondo-mezcla: darken;
+    --sw-fondo-velo:   color-mix(in oklab, var(--sw-block-chrome) 60%, transparent);
+    /* La tinta secundaria de los ajustes, en oscuro (ver el bloque claro). */
+    --sw-ajustes-tinta-2: var(--sw-text);
+    /* La columna de las secciones de los ajustes, en oscuro (ver el bloque claro). */
+    --sw-ajustes-nav:     rgb(0 0 0 / .30);
+    --sw-ajustes-surco:   rgb(0 0 0 / .55);
+    --sw-ajustes-activo:  rgb(255 255 255 / .07);
+    --sw-ajustes-hover:   rgb(255 255 255 / .035);
+    /* La luz sobre la tarjeta, en oscuro: desde arriba (ver el bloque claro). */
+    --sw-vidrio-luz: radial-gradient(ellipse 130% 70% at 50% 0%, rgb(255 255 255 / .14), transparent 70%);
+    --sw-accent-text:  #b5a7ed;
+    --sw-placeholder:  #bbb5c2;
+    /* El hilo del anidamiento no hace falta en oscuro: la escalera ya separa
+       las capas por valor, y una línea encima sería la tercera marca. */
+    --sw-nido:         transparent;
+    --sw-sep-oscura:   var(--sw-surface);
+    /* Los orbes oscuros NO son los claros invertidos: son los que ya tenía el
+       lienzo, con su propia geometría. Se dejan intactos a pedido explícito
+       —el dark no se toca— y por eso la geometría vive en el token y no en el
+       CSS del canvas. */
+    --sw-orbe-1:  #ad5cff;   /* frío */
+    --sw-orbe-2:  #ff6633;   /* cálido */
+    --sw-orbe-3:  transparent;
+    --sw-orbe-op: .10;
+    --sw-orbe-tela:
+      radial-gradient(ellipse 62% 48% at 34% -10%, var(--sw-orbe-2) 0%, transparent 100%),
+      radial-gradient(ellipse 58% 44% at 66% -4%,  var(--sw-orbe-1) 0%, transparent 100%);
+    /* LA HOJA CLARA EN OSCURO — ver el bloque claro. La tinta es la del tema
+       claro, medida contra este papel: 9,11 · 5,73 · 4,68 · 2,99:1 (la última es
+       la de deshabilitado). El filete copia la relación clara: 1,21:1 por debajo
+       del papel. El acento es el paso claro, 3,28:1: sobre papel claro el que
+       queda por encima de la escalera no se ve. */
+    --sw-hoja-bg:      #d9d8de;
+    --sw-hoja-borde:   #c6c5cb;
+    --sw-hoja-tinta:   #343039;
+    --sw-hoja-tinta-2: #524e58;
+    --sw-hoja-tenue:   #5f5b65;
+    --sw-hoja-apagada: #7e7984;
+    --sw-hoja-acento:  #7a6ab0;
+    --sw-nivel-tinta: #6f6a75;   /* 3,71:1 sobre la hoja clara de oscuro, 3,25 sobre el lienzo */
+  }
+}
+
+/* Eleccion explicita de claro — gana sobre un SO en oscuro.
+   Los colores ya los da :root; lo unico que falta es el color-scheme,
+   porque `light dark` dejaria los controles nativos en oscuro. */
+:root[data-theme="light"] { color-scheme: light; }
+
+/* Eleccion explicita de oscuro — gana sobre un SO en claro. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --sw-ink:         #1b1b23;
+  --sw-surface:     #25242c;
+  --sw-surface-2:   #2e2e36;
+  --sw-raised:      #3a3942;
+  --sw-raised-2:    #46454e;
+  --sw-surface-tint: #3a3343;
+  --sw-line:        #3b3b43;
+  --sw-hover:       #3f3f47;
+  --sw-line-strong: #4d4d56;
+  --sw-seam:        #3b3b43;
+  --sw-tools-filete: var(--sw-line-strong);
+  --sw-tabla-filete:  var(--sw-line-strong);
+  --sw-interruptor-riel: var(--sw-line-strong);
+  --sw-relieve-surco:  rgb(0 0 0 / .45);
+  --sw-relieve-brillo: rgb(255 255 255 / .06);
+
+  --sw-text:        #fcfaff;
+  --sw-text-2:      #cdc7d4;
+  --sw-muted:       #bbb5c2;
+  --sw-faint:       #948f9c;
+
+  --sw-accent:      #9688cf;
+  --sw-accent-lit:  #a698e0;
+  --sw-accent-weak: #9688cf22;
+  --sw-accent-line: #9688cf;
+  --sw-on-accent:   #1b1b23;
+
+  --sw-success:     #81b2a1;
+  --sw-warning:     #ca8035;
+  --sw-error:       #f69b96;
+  --sw-attention:   #d8e854;
+  --sw-presence:    #e474ce;
+
+  --sw-success-bg:  #81b2a11f;
+  --sw-warning-bg:  #ca80351f;
+  --sw-error-bg:    #f69b961f;
+  /* Ver el bloque claro: el velo es el rojo del tema al 25%. */
+  --sw-error-velo: #f69b9640;
+  --sw-attention-bg:#d8e8541f;
+  --sw-mute-bg:     var(--sw-hover);
+
+  /* Ver el bloque claro: el celeste que da la misma relación contra la carta
+     oscura, elegido entre los que dejan leer el rótulo encima. */
+  --sw-destacado-bg: #214457;
+
+  /* Ver el bloque claro: la escalera de la referencia, recalculada contra
+     --sw-raised oscuro. Acá el dibujo va por ENCIMA de la superficie. */
+  --sw-dibujo-trazo: #8f8b95;   /* 3,41:1 */
+  --sw-dibujo-masa:  #736e79;   /* 2,30:1 */
+  --sw-dibujo-tinta: #605c65;   /* 1,74:1 */
+  /* Ver el bloque claro: los dos rellenos, con la misma relación contra el
+     cuerpo. Acá el papel NO puede ser blanco ni `--sw-raised`: sobre la carta
+     oscura quedaría más oscuro que la carpeta y se leería como un hueco. */
+  --sw-dibujo-papel: #bfbcc4;   /* 2,65:1 contra --masa */
+  --sw-dibujo-claro: #8d8893;   /* 1,42:1 contra --masa */
+  /* Ver el bloque claro: el pie del degradado del frente, un paso por debajo de
+     --masa también acá. */
+  --sw-dibujo-hondo: #625d68;
+  /* Ver el bloque claro: los tres del formato, subidos para leerse sobre la
+     carta oscura. */
+  --sw-formato-planilla: #58b37e;
+  --sw-formato-presenta: #e07a52;
+  --sw-formato-pdf:      #6ba3dd;
+  --sw-on-success:  #9dcfbd;
+  --sw-on-warning:  #ffb01f;
+  --sw-on-error:    #ffb3a4;
+  --sw-on-attention:#c9d841;
+  --sw-on-mute:     var(--sw-muted);
+
+  --sw-e-pop:   0 8px 24px rgba(0, 0, 0, .45);
+  /* LA DE LEVANTAR SUBE EN OSCURO. Una sombra negra sobre una superficie
+     oscura casi no se ve: el sistema ya lo resuelve así en `--sw-e-pop`, que
+     pasa de .12 a .45. Y su azul se va —sobre oscuro no aporta temperatura,
+     sólo la aclara— así que acá sus dos capas son negras. La del modal
+     también, con más alfa (ver el bloque claro). */
+  --sw-e-modal: rgb(0 0 0 / .75) 0 20px 30px -10px;
+  --sw-e-levanta: rgba(0, 0, 0, .50) 0 13px 27px -5px,
+                  rgba(0, 0, 0, .55) 0 8px 16px -8px;
+  --sw-e-corte: inset 0 -10px 12px -10px rgba(0, 0, 0, .55);
+  /* El rojo del globo BAJA en oscuro en vez de subir, al revés que el resto del
+     vocabulario: es un relleno con texto blanco encima, no un texto. */
+  --sw-globo-bg: #c04447;
+  /* La caja se hunde igual en oscuro, con el valor que este tema puede decir. */
+  --sw-caja-agrupa: #1b1b23;
+  /* Y su pieza sube lo que la escalera sube: el blanco acá sería un foco. Es
+     el mismo escalón dicho con el valor que este tema puede decir. */
+  --sw-caja-pieza: var(--sw-raised);
+  /* En oscuro el relleno se aleja del header hacia ARRIBA: el negro que en
+     claro pesa, acá es el fondo. */
+  --sw-relleno-2: var(--sw-raised);
+  --sw-backdrop: rgba(0, 0, 0, .55);
+
+  --sw-grid-dot:     rgba(255, 255, 255, .05);
+  --sw-grid-dot-lit: rgba(255, 255, 255, .537);
+
+  --sw-edge: #4f4f58;
+  --sw-brand: #03a9f4;
+  --sw-orbe-op: .10;
+
+  --sw-block-chrome: #3a3343;
+  --sw-vidrio:       color-mix(in oklab, var(--sw-block-chrome) 72%, transparent);
+  /* El vidrio de la pantalla de entrar, en oscuro elegido (ver el bloque claro
+     y el del @media: los mismos valores, con el mismo motivo). */
+  --sw-vidrio-borde:  rgb(255 255 255 / .10);
+  --sw-vidrio-brillo: rgb(255 255 255 / .08);
+  --sw-vidrio-marco:
+    linear-gradient(145deg, rgb(255 255 255 / .16), rgb(255 255 255 / .07) 40%,
+                            rgb(255 255 255 / .04) 60%, rgb(255 255 255 / .12));
+  --sw-e-marco:
+    inset 0 0 0 1px rgb(255 255 255 / .08), inset 0 1px 0 0 rgb(255 255 255 / .15),
+    0 0 0 1px rgb(255 255 255 / .05), var(--sw-e-modal);
+  /* El velo del video de la pantalla de entrar, en oscuro elegido (ver el bloque claro). */
+  --sw-acceso-velo: color-mix(in oklab, var(--sw-ink) 80%, transparent);
+  /* El fondo del chat, en oscuro elegido: su imagen y la mezcla espejo (ver el bloque claro). */
+  --sw-fondo-img:    var(--sw-fondo-img-oscuro, none);
+  --sw-fondo-mezcla: darken;
+  --sw-fondo-velo:   color-mix(in oklab, var(--sw-block-chrome) 60%, transparent);
+  /* La tinta secundaria de los ajustes, en oscuro elegido (ver el bloque claro). */
+  --sw-ajustes-tinta-2: var(--sw-text);
+  /* La columna de las secciones de los ajustes, en oscuro elegido (ver el bloque claro). */
+  --sw-ajustes-nav:     rgb(0 0 0 / .30);
+  --sw-ajustes-surco:   rgb(0 0 0 / .55);
+  --sw-ajustes-activo:  rgb(255 255 255 / .07);
+  --sw-ajustes-hover:   rgb(255 255 255 / .035);
+  /* La luz sobre la tarjeta, en oscuro elegido: desde arriba (ver el bloque claro). */
+  --sw-vidrio-luz: radial-gradient(ellipse 130% 70% at 50% 0%, rgb(255 255 255 / .14), transparent 70%);
+  --sw-accent-text:  #b5a7ed;
+  --sw-placeholder:  #bbb5c2;
+  --sw-nido:         transparent;
+  --sw-sep-oscura:   var(--sw-surface);
+  --sw-orbe-1:  #ad5cff;   /* frío */
+  --sw-orbe-2:  #ff6633;   /* cálido */
+  --sw-orbe-3:  transparent;
+  --sw-orbe-op: .10;
+  --sw-orbe-tela:
+    radial-gradient(ellipse 62% 48% at 34% -10%, var(--sw-orbe-2) 0%, transparent 100%),
+    radial-gradient(ellipse 58% 44% at 66% -4%,  var(--sw-orbe-1) 0%, transparent 100%);
+  --sw-hoja-bg:      #d9d8de;
+  --sw-hoja-borde:   #c6c5cb;
+  --sw-hoja-tinta:   #343039;
+  --sw-hoja-tinta-2: #524e58;
+  --sw-hoja-tenue:   #5f5b65;
+  --sw-hoja-apagada: #7e7984;
+  --sw-hoja-acento:  #7a6ab0;
+  --sw-nivel-tinta: #6f6a75;   /* 3,71:1 sobre la hoja clara de oscuro, 3,25 sobre el lienzo */
+}
+
+
+/* ============================================================================
+   TOKENS INDEPENDIENTES DE TEMA
+   ============================================================================ */
+
+:root {
+  /* ---------------------------------------------------------------
+     RELLENOS PLENOS — la pastilla del inspector
+     No siguen al badge. El badge se repite veinte veces en una lista y por
+     eso es tenue; la pastilla del objeto aparece UNA vez y es su ancla, asi
+     que va con relleno pleno y glifo blanco. Valen igual en los dos temas:
+     si en oscuro se usara el semantico —que ahi es claro— el blanco encima
+     daria 2,2:1. Medidos contra blanco: ok 5,0 · warn 4,7 · error 6,5 ·
+     gris 6,1.
+     --------------------------------------------------------------- */
+  --sw-success-fill: #3f7a63;
+  --sw-warning-fill: #a8641f;
+  --sw-error-fill:   #bc4749;
+  --sw-mute-fill:    #5b636d;
+  --sw-on-fill:      #ffffff;
+  /* EL HOVER SOBRE UN RELLENO, que --sw-hover no puede dar: ése está calculado
+     contra las superficies del tema y sobre un relleno pleno —la banda de la
+     ficha, un botón lleno— no se ve en ninguno de los dos. Es la misma tinta que
+     va encima, al 12%: sube el relleno sin cambiarle el color, que es lo que
+     tiene que hacer un hover. Vale igual en los dos temas por el mismo motivo
+     que --sw-on-fill: el relleno no cambia de lado. */
+  --sw-on-fill-velo: #ffffff1f;
+
+  /* ---------------------------------------------------------------
+     TIPOGRAFIA
+     Inter esta declarada por la propia UI de una referencia del corpus:
+     12px / line-height 16 / tracking 0. Es densidad de instrumento,
+     no de app de consumo. El corpus NO contiene display ni script:
+     la unica jerarquia es peso y tamano.
+     --------------------------------------------------------------- */
+  --sw-font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --sw-font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
+  /* LOS TITULOS TIENEN SU PROPIA FUENTE. Raleway es geométrica y más abierta
+     que Inter: separa el título del texto por FORMA y no por tamaño, que es lo
+     que deja bajar un cuerpo sin perder jerarquía —y bajar cuerpos es lo que
+     pide la regla 4—. El respaldo es el mismo de --sw-font: esto abre con doble
+     clic y sin red, y ahí los títulos tienen que caer en la fuente del sistema
+     y no en una serif de emergencia que cambiaría la pantalla entera. */
+  --sw-font-display: "Raleway", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+
+  /* ARRIBA DE DISPLAY, para una cifra que ES el punto de entrada de una
+     tarjeta: el monto de una factura. No es un título más grande — es el dato
+     por el que se abrió la pantalla, y a 28px todavía competía con el nombre
+     del proveedor que tiene debajo. Un solo uso hasta que aparezca otro. */
+  /* LA ESCALA VA EN rem, Y ES LA UNICA FAMILIA DEL SISTEMA QUE LO HACE
+     (16 de septiembre, pedido del dueño).
+
+     Nadie le fija un `font-size` a la raiz —comprobado—, asi que 1rem son los
+     16px de fabrica y los nueve pasos dan EXACTAMENTE los mismos pixeles que
+     antes: cero cambio visual, y las 63 suites siguen midiendo los mismos
+     numeros porque el estilo calculado resuelve el rem a px. Lo que se gana es
+     lo unico que `rem` compra de verdad: que el texto respete el ajuste de
+     tamaño de letra del navegador (WCAG 1.4.4), que en px no se cumplia.
+
+     Y NO ACOMODA EL LAYOUT, que es lo que suele esperarse de este cambio: `rem`
+     se mide contra la preferencia del usuario, no contra el ancho de la ventana.
+     Lo proporcional a la pantalla lo hacen `grid`, `%` y `clamp()` — ver
+     `--sw-t-frase` aca abajo, que por eso NO se toca.
+
+     TODO LO DEMAS SIGUE EN px, y no es inconsistencia: el filete de 1px
+     (regla 3), la linea de foco (regla 11) y el objetivo tactil de 44px
+     (regla 9) son medidas FISICAS —del canto, del pixel y del dedo—. En rem, con
+     la raiz en 20px, el hairline se vuelve 1,25px y cada borde lo redondea
+     distinto; y la reja se desalinearia contra la grilla del lienzo, que se
+     dibuja en canvas con pixeles. Las alturas de linea ya son sin unidad, asi
+     que escalan solas con cada paso.
+
+     Tres cosas se comprobaron ANTES de cambiarlo, porque las tres habrian
+     fallado en silencio: ningun JS lee `--sw-t-*` (el patron
+     `parseInt(tok(...))` existe en este proyecto y sobre un rem devuelve otra
+     cosa), ninguna suite los compara como texto, y fuera de `font-size` solo los
+     usa el mapeo a Basecoat, que ya habla en rem. */
+  --sw-t-cifra:      2.25rem;   /* 36px */
+  --sw-t-display:    1.75rem;   /* 28px */
+  /* LAS FRASES TIPEADAS DE LA PANTALLA DE ENTRAR, en grande (pedido del dueño).
+     Escalan con lo que haya: 56px en 1600×1000, y el mínimo entre alto y ancho
+     para que en un portátil bajo o en un celular la frase más larga entre en
+     el espacio de arriba de la caja —login.cjs lo mide con la más larga—. */
+  --sw-t-frase:      clamp(28px, min(5.6vh, 4.2vw), 56px);
+  --sw-t-h1:         1.25rem;   /* 20px */
+  --sw-t-h2:         1rem;      /* 16px */
+  --sw-t-h3:         0.875rem;  /* 14px · titulo de nodo */
+  --sw-t-body:       0.8125rem; /* 13px · texto de interfaz por defecto */
+  --sw-t-body-sm:    0.75rem;   /* 12px · subtitulo de nodo, celda, item de menu */
+  --sw-t-caption:    0.6875rem; /* 11px */
+  --sw-t-overline:   0.625rem;  /* 10px */
+
+  --sw-lh-display:   1.15;
+  --sw-lh-h1:        1.25;
+  --sw-lh-h2:        1.35;
+  --sw-lh-h3:        1.4;
+  --sw-lh-body:      1.5;
+  --sw-lh-body-sm:   1.33;
+  --sw-lh-caption:   1.45;
+  --sw-lh-overline:  1.2;
+
+  --sw-tr-display:  -0.02em;
+  --sw-tr-h1:       -0.01em;
+  --sw-tr-overline:  0.12em;
+
+  /* EL MAS FINO, sólo para las frases grandes de la pantalla de entrar (pedido
+     del dueño). Raleway lo trae; lo baja login.html y nadie más. */
+  --sw-w-thin:     100;
+  --sw-w-regular:  400;
+  --sw-w-medium:   500;
+  --sw-w-semibold: 600;
+
+  /* ---------------------------------------------------------------
+     ESPACIADO — unidad base 4px, densidad compacta
+     --------------------------------------------------------------- */
+  --sw-s-1:   4px;
+  --sw-s-2:   8px;
+  --sw-s-3:  12px;
+  --sw-s-4:  16px;
+  /* El único escalón que faltaba: la escalera saltaba de 16 a 24 salteándose
+     un múltiplo de 4. Es el aire de una tarjeta que se lee de cerca —la carta
+     de una factura— donde 16 aprieta y 24 la hace flotar. */
+  --sw-s-5:  20px;
+  --sw-s-6:  24px;
+  --sw-s-8:  32px;
+  /* 40 entró con el header: es el aire de abajo de su pila, medido en la
+     referencia (63px a escala 1,5). Faltaba el escalón entre 32 y 48, y
+     redondear a cualquiera de los dos movía el header 8px de donde la
+     referencia lo pone. */
+  --sw-s-10: 40px;
+  --sw-s-12: 48px;
+  --sw-s-16: 64px;
+
+  /* ---------------------------------------------------------------
+     GEOMETRIA
+     --------------------------------------------------------------- */
+  --sw-r-sm:   4px;   /* badge, chip, checkbox */
+  --sw-r-md:   6px;   /* nodo, boton, input, item de menu */
+  --sw-r-lg:  10px;   /* panel flotante, modal, card, menu contextual */
+  --sw-r-xl:  12px;   /* el bloque de trabajo entero (.sw-container) */
+  /* 999px se recorta a la mitad del lado mas corto, asi que el MISMO valor
+     da un circulo en una caja cuadrada y una pildora en una alargada. Por eso
+     lo usan las pestañas de vista, que pasan de una forma a la otra al
+     abrirse, sin declarar dos radios.
+     Decia "solo CTA de estado vacio y tag de presencia" y hacia rato que no
+     era cierto: lo consumen ocho reglas —chips del chat, avatar, globo de
+     avisos, menu, barras de progreso—. */
+  --sw-r-pill: 999px;
+
+  --sw-border: 1px;
+  /* El filete de acento que dice «estás acá» en un riel plegado (sidebar.css).
+     Dos píxeles y no uno: a 1px sobre la pastilla del hover se leía como el
+     canto de la pastilla, no como una marca. */
+  --sw-marca-lado: 2px;
+
+
+  /* ---------------------------------------------------------------
+     ICONO — escala de CINCO pasos, de 2 en 2.
+     Reemplaza los diez tamanos sueltos que habia (10 · 11 · 12 · 13 · 14 ·
+     15 · 16 · 18 · 20 px), que no eran una escala sino cada componente
+     eligiendo por su cuenta.
+
+     El grosor es el de Lucide y no se toca: 2 sobre la grilla de 24. A 14px
+     de render eso da 1,17px efectivos, cerca del filete de 1px del sistema;
+     bajarlo a 1,5 —lo que hacia el set anterior— daba 0,875px, sub-pixel.
+     --------------------------------------------------------------- */
+  --sw-ico-xs: 12px;   /* atajo de teclado, tag de card, contexto del chat */
+  --sw-ico-sm: 14px;   /* el tamano por defecto: menu, toolbar, paginador */
+  --sw-ico-md: 16px;   /* pestana, item de herramientas, filtro, enviar */
+  /* EL AIRE QUE UN ICONO TRAE ADENTRO DE SU CAJA.
+
+     Un `<svg>` de Lucide dibuja su trazo con margen dentro del viewBox y una
+     letra empieza en su primer píxel de tinta. Resultado: un botón con relleno
+     simétrico se ve corrido hacia el lado del ícono.
+
+     No es teoría — está medido sobre la tinta y no sobre la caja: «Agregar
+     empresa» daba 11px hasta el primer trazo del «+» contra 9 hasta el último de
+     la «a». Este token es lo que se le descuenta al relleno de ese lado. */
+  --sw-ico-aire: 2px;
+  --sw-ico-lg: 18px;   /* pastilla de card */
+  --sw-ico-xl: 20px;   /* riel y marca */
+  /* EL ICONO QUE ENCABEZA UN MODAL. Es el único del sistema que no acompaña a un
+     texto sino que ENCABEZA una tarea: no se lee al lado de una palabra, se mira
+     antes de leer nada. Por eso sale de la escala —que está calibrada para íconos
+     que van junto a texto— y tiene su propio paso.
+
+     OJO CON EL TRAZO: Lucide dibuja con `stroke-width: 2` sobre un viewBox de 24,
+     así que a 36px de render el trazo rinde 3px efectivos. Es casi el triple del
+     filete del sistema. Se eligió mirándolo. */
+  --sw-ico-2xl: 36px;  /* el ícono que encabeza un modal */
+  --sw-ico-3xl: 48px;  /* el ícono suelto de un estado vacío (el del chat) */
+  --sw-ico-stroke: 2;
+  /* El trazo de un ícono grande y suelto: a 48px el de siempre se lee grueso. */
+  --sw-ico-stroke-fino: 1;
+
+  /* ---------------------------------------------------------------
+     LAYOUT — chasis de 4 zonas
+     --------------------------------------------------------------- */
+  /* El topbar NO tiene alto minimo. Lo tuvo —200px— mientras la cabecera
+     estaba vacia y hacia falta reservarle sitio para ver que entraba; con el
+     nombre, el buscador, las acciones y las pestanas adentro, ese piso solo
+     dejaba una franja muerta abajo. La caja se llena sola a medida que entra
+     contenido: mide lo que mide, y crece.
+
+     Lo que SI sigue habiendo es el piso del bloque de trabajo, aca abajo: es
+     el que impide que el topbar crezca a costa del lienzo. Esa es la
+     proteccion real, y no depende de reservarle alto a nadie. */
+  /* PISO del bloque de trabajo. El topbar puede crecer, pero no a costa de
+     dejar el lienzo en cero: medido, con el topbar empujado a 768px sobre un
+     viewport de 800 el bloque quedaba en 2px y el lienzo en 0 — y sin
+     desbordar ni mostrar scroll, o sea que se colapsaba EN SILENCIO. */
+  /* Margen EXTERIOR del SHELL ENTERO contra el marco de la ventana.
+
+     Volvió, pero cambió de dueño y de sentido. Antes vivía en
+     .sw-side__canvas y separaba el bloque de trabajo DEL RIEL: por eso las
+     cajas de adentro no se tocaban. Ahora está en .sw-side y separa la app
+     de la ventana; adentro las cajas siguen pegadas. */
+  --sw-shell-gap: var(--sw-s-2);
+
+  --sw-block-min:  240px;
+
+  /* CAMPO DE PUNTOS del estado vacio — la caja del dibujo, no los puntos.
+     Cuadrada, 200x200. Las posiciones de los puntos van en PORCENTAJE, asi
+     que el racimo se reencuadra solo al cambiar esta medida; lo que no
+     escala es el recorrido de la deriva, que va en px (ver camposDePuntos
+     en canvas.js). */
+  --sw-vacio-w:    200px;
+  --sw-vacio-h:    200px;
+  --sw-rail-w:      60px;
+  --sw-panel-w:    248px;
+  --sw-inspector-w: 300px;
+  --sw-icon-rail:   20px;
+
+  /* Caja de herramientas del bloque de trabajo (design/brief-bloque-de-
+     trabajo.md). NO es --sw-inspector-w: ese es el nivel 3 del SIDEBAR
+     (sidebar.css) — mismo nombre de slot, dos cosas distintas; reusarlo
+     mueve el detalle del sidebar sin querer.
+
+     ANCHO DE LA COLUMNA LATERAL. Medido en design/conversar-y-ver.html
+     (decisión 43): con 460 el artefacto queda en 1046 a 1600 de ventana —
+     por encima del mínimo del lienzo (728, decisión 33) y del de un
+     documento (640) — y el hilo gana 40px contra los 420 de las otras
+     disposiciones. Sigue por debajo de la medida de lectura plena
+     (~620): eso es sabido y aceptado, no un olvido.
+     Reemplaza a --sw-tools-w: la caja de herramientas ya no fija su
+     propio ancho, es inquilina de esta columna. */
+  --sw-col-w:        460px;
+  /* esta SÍ está medida: sólo íconos, sin palabra (decisión 29). Sirve
+     dos veces: es el ancho de la columna colapsada y el del riel de la
+     caja de herramientas adentro. */
+  --sw-tools-nav-w:   56px;
+
+  /* ---------------------------------------------------------------
+     BREAKPOINTS — nombrados por comportamiento, no por dispositivo
+     Codifican la decision D7: en telefono se revisa, la autoria
+     empieza en tablet.
+     --------------------------------------------------------------- */
+  --sw-bp-review:  768px;   /* por debajo: modo revision, sin autoria */
+  --sw-bp-compact: 1100px;  /* por debajo: panel e inspector en overlay */
+
+  /* ---------------------------------------------------------------
+     OBJETIVOS TACTILES
+     ATENCION: ninguna referencia del corpus es mobile. Estos valores
+     NO estan medidos — vienen de iOS HIG (44pt) y Material (48dp).
+     WCAG 2.1 AA no exige tamano de objetivo (2.5.5 es AAA); WCAG 2.2
+     agrego 2.5.8 a 24px en AA. 44px es la practica estandar.
+
+     REGLA: el area de toque puede ser mayor que el pixel visible.
+     Un puerto de 8px lleva un hit area transparente de 44px. NO se
+     agranda el diseno — se agranda el area sensible.
+     --------------------------------------------------------------- */
+  --sw-touch-min:    44px;  /* objetivo tactil minimo */
+  --sw-touch-gap:     8px;  /* separacion minima entre objetivos */
+  --sw-port-visual:   8px;  /* lo que se ve */
+  --sw-port-hit:     44px;  /* lo que responde al dedo */
+
+  /* ---------------------------------------------------------------
+     MOTION
+     REGLA DECLARADA POR EL CORPUS: la duracion escala con la distancia
+     recorrida. Los elementos grandes son mas pesados y animan mas lento.
+     La regla de los 300ms aplica a elementos chicos, NO a transiciones
+     de pantalla completa.
+
+     El arrastre y el pan van a 0ms — manipulacion directa, sin easing.
+     Interpolar el drag es lo que hace sentir barata a una herramienta.
+     --------------------------------------------------------------- */
+  --sw-ease-out:   cubic-bezier(.16, 1, .3, 1);
+  --sw-ease-inout: cubic-bezier(.65, 0, .35, 1);
+  /* LO QUE SE VA ACELERANDO —la explosión al entrar—: salir frenando se lee
+     como que algo se resiste a irse.
+
+     NO ES EL ESPEJO DE --sw-ease-out, y se probó: el espejo exacto
+     (.7, 0, .84, 0) dejaba la caja en 1,08× a mitad del tiempo —más de 200ms
+     de una tarjeta de vidrio vacía y quieta, que se lee como pantalla trabada—
+     y metía todo el zoom en los últimos 150ms. Esta es cúbica: se mueve desde
+     el primer cuadro y acelera igual. */
+  --sw-ease-in:    cubic-bezier(.32, 0, .67, 0);
+
+  --sw-d-micro:  110ms;  /* sin desplazamiento: color, opacidad, foco */
+  --sw-d-short:  180ms;  /* bajo 100px: indicador deslizante, chips */
+  --sw-d-normal: 280ms;  /* 100-400px: popover, panel, expansion de nodo */
+  --sw-d-macro:  450ms;  /* pantalla completa */
+  --sw-d-parpadeo: 1060ms; /* el cursor de un texto que se tipea: no es una transición, es un pulso */
+
+  /* ---------------------------------------------------------------
+     CAPAS — el canvas se mueve, todo lo demas esta anclado
+     --------------------------------------------------------------- */
+  --sw-z-grid:     0;
+  --sw-z-edges:   10;
+  --sw-z-nodes:   20;
+  --sw-z-marquee: 30;
+  --sw-z-chrome:  40;
+  --sw-z-panels:  50;
+  --sw-z-popover: 60;
+  --sw-z-cursors: 70;
+  --sw-z-modal:   80;
+  --sw-z-toast:   90;
+}
+
+/* ============================================================================
+   LEY DE LA ESCASEZ — no es un token, es una restriccion
+   ----------------------------------------------------------------------------
+   Medido en 10 referencias: el fondo ocupa 66-98% del lienzo y el acento
+   NUNCA supera el 0,36%. El acento no es un color de marca: es un evento.
+
+   Usos legitimos de --sw-accent:
+     - nodo o fila seleccionada
+     - arista activa
+     - item de navegacion activo
+     - un solo CTA primario por pantalla
+     - borde de foco
+
+   Si aparece en mas superficie que eso, el diseno ya se alejo del ADN.
+
+   --sw-attention (ambar) NO es un segundo acento: es UN solo significado,
+   "esto esta pasando ahora mismo" — un flujo corriendo, una respuesta
+   generandose, una corrida en progreso. Nunca marca seleccion ni navegacion:
+   para eso esta el acento. Si algo esta ambar y no se esta moviendo, esta mal.
+   Verificalo con: node design/verify.mjs <captura.png> design/design-dna.json
+   ============================================================================ */
+
+
+/* Táctil: los segmentos del interruptor de tema crecen con el control, no
+   con el área — son contiguos y tres áreas de 44px se pisarían (regla 9). */
+@media (pointer: coarse) {
+  :root { --sw-seg-w: 44px; --sw-seg-h: 38px; }
+}

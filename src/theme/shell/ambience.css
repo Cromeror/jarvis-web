@@ -1,0 +1,134 @@
+/* ============================================================================
+   SpaceMyWork — Ambiente de la superficie de trabajo
+   ----------------------------------------------------------------------------
+   El CSS de src/shell/ambience.js, al lado de su JS como el resto del shell:
+   el halo, los orbes y el enrejado.
+
+   Vivía en flows/canvas.css porque el lienzo fue el primero en tener las tres
+   capas. Se mudó cuando las pidió una página que NO carga Flujos —la de entrar,
+   src/login.html—: la alternativa era cargar todo el CSS del lienzo para usar
+   tres reglas, o copiarlas. Es la misma razón por la que ambience.js salió de
+   canvas.js.
+
+   LOS NOMBRES SIGUEN DICIENDO `sw-canvas__*`, y ambience.js explica por qué.
+   ============================================================================ */
+
+/* ---------------------------------------------------------------
+   HALO — luz ambiente
+   Una sola fuente difusa, muy grande, arriba del centro: ilumina todo
+   el espacio en vez de marcar un punto. NO usa el acento: un glow a
+   pantalla completa con --sw-accent rompería la ley de escasez (≤0,5%
+   de superficie, y es estado, no atmósfera). Usa --sw-raised-2, el
+   escalón más alto de las superficies — la misma lógica que el brillo
+   de los puntos cerca del cursor: la luz levanta hacia el valor de un
+   panel, no hacia la tinta. Por eso funciona en los dos temas sin una
+   sola regla por tema: el token ya cambia de valor, el CSS no.
+
+   Va como elemento propio y no como background del lienzo porque
+   applyView() pisa background-size/position en línea para el pan y el
+   zoom del punteado — un segundo layer de fondo se desfasaría con él.
+   --------------------------------------------------------------- */
+.sw-canvas__glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 78% 58% at 50% 32%,
+                              var(--sw-raised-2) 0%,
+                              transparent 64%);
+  opacity: .28;
+}
+
+/* ---------------------------------------------------------------
+   ORBES DE COLOR — EN PRUEBA, sin decisión tomada
+
+   Los dos orbes de capturas/orbe.jpeg, arriba a la derecha del lienzo.
+   Colores medidos sobre esa imagen, no estimados: el violeta es su pico
+   de saturación; el cálido sale de restarle el fondo al orbe superior.
+
+   LO QUE HAY QUE DECIDIR ANTES DE DEJARLOS. Son dos tonos NUEVOS, y no
+   son inocentes:
+
+   · El cálido pisa el único significado que tiene --sw-attention: «esto
+     está pasando ahora mismo» (decisión 21). Dos naranjas en pantalla,
+     uno que quiere decir algo y otro que es decoración, y la regla
+     dice que si algo está ámbar y no se está moviendo, está mal.
+   · La ley de escasez es del ACENTO (≤0,5%, decisión 37), así que esto
+     no la viola por definición. Pero el argumento de fondo sí aplica:
+     dos manchas de color saturado en el lienzo compiten por la misma
+     atención que el acento tiene reservada para estado.
+   · El violeta convive mejor: cae cerca de la familia ciruela de las
+     superficies.
+
+   Van en un elemento propio y no como segundo fondo del lienzo por la
+   misma razón que el orbe neutro: applyView() pisa background-size y
+   background-position en línea para el pan y el zoom del punteado, y un
+   layer extra ahí se desfasaría con él.
+   --------------------------------------------------------------- */
+.sw-canvas__orbes {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* AMBIENTAL, no dos esferas. La primera versión copiaba el tamaño de la
+     referencia —dos bolas chicas y compactas— y en un lienzo de 1046px eso
+     se lee como dos pelotitas pegadas arriba, no como luz. Lo que hace que
+     una mancha de color sea atmósfera y no objeto es que no se le vea el
+     borde: por eso los dos centros quedan ARRIBA del borde superior (y
+     negativo), las elipses son enormes y se apagan recién al 100%. Así
+     entra media luz por arriba en vez de aparecer una pelota.
+
+     Las medidas van en PORCENTAJE de la caja, no en px: es luz de ambiente
+     y tiene que escalar con la caja. Con px, la misma luz que funciona a
+     1046 de ancho se vuelve dos manchones cuando la columna se colapsa a
+     riel y el lienzo pasa a 1450 — o cuando la caja es la pantalla entera,
+     como en la de entrar.
+
+     Se superponen a propósito en el medio: ahí el cálido y el violeta se
+     mezclan, que es de dónde sale la profundidad del color. */
+  /* LA COMPOSICION ENTERA ES UN TOKEN, y tiene que serlo: los dos temas no
+     comparten ni los colores ni las POSICIONES.
+
+     En claro son tres orbes sacados de la referencia; en oscuro siguen
+     siendo los dos de siempre, en el mismo lugar de siempre. Al principio
+     puse una sola geometria para los dos y le cambie las posiciones al
+     oscuro sin querer — que es exactamente lo que no habia que hacer. Con
+     el degradado completo en el token, cada tema declara el suyo y ninguno
+     puede arrastrar al otro.
+
+     Ver --sw-orbe-tela en tokens.css, donde estan las mediciones. */
+  background: var(--sw-orbe-tela);
+  /* La opacidad sale del TOKEN y cambia por tema (decisión 45). Acá había un
+     `.1` literal —regla 1— que además servía para los dos temas: sobre el
+     lienzo oscuro da ΔE 5,6 contra el suelo y se lee como atmósfera, pero
+     sobre el claro neutro daba 3,0 y se leía como mancha. Ahora el claro va
+     en .05 (ΔE 1,6) y el oscuro en .10. */
+  opacity: var(--sw-orbe-op);
+}
+
+/* ---------------------------------------------------------------
+   ENREJADO — el campo de puntos vivo (ambience.js, campo), detrás del
+   contenido.
+
+   Un elemento posicionado pinta por encima de uno estático aunque vaya
+   primero en el DOM — por eso lo que va encima del campo necesita `position`
+   propio: con los dos posicionados, ahí sí manda el orden del DOM y el campo
+   queda atrás. (.sw-empty-canvas__inner lo hace en canvas.css; la tarjeta de
+   entrar, en auth/login.css.)
+
+   width/height:100% NO son redundantes con inset:0. <canvas> es un
+   elemento reemplazado (como <img>): con posición absoluta y tamaño
+   intrínseco propio (sus atributos width/height, que ambience.js pone en
+   PÍXELES DE DISPOSITIVO — con dpr≠1 son más grandes que el CSS del
+   host), el navegador usa ese tamaño intrínseco y no estira el elemento,
+   aunque top/right/bottom/left den 0. Confirmado: con dpr:1.5 el canvas
+   medía 1767px de ancho contra un host de 1178px — 50% más grande, y
+   todo lo que dibuja adentro (los puntos) quedaba corrido en esa misma
+   proporción respecto del mouse real. width/height:100% fuerza el
+   tamaño CSS del elemento sin importar su buffer interno.
+   --------------------------------------------------------------- */
+.sw-empty-canvas__field {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}

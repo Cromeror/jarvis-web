@@ -1,0 +1,102 @@
+/* ============================================================================
+   SpaceMyWork — La tele: apagar y encender
+   ----------------------------------------------------------------------------
+   El CSS de shell/tele.js —se apaga, en index.html— y de la llegada a la
+   pantalla de entrar —se enciende, en login.html—. Pedido del dueño: cerrar
+   sesión como una tele vieja.
+
+   SOLO transform Y opacidad (regla 7). El círculo no es un recorte —un
+   clip-path no es ni lo uno ni lo otro—: la app se achica hacia el centro
+   sobre negro, y cuando ya es chica la tapa un punto de luz. La línea es ese
+   mismo punto estirado con scale.
+
+   EL NEGRO DE ATRAS va en el <html>, con el <body> transparente: el fondo del
+   body se propaga al lienzo entero, y sin esto, al achicarse la app, alrededor
+   quedaría el color de la app y no una pantalla apagada.
+   ============================================================================ */
+
+/* ---- apagar (index.html) ---- */
+:root[data-tele] { background: var(--sw-tele-fondo); }
+:root[data-tele] body { background: transparent; }
+
+/* 1 · PUNTO: la app se achica hacia el centro, acelerando, y se apaga al final. */
+:root[data-tele] body > .sw-side {
+  transform-origin: 50% 50%;
+  transition: transform var(--sw-d-macro) var(--sw-ease-in), opacity var(--sw-d-macro) var(--sw-ease-in);
+}
+:root:is([data-tele="punto"], [data-tele="linea"], [data-tele="fin"]) body > .sw-side {
+  transform: scale(var(--sw-tele-punto));
+  opacity: 0;
+}
+
+/* LA LUZ: arriba de todo, centrada, y sin recibir el puntero. */
+.sw-tele {
+  position: fixed;
+  inset: 0;
+  z-index: var(--sw-z-toast);
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+/* La luz y su halo, uno encima del otro en el centro. */
+.sw-tele > * { grid-area: 1 / 1; }
+.sw-tele__luz {
+  inline-size: var(--sw-tele-luz-d);
+  block-size: var(--sw-tele-luz-d);
+  border-radius: var(--sw-r-pill);
+  background: var(--sw-tele-luz);
+  opacity: 0;
+  transition: opacity var(--sw-d-macro) var(--sw-ease-in), transform var(--sw-d-short) var(--sw-ease-out);
+}
+:root:is([data-tele="punto"], [data-tele="linea"]) .sw-tele__luz { opacity: 1; }
+
+/* 2 · LINEA: la luz se estira de costado y se aplana. */
+:root:is([data-tele="linea"], [data-tele="fin"]) .sw-tele__luz {
+  transform: scale(var(--sw-tele-linea-x), var(--sw-tele-linea-y));
+}
+
+/* EL HALO AZULADO (pedido del dueño): la luz ilumina alrededor. Rodea el punto
+   y, cuando la línea se estira, se estira con ella y le da un resplandor más
+   alto que la línea misma. */
+.sw-tele__halo {
+  inline-size: var(--sw-tele-luz-d);
+  block-size: var(--sw-tele-luz-d);
+  border-radius: var(--sw-r-pill);
+  background: var(--sw-tele-halo);
+  opacity: 0;
+  transition: opacity var(--sw-d-macro) var(--sw-ease-in), transform var(--sw-d-short) var(--sw-ease-out);
+}
+:root:is([data-tele="punto"], [data-tele="linea"]) .sw-tele__halo { opacity: 1; }
+:root[data-tele="punto"] .sw-tele__halo { transform: scale(var(--sw-tele-halo-punto)); }
+:root:is([data-tele="linea"], [data-tele="fin"]) .sw-tele__halo {
+  transform: scale(var(--sw-tele-linea-x), var(--sw-tele-halo-y));
+}
+
+/* 3 · FIN: la línea y su halo se apagan, rápido. */
+:root[data-tele="fin"] :is(.sw-tele__luz, .sw-tele__halo) {
+  opacity: 0;
+  transition: opacity var(--sw-d-micro) linear;
+}
+
+/* ---- volver (login.html) ----
+   LA PANTALLA DE ENTRAR VUELVE TAL COMO ES (pedido del dueño): aparece desde el
+   negro de la tele apagada, con un fundido y nada más. Se probó abrirla desde
+   una línea —con scale— y deformaba el fondo animado y la rejilla, que tienen
+   que quedar como siempre. La marca la pone el <head> de login.html y login.js
+   la saca al terminar. */
+@keyframes sw-tele-enciende {
+  from { opacity: 0; }
+}
+:root[data-llegada="tele"] { background: var(--sw-tele-fondo); }
+:root[data-llegada="tele"] body { background: transparent; }
+:root[data-llegada="tele"] .sw-acceso {
+  animation: sw-tele-enciende var(--sw-d-normal) var(--sw-ease-out);
+}
+
+/* Con movimiento reducido no hubo tele: la pantalla aparece con un fundido corto. */
+@keyframes sw-tele-quieta {
+  from { opacity: 0; }
+}
+:root[data-llegada="quieta"] .sw-acceso {
+  animation: sw-tele-quieta var(--sw-d-micro) linear;
+}

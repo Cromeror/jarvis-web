@@ -1,0 +1,572 @@
+/* ============================================================================
+   SpaceMyWork — CAPA DE EXTENSION sobre Basecoat
+   ----------------------------------------------------------------------------
+   ESTE ES EL PUNTO DE LA PRUEBA. Basecoat NO se toca ni se forkea: se carga
+   tal cual viene del CDN y todo lo propio vive acá, en una capa que va
+   despues. Si Basecoat publica una version nueva, se reemplaza el archivo y
+   esta capa sigue en pie.
+
+   Tres cosas, que son exactamente las tres deudas medidas:
+
+     1 · MODIFICADORES SEMANTICOS DE BADGE — Basecoat trae un solo color.
+     2 · MOTION — su `transition-property: all` viola la regla 7, y no
+         respeta prefers-reduced-motion.
+     3 · OBJETIVO TACTIL — sus controles miden 29-36px contra los 44 que
+         pide la regla 9.
+
+   Ni un valor literal: todo sale de tokens.css.
+   ============================================================================ */
+
+/* ---------------------------------------------------------------
+   1 · BADGES SEMANTICOS
+
+   Se sigue la decision 26 al pie: en OSCURO tinte translucido con texto
+   del color del estado; en CLARO relleno pastel con tinta del mismo tono.
+   El componente escribe siempre background:var(--sw-*-bg) y
+   color:var(--sw-on-*) — lo que cambia entre temas es el TOKEN, no el CSS.
+   Por eso no hay una sola regla por tema en este bloque.
+
+   Se usa `data-variant` y no una clase BEM porque es el idioma que Basecoat
+   ya usa para sus variantes (data-size, data-checked): extender en el idioma
+   de la libreria evita que la proxima version choque.
+   --------------------------------------------------------------- */
+.badge[data-variant="success"]   { background: var(--sw-success-bg);   color: var(--sw-on-success);   border-color: transparent; }
+.badge[data-variant="warning"]   { background: var(--sw-warning-bg);   color: var(--sw-on-warning);   border-color: transparent; }
+.badge[data-variant="error"]     { background: var(--sw-error-bg);     color: var(--sw-on-error);     border-color: transparent; }
+.badge[data-variant="attention"] { background: var(--sw-attention-bg); color: var(--sw-on-attention); border-color: transparent; }
+.badge[data-variant="mute"]      { background: var(--sw-mute-bg);      color: var(--sw-on-mute);      border-color: transparent; }
+
+/* La presencia no tiene badge en el sistema (nunca lo tuvo): se marca con
+   un punto, no con una pastilla. Se deja anotado para que el proximo no
+   crea que falta por olvido. */
+
+/* ---------------------------------------------------------------
+   2 · MOTION
+
+   REGLA 7 — solo transform y opacity. Basecoat declara
+   `transition-property: all` en .btn y compania, que ademas de violar la
+   regla arrastra layout: cualquier cambio de padding o borde entra en la
+   transicion y produce reflow por frame.
+
+   REGLA 5 — la duracion escala con la distancia recorrida. Un boton no se
+   desplaza: le toca la curva corta (--sw-d-micro, 110ms). Un popover que
+   entra desde afuera recorre menos de 100px: --sw-d-short.
+   --------------------------------------------------------------- */
+.btn,
+.input,
+.textarea,
+.select,
+.badge,
+.card,
+[role="menuitem"],
+[role="tab"] {
+  transition-property: color, background-color, border-color, outline-color, opacity, transform;
+  transition-duration: var(--sw-d-micro);
+  transition-timing-function: var(--sw-ease-out);
+}
+
+/* Lo que entra y sale de pantalla si se mueve, y ahi la distancia manda. */
+[data-popover],
+.toast {
+  transition-property: opacity, transform;
+  transition-duration: var(--sw-d-short);
+  transition-timing-function: var(--sw-ease-out);
+}
+
+/* El foco NUNCA transiciona: tiene que aparecer en el frame en que llega
+   el foco, o el usuario de teclado lo pierde de vista. */
+:focus-visible { transition: none; }
+
+/* prefers-reduced-motion — Basecoat no lo declara en ningun lado.
+   No se atenua: se apaga. Y se apaga tambien la animacion, no solo la
+   transicion, porque su `pulse` del skeleton es un keyframe. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 1ms !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------------------------------------------------------------
+   3 · OBJETIVO TACTIL — regla 9
+
+   La regla dice agrandar el AREA SENSIBLE, no el diseño. Pero tiene una
+   excepcion anotada, y aca aplica: en controles CONTIGUOS —los items de un
+   menu, los tabs, los botones de un grupo— tres areas de 44px sobre
+   controles de 32 se pisan entre si y el dedo activa la vecina. Ahi se
+   agranda el control con @media (pointer: coarse).
+
+   El corpus no tiene referencias mobile: lo tactil se diseña, no se extrae.
+   --------------------------------------------------------------- */
+@media (pointer: coarse) {
+  .btn,
+  .input,
+  .textarea,
+  .select,
+  [role="menuitem"],
+  [role="tab"],
+  .dropdown-menu > button {
+    min-height: var(--sw-touch-min);
+  }
+  .btn[data-size="sm"] { min-height: var(--sw-touch-min); }
+}
+
+/* Los items del menu los declara Basecoat con mas especificidad que un
+   [role=menuitem] suelto, asi que la regla tactil se le empataba y perdia
+   por orden. Se iguala el selector — medido: 42px contra los 44 que pide
+   la regla 9, y dos pixeles bastan para errarle a un item de menu. */
+@media (pointer: coarse) {
+  .dropdown-menu [data-popover] nav button,
+  .dropdown-menu [data-popover] [role="menuitem"] {
+    min-height: var(--sw-touch-min);
+  }
+}
+
+/* Los tres que quedaban con `all` animando de verdad: el <article> del
+   dialogo y los <summary> del acordeon. El resto de los `all` que declara
+   la base de Tailwind estan en duracion 0s — inertes, no animan nada, y
+   perseguirlos seria ruido. Se corrigen los que se mueven. */
+.dialog > article,
+.alert-dialog > article,
+.accordion summary,
+.accordion > details > summary {
+  transition-property: color, background-color, border-color, opacity, transform;
+  transition-duration: var(--sw-d-micro);
+  transition-timing-function: var(--sw-ease-out);
+}
+
+/* LOS MODALES LLEVAN LA SOMBRA DEL SISTEMA, no la de Basecoat: --sw-e-modal,
+   la misma de las cajas de la pantalla de entrar (decisión del dueño: una
+   sombra para todo lo que es modal). */
+.dialog > article,
+.alert-dialog > article {
+  box-shadow: var(--sw-e-modal);
+}
+
+/* ---------------------------------------------------------------
+   4 · BLINDAJE — el unico riesgo real de convivir con Basecoat
+
+   Basecoat tiene dos selectores SIN clase que lo acote:
+
+       [role=group]      { ... }
+       [role=radiogroup] { gap: calc(var(--spacing)*3); display: grid }
+
+   Pegan en cualquier elemento con ese rol, sea suyo o no. Y el sistema los
+   usa: `.sw-theme` es un role=radiogroup, asi que al enchufar la libreria
+   el conmutador de tema paso de 90 a 114px de ancho —medido con un diff de
+   pixeles contra la captura previa, 0,088% de la pantalla— sin que nadie
+   tocara una linea suya.
+
+   El resto de sus selectores con rol —menuitemradio, menuitemcheckbox,
+   table, summary— SI estan acotados: se verificaron los tres sitios del
+   proyecto que los usan y ninguno se movio.
+
+   Esta es LA regla a recordar al agregar componentes nuevos: si un .sw-*
+   lleva un role de ARIA, se comprueba que Basecoat no lo reclame. El
+   blindaje va aca y no en chrome.css a proposito — es consecuencia de
+   adoptar la libreria, y tiene que leerse junto con ella.
+
+   EL BLINDAJE SE ACOTO, y el motivo vale mas que el cambio. Estaba escrito
+   por ZONA —`.sw-side [role=group]`, `.sw-topbar [role=group]`— y eso lo
+   volvia un blindaje contra la libreria Y contra el proyecto: este archivo
+   carga ultimo y el selector pesa (0,2,0), asi que le ganaba a cualquier
+   `.sw-*` de una sola clase que declarara su propio `gap`. Medido: el grupo
+   de botones de la caja de texto (.sw-txt__grupo, role=group) pedia 8px y
+   computaba `normal`, sin que nada en su CSS lo dijera. Un blindaje que
+   tapa al proyecto es el mismo bug que venia a arreglar, del otro lado.
+
+   Ahora nombra lo que protege: un grupo DENTRO DE UN MENU, que es el unico
+   caso real —el grupo de tema del menu de usuario, en chrome.js— y donde el
+   hueco esta mal de verdad, porque los items de menu van al ras. El que
+   declara su propio `gap` no necesita blindaje: la regla de Basecoat ya
+   pierde contra el por orden de carga.
+
+   `.sw-theme` salio de la lista: ese elemento ya no existe en el proyecto
+   —el conmutador de tema vive dentro del menu de usuario— y un selector que
+   no pega en nada no protege nada, solo hace creer que si.
+   --------------------------------------------------------------- */
+[role="menu"] [role="group"] {
+  gap: unset;
+}
+
+/* ---------------------------------------------------------------
+   5 · ANILLO DE FOCO DENTRO DE UN GRUPO
+
+   `.input-group` de Basecoat dibuja su propio anillo con `:focus-within` —el
+   grupo es la unidad visual, no el input suelto—. Pero `base.css` declara
+   `:focus-visible { outline: 2px solid var(--sw-accent) }` para TODO, y sin
+   capa, así que el input de adentro dibujaba el suyo también.
+
+   Este bloque los reduce a UNO, y hubo que hacerlo en dos pasadas porque
+   había TRES anillos, no dos. Trazado píxel por píxel sobre el buscador
+   enfocado, entrando desde afuera:
+
+       x=244-245   #7a6ab0    outline 2px del acento     ← nuestro
+       x=246-247   #aea6ca    anillo de 3px al 50%       ← de Basecoat
+       x=248       #c2c2c5    el borde de 1px del grupo
+
+   O sea: una línea dura despegada, una banda más clara pegada, y recién
+   después el control. Se lee como un borde de 4px.
+
+   MANDA EL DE BASECOAT, que abraza el control en vez de flotar a 2px. El
+   outline propio se apaga acá; el del input suelto NO se toca —fuera de un
+   grupo sigue teniendo el suyo, que es lo que pide WCAG—.
+   --------------------------------------------------------------- */
+.input-group:focus-within {
+  /* Sin outline propio: ese era el aro despegado de 2px.
+
+     Y SIN EL HALO DE 3px de Basecoat tampoco. Aunque es translúcido (50% de
+     alfa, 1,8:1 contra la barra) ocupa tres píxeles pegados al filete, así
+     que el conjunto se leía como un borde grueso en vez de como una línea.
+     El indicador queda en UN píxel: el filete del control, que pasa de
+     --sw-seam a --sw-accent.
+
+     Se apaga sólo la variable del anillo y no el box-shadow entero: así lo
+     que Basecoat tenga de sombra propia sigue en pie.
+
+     DÓNDE QUEDA PARADO EN ACCESIBILIDAD, para que no haya que re-averiguarlo:
+     el filete de acento da 4,91:1 en oscuro y 3,63:1 en claro contra la
+     barra, o sea que cumple 1.4.11 de WCAG 2.1 AA —3:1 para un indicador de
+     foco, sin requisito de grosor—, que es el objetivo declarado del
+     proyecto. El criterio que pediría 2px es 2.4.13 de WCAG 2.2, y es AAA. */
+  outline: none;
+  --tw-ring-shadow: 0 0 #0000;
+}
+.input-group:focus-within > .input:focus-visible,
+.input-group:focus-within > input:focus-visible {
+  outline: none;
+}
+
+/* 5-cuater · EL HALO DE 3px, APAGADO EN TODO EL PRODUCTO
+
+   El punto 5 lo apagó adentro de un grupo y dejó dicho que el control suelto
+   «sigue teniendo el suyo». Lo que tenía eran DOS: la línea de 1px de `base.css`
+   y, por fuera, el anillo de 3px al 50% que Basecoat le pone a `.input`, `.btn`,
+   `.textarea`, `select.select`, las pestañas, las casillas y el interruptor.
+   Lo encontró el dueño en Tamaño y Entre letras de la caja de Documento: el
+   campo enfocado se leía con borde doble —medido: `outline 1px` + `0 0 0 3px`
+   del acento al 50%—.
+
+   Basecoat vive en `@layer components` y este archivo no tiene capa, así que la
+   regla gana sin pelear especificidad. Se apaga sólo la variable del anillo,
+   igual que en el punto 5: la sombra propia de cada control queda en pie. */
+:focus-visible { --tw-ring-shadow: 0 0 #0000; }
+
+
+/* ---------------------------------------------------------------
+   5-bis · EL COMBO: SU FOCO, Y QUE SE VEA ABIERTO
+
+   Basecoat le pone al disparador de `.select` un `outline: 2px solid #0000`
+   —transparente— y eso le gana a la regla global de `base.css` por
+   especificidad: dos clases contra una pseudoclase. El combo era el único
+   control del producto que se enfocaba sin decirlo.
+
+   Y SEPARADO DE ESO, un combo ABIERTO se veía igual que uno cerrado: mismo
+   filete, mismo fondo, sin anillo. Medido, cerrado y abierto devolvían
+   exactamente los mismos valores. Con cuatro combos en una fila, no había
+   forma de saber cuál estaba desplegado — y con el puntero el foco no se
+   dibuja (`:focus-visible` no aplica tras un clic, que es su razón de ser),
+   así que no quedaba ningún canal.
+
+   Son DOS ESTADOS DISTINTOS y por eso van con dos mecanismos:
+
+   · ENFOCADO va por `outline`, una línea de 1px encima del canto, que es la
+     regla 11 tal cual.
+   · DESPLEGADO va por `border-color`: el control no está enfocado, está
+     abierto. Se ven igual a propósito —es el mismo control encendido— pero no
+     son lo mismo, y uno puede pasar sin el otro.
+
+   ESTABA RESUELTO Y ACOTADO A UN MODULO: vivía en `text-tools.css` sobre
+   `.sw-txt__sel`, así que valía en la caja de Documento y en ningún otro lado.
+   Sube acá, que es el archivo del blindaje de la librería, y pasa a valer para
+   todo `.select` del producto. Una regla escrita dos veces se desincroniza; una
+   regla escrita en el módulo equivocado no existe para los demás.
+   --------------------------------------------------------------- */
+.select:not(select) > button:focus-visible,
+.select:not(select) > button:focus {
+  outline: var(--sw-border) solid var(--sw-accent-line);
+  outline-offset: calc(var(--sw-border) * -1);
+}
+.select:not(select):has(> [data-popover][aria-hidden="false"]) > button {
+  border-color: var(--sw-accent-line);
+}
+
+
+/* ---------------------------------------------------------------
+   5-ter · EL INTERRUPTOR ENFOCADO: LA FORMA Y EL COLOR
+
+   NO REDECLARA EL FOCO, y eso costó una medición equivocada que vale anotar:
+   enfocando por JS, el interruptor devolvía `3px none` mientras todo lo demás
+   devolvía la línea de 1px del sistema. Parecía la trampa del combo otra vez.
+   No lo era: `:focus-visible` distingue el teclado del clic, y el foco puesto
+   por script no lo activa en un control que no acepta texto. Con Tab de verdad
+   el interruptor devuelve `1px solid`, igual que el resto.
+
+   LA LECCION, QUE ES LA MISMA DE SIEMPRE: el foco se mide con Tab y con
+   píxeles. Leer `outline-width` de un elemento que no está en el estado que se
+   quiere medir informa sobre el estado equivocado, y da un defecto inventado.
+
+   LO QUE SI HACE FALTA SON DOS COSAS, las dos por la forma del control:
+
+   1 · EL RADIO. `base.css` le pone `border-radius: var(--sw-r-sm)` a todo lo
+       enfocado. En un control rectangular eso no se nota; en una pastilla sí —
+       medido, al enfocarla pasaba de 999px a 4px, o sea que la pastilla se
+       volvía un rectángulo al tocarla con el teclado. Se le devuelve el suyo.
+
+   2 · EL COLOR CUANDO ESTA ENCENDIDO. El interruptor encendido se rellena con
+       `--sw-accent-solid`, así que la línea de acento cae sobre su propio
+       color: medido, 1,00:1 en claro —literalmente invisible, el mismo valor—
+       y 1,49:1 en oscuro. Es el caso que la regla 11 contempla y el segundo del
+       proyecto, junto con `.sw-doctab__b`.
+
+       Pasa a `--sw-on-accent`: 4,50:1 en claro y 3,68:1 en oscuro contra ese
+       relleno. El de oscuro está por debajo de 4,5 y eso NO es un descuido: es
+       el cruce que `CLAUDE.md` advierte —`--sw-on-accent` está calibrado contra
+       `--sw-accent`, no contra `--sw-accent-solid`— y acá el piso que aplica es
+       el de 1.4.11 de WCAG 2.1, 3:1 para un indicador de foco. Pasa en los dos.
+   --------------------------------------------------------------- */
+input[type="checkbox"][role="switch"]:focus-visible {
+  border-radius: var(--sw-r-pill);
+}
+input[type="checkbox"][role="switch"]:checked:focus-visible {
+  outline-color: var(--sw-on-accent);
+}
+/* ---------------------------------------------------------------
+   6. LO QUE SE ESCAPA DE UN POPOVER CERRADO
+
+   Basecoat cierra sus popovers con `opacity: 0; visibility: hidden`. Eso
+   alcanza para casi todo, pero NO para un descendiente que declare
+   `visibility: visible` — y `[data-indicator]`, el tilde de la opción activa
+   de un menú, hace exactamente eso. Un `visibility: visible` en un hijo ANULA
+   el `hidden` del ancestro: así funciona la propiedad, no es un bug del
+   navegador.
+
+   Síntoma medido: con el menú de usuario CERRADO, el tilde del tema elegido
+   quedaba flotando suelto en el topbar, a 1545,111 — un check sin contexto,
+   sin nada alrededor, imposible de explicar mirando la pantalla.
+
+   La regla devuelve la herencia a todo lo que haya adentro mientras el
+   popover esté cerrado. Al abrirse, `aria-hidden` pasa a "false", deja de
+   coincidir, y los indicadores vuelven a mostrarse solos.
+   --------------------------------------------------------------- */
+[data-popover][aria-hidden="true"] * { visibility: inherit; }
+
+/* ---------------------------------------------------------------
+   7. LA PESTAÑA INACTIVA NO LLEGA AL PISO EN CLARO
+
+   Basecoat atenúa la pestaña no seleccionada con ALFA:
+
+       color: color-mix(in oklab, var(--color-foreground) 60%, transparent)
+
+   Sobre el riel eso da 6,25:1 en oscuro —bien— pero 3,42:1 en claro, debajo
+   del piso de 4,5 que pide un texto de 13px. Y es el estado en el que está
+   la MAYORÍA de las pestañas de cualquier barra.
+
+   Es el mismo error de método que ya apareció con el filete: atenuar por
+   alfa da un resultado distinto en cada tema porque lo que hay debajo es
+   distinto. La corrección no es subir el porcentaje —sería otro número
+   elegido a ojo— sino apuntar al token que el sistema YA tiene resuelto
+   para "texto secundario" en los dos temas.
+
+   Medido después: 7,68:1 en oscuro, 5,17:1 en claro.
+
+   El hover va junto y no es opcional: estas reglas están FUERA de capa, así
+   que le ganan a todo el bloque de Basecoat —incluido su propio :hover— sin
+   importar la especificidad. Sin reescribirlo, pasar el mouse no haría nada.
+   --------------------------------------------------------------- */
+/* El :not(.sw-vista) NO es defensivo, es un arreglo. Estas reglas y las de
+   .sw-vista viven las dos FUERA de capa, asi que entre ellas decide la
+   especificidad — y `.tabs>[role=tablist]>[role=tab][aria-selected=true]`
+   suma (0,4,0) contra los (0,2,0) de `.sw-vista[aria-selected=true]`. Le
+   ganaba. Medido con la pildora pintada de acento: la etiqueta salia en
+   --sw-text en vez de blanca, o sea 2,77:1 en claro sobre el violeta.
+
+   Antes acá había un comentario diciendo que .sw-vista no pasaba por estas
+   reglas. Era falso: no pasaba por lo que YO queria, pero la cascada decia
+   otra cosa. Ahora está escrito en el selector, que es donde el navegador
+   lo lee. */
+.tabs > [role="tablist"] > [role="tab"]:not(.sw-vista)                       { color: var(--sw-muted); }
+.tabs > [role="tablist"] > [role="tab"]:not(.sw-vista):hover                 { color: var(--sw-text); }
+.tabs > [role="tablist"] > [role="tab"]:not(.sw-vista)[aria-selected="true"] { color: var(--sw-text); }
+
+/* ---------------------------------------------------------------
+   8. EL HOVER DEL BOTON PRIMARIO SE ACLARA EN CLARO
+
+   Basecoat resuelve el hover del .btn bajando la opacidad del relleno:
+
+       background-color: color-mix(in oklab, var(--color-primary) 80%, transparent)
+
+   Un relleno translúcido toma el color de lo que tiene debajo, así que va
+   para lados opuestos según el tema. Medido sobre el lienzo:
+
+       oscuro  #7a6ab0 → #675a94   el blanco sube a 6,05:1   bien
+       claro   #7a6ab0 → #8d80b9   el blanco BAJA a 3,54:1   mal
+
+   O sea que en claro el botón se vuelve MENOS legible justo cuando estás
+   por apretarlo, y pasa de cumplir el piso de 4,5 a no cumplirlo.
+
+   Es el mismo error de método que la pestaña inactiva (sección 7): atenuar
+   por alfa da un resultado distinto en cada tema porque lo que hay debajo
+   es distinto. Y la corrección es la misma: un token OPACO ya resuelto.
+   --sw-accent-solid-lit es el paso de hover del acento sólido — se aleja de
+   la escalera en vez de disolverse en ella.
+
+   Fuera de capa, así que le gana al bloque de Basecoat sin importar la
+   especificidad.
+   --------------------------------------------------------------- */
+:is(.btn:not([data-variant]), .btn[data-variant="primary"]):hover {
+  background-color: var(--sw-accent-solid-lit);
+}
+
+/* ---------------------------------------------------------------
+   9. EL CURSOR DE BASECOAT NO ES EL DEL PROYECTO
+
+   Basecoat declara `cursor: default` en sus controles —el botón, los ítems
+   de menú, las opciones de select y de combobox—. Es una postura defendible
+   y es la que tomó Tailwind v4: en HTML nativo un <button> no cambia el
+   cursor, y sólo los enlaces muestran la manito.
+
+   Pero acá convive con 27 bloques .sw-* que hacen lo contrario. Medido en
+   pantalla: de los ocho controles del estado vacío y la cabecera, seis
+   muestran la manito (pestañas, campana, avatar, «Editar el último», los
+   enlaces de archivo) y dos la flecha (los dos .btn). O sea que el mismo
+   gesto sobre dos botones pegados da dos respuestas distintas.
+
+   No es una elección entre dos convenciones: ya está elegida, y lo que hay
+   es una isla. Se alinea la isla.
+
+   El `:not` no es decorativo: estas reglas van FUERA de capa y le ganarían
+   también al `cursor: not-allowed` de los deshabilitados, que sí tiene que
+   quedar. `[aria-current=page]` del breadcrumb se deja como está — es la
+   página en la que ya estás, no lleva a ningún lado.
+   --------------------------------------------------------------- */
+.btn:not(:disabled):not([aria-disabled="true"]),
+.dropdown-menu :is([role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"]):not(:disabled):not([aria-disabled="true"]),
+.command [role="menuitem"]:not([aria-disabled="true"]),
+.combobox [role="option"]:not([aria-disabled="true"]),
+.select:not(select) [role="option"]:not([aria-disabled="true"]) {
+  cursor: pointer;
+}
+
+/* ---------------------------------------------------------------
+   10. LA SILUETA DE LOS CONTROLES ES UNA PÍLDORA
+
+   Decisión de dirección: en este layout todo lo que se aprieta es una
+   píldora, y cuando es cuadrado queda un círculo. 999px se recorta a la
+   mitad del lado más corto, así que un solo valor da las dos formas y las
+   pestañas de vista interpolan de una a la otra al abrirse.
+
+   Se pisa el .btn de Basecoat y NO el mapa: su radio sale de --radius-md,
+   que también gobierna menús, popovers y cards. Cambiarlo ahí redondearía
+   media librería.
+
+   Lo que NO es píldora, y es deliberado: las filas de una lista —ítems de
+   menú, enlaces de archivo— y los contenedores. Una cápsula de ancho
+   completo deja de leerse como control.
+   --------------------------------------------------------------- */
+.btn { border-radius: var(--sw-r-pill); }
+
+
+/* ---------------------------------------------------------------
+   11. EL COMBO ABIERTO TIENE QUE QUEDAR ARRIBA
+
+   El sintoma: el listbox del combo de «Peso» se abria, se veia, y no se podia
+   tocar. Medido con elementsFromPoint sobre el centro de una opcion, la pila
+   daba `.sw-txt__hex` arriba y el popover siete lugares mas abajo — un
+   elemento del grupo SIGUIENTE pintando encima de un z-index 50.
+
+   La causa no esta en la libreria ni en el popover: esta en la animacion de
+   entrada del panel de la caja de herramientas (chrome.css):
+
+       .sw-tools__panel > * { animation: sw-tools-panel-in ... both }
+
+   ese keyframe anima `opacity`, y una animacion de opacity convierte al
+   elemento en CONTEXTO DE APILADO. Los hijos directos del panel son los
+   grupos, asi que cada grupo es su propia burbuja y el z-index 50 del popover
+   se resuelve adentro de la del grupo que lo contiene. Entre grupos los dos
+   valen `auto`, y gana el que viene despues en el documento: cualquier combo
+   pierde contra todo lo que este debajo de el. Con `fill-mode: both` el
+   contexto no se va cuando la animacion termina.
+
+   La libreria YA previo el problema de fondo, pero para otro ancestro:
+
+       .button-group:has(>:is(.dropdown-menu,.popover,.select)>[data-popover][aria-hidden=false])
+       { z-index: 50; position: relative }
+
+   O sea: se levanta el ANCESTRO mientras el popover esta abierto. Aca el
+   ancestro que hay que levantar es el hijo del panel, y se levanta con el
+   mismo valor para no tener dos escalas de z conviviendo.
+
+   `:has()` y no una clase: lo abre y lo cierra el JS de la libreria, que no
+   sabe de nuestras clases. Lo unico que publica es ese `aria-hidden`.
+
+   Y no es solo de la caja de texto: la vista previa de componentes de la caja
+   de Flujos monta su combo en el mismo panel, con la misma animacion. Ahi el
+   defecto estaba latente porque su combo es lo ultimo que se dibuja y no
+   tiene nada despues que lo tape.
+   --------------------------------------------------------------- */
+.sw-tools__panel > *:has(.select > [data-popover][aria-hidden="false"]) {
+  position: relative;
+  z-index: 50;
+}
+
+/* ---------------------------------------------------------------
+   UN POPOVER CERRADO NO TIENE QUE MEDIR.
+
+   La libreria cierra sus popovers con `visibility:hidden` + `opacity:0` —para
+   poder animarlos— y los deja `position:absolute` adentro del control. Eso no se
+   ve, pero SIGUE MIDIENDO: `scrollHeight` cuenta el contenido posicionado que se
+   sale, asi que cualquier ancestro con `overflow:auto` cree que tiene mas
+   contenido del que tiene y ofrece scroll sobre nada.
+
+   Medido en el asistente de alta de empresa: el cuerpo declaraba 117px de scroll
+   con TODO su contenido a la vista. Los 117 eran los dos popovers cerrados de sus
+   combos, de 66 y 124px. Se scrolleaba de verdad —no era un falso positivo de la
+   medicion— y no aparecia nada: el peor tipo de scroll.
+
+   `display:none` mientras esta cerrado. La animacion de apertura no se pierde: la
+   librería la hace al pasar `aria-hidden` a `false`, o sea cuando esta regla ya
+   dejo de aplicar.
+   --------------------------------------------------------------- */
+[data-popover][aria-hidden="true"] { display: none; }
+
+
+/* ---------------------------------------------------------------
+   LA CASILLA MIDE LO QUE MIDE, PASE LO QUE PASE
+
+   El tamaño de un checkbox en Basecoat cuelga de DOS condiciones a la vez:
+
+     .field > input[type=checkbox]:not([role=switch]),
+     .input[type=checkbox]:not([role=switch]) {
+       width:  calc(var(--spacing) * 4);
+       height: calc(var(--spacing) * 4);
+     }
+
+   O sea: hace falta que el input lleve la clase `.input` —o que sea hijo
+   DIRECTO de un `.field`— y además que `--spacing` resuelva. Si falta
+   cualquiera de las dos, el input queda sin ancho ni alto declarados: con
+   `appearance: none` ya no tiene tamaño propio, así que se estira al alto de la
+   fila que lo contiene y se ve como una barra vertical.
+
+   DOS CONDICIONES PARA QUE UN CUADRADO SEA CUADRADO SON DOS DE MAS. Una clase
+   que hay que acordarse de poner en cada casilla nueva, y una variable de la
+   librería que vive dentro de un `@layer theme` — si alguna de las dos falla, no
+   hay error: hay una casilla deformada.
+
+   Acá el lado sale de `--sw-casilla`, que es nuestro, y se aplica a TODA casilla
+   por su tipo. `aspect-ratio` de refuerzo: si algún contenedor le ganara al alto,
+   el ancho lo sigue.
+   --------------------------------------------------------------- */
+input[type="checkbox"]:not([role="switch"]),
+input[type="radio"] {
+  width: var(--sw-casilla);
+  height: var(--sw-casilla);
+  aspect-ratio: 1;
+  /* Y NO SE ENCOGE NI SE ESTIRA: `flex-shrink: 0` lo trae la librería para flex,
+     pero adentro de un grid con `align-items: stretch` no alcanza — ahí el que
+     manda es `align-self`. */
+  flex: 0 0 auto;
+  align-self: center;
+}

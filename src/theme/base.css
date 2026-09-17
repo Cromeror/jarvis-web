@@ -1,0 +1,389 @@
+/* ============================================================================
+   SpaceMyWork — Base
+   Reset minimo + primitivas tipograficas. Todo sale de tokens.css.
+   ============================================================================ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--sw-ink);
+  color: var(--sw-text);
+  font-family: var(--sw-font);
+  font-size: var(--sw-t-body);
+  line-height: var(--sw-lh-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+img,
+svg,
+video {
+  display: block;
+  max-width: 100%;
+}
+
+/* ---------------------------------------------------------------
+   ICONO — LA regla. Una sola vez para todo el sistema.
+
+   La emite window.SW.icon() (src/icons.js), que es el único lugar donde
+   se escribe un <svg>. Antes esto estaba copiado en 27 reglas repartidas
+   en cinco archivos, con diez tamaños distintos y dos grosores: cada
+   componente elegía por su cuenta y la deriva entraba por ahí.
+
+   El TAMAÑO se pide con --sw-ico desde el componente, tomando un paso de
+   la escala de tokens. Sin eso, un icono mide --sw-ico-sm.
+
+   El COLOR nunca se declara acá: es currentColor, o sea que el icono se
+   pinta con el color del texto que lo acompaña. Un icono con color propio
+   es una excepción y va declarada (hoy hay dos: la marca y el play del
+   botón primario).
+   --------------------------------------------------------------- */
+/* UNA MARCA no es un icono del sistema: trae sus propios colores en cada
+   path y no hereda currentColor. Esta clase apaga el trazo general, que si
+   no le dibujaria un contorno encima al logo. La usa window.SW.icon()
+   cuando el nombre pedido es una marca. */
+.sw-ico--marca { stroke: none; }
+
+.sw-ico {
+  width:  var(--sw-ico, var(--sw-ico-sm));
+  height: var(--sw-ico, var(--sw-ico-sm));
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: var(--sw-ico-stroke);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Este reset va DENTRO de @layer base, y es la única regla del proyecto que
+   está en una capa. El motivo es de cascada, no de estilo:
+
+   Basecoat declara `@layer properties, theme, base, components, utilities` y
+   sus componentes viven en `components`. En CSS, lo que está FUERA de capa le
+   gana a lo que está en capa — siempre, sin importar especificidad ni orden.
+   Eso es bueno en general: por eso enchufar Basecoat no movió un píxel del
+   chasis, todo el `.sw-*` sigue sin capa y sigue ganando.
+
+   Pero acá se daba vuelta en contra. `font: inherit; color: inherit` sobre
+   `button` pisaba a TODOS los botones de Basecoat: medido, el primario perdía
+   su tinta —quedaba en --sw-text sobre el acento, 3,01:1 para una etiqueta de
+   13px— más el font-weight (500 → 400) y el line-height. Justo lo que la
+   decisión 38 existe para que no pase.
+
+   Metiéndolo en `base`, que Basecoat ya declaró antes de `components`, sus
+   componentes ganan y el reset sigue haciendo su trabajo sobre los controles
+   nativos que no son de la librería. Si algún día se saca Basecoat, esta
+   capa no molesta: sin nadie que declare el orden, `@layer base` se comporta
+   igual que el CSS de siempre. */
+@layer base {
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+}
+
+/* ---------------------------------------------------------------
+   FOCO VISIBLE SIEMPRE — requisito WCAG 2.1 AA, no opcional.
+
+   Y ES UNA SOLA LINEA DE 1px. NUNCA DOS. Regla del proyecto.
+
+   Era un anillo de 2px despegado 2px, y el problema se habia medido ya en
+   un solo lugar sin sacar la conclusion general: sobre el buscador
+   enfocado, trazado pixel por pixel, habia TRES anillos —el nuestro de
+   2px, el halo de 3px de Basecoat y el filete de 1px del control— y el
+   conjunto se leia como un borde de 4px (ver el punto 5 de
+   basecoat-ext.css). Lo mismo pasaba en cualquier reja de controles: el
+   anillo despegado se mete en el hueco del vecino y el campo enfocado
+   parece haber cambiado de tamanio.
+
+   `outline-offset` NEGATIVO es lo que garantiza que nunca sean dos lineas:
+   la linea se dibuja ENCIMA del filete del control, no al lado. Un control
+   con borde queda con su borde teniido de acento; uno sin borde, con una
+   linea pegada al canto. En los dos casos, un pixel.
+
+   --sw-accent-line y no --sw-accent: es el token que tokens.css nombra
+   exactamente para esto («el acento como LINEA: foco, borde de boton»).
+   Valen lo mismo en los dos temas, asi que no cambia ningun numero medido.
+
+   NINGUN COMPONENTE LO REDECLARA. Habia veinticinco declaraciones de foco
+   repartidas en cinco archivos, cada una con su ancho y su desplazamiento,
+   y todas se borraron: una regla con veinticinco excepciones no es una
+   regla. La unica cosa que un componente puede tocar es el COLOR, y solo
+   cuando el acento no se ve sobre su relleno.
+   --------------------------------------------------------------- */
+:focus-visible {
+  outline: var(--sw-border) solid var(--sw-accent-line);
+  outline-offset: calc(var(--sw-border) * -1);
+  border-radius: var(--sw-r-sm);
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ---------------------------------------------------------------
+   PRIMITIVAS TIPOGRAFICAS
+   Clases utilitarias que leen del scale. Un componente usa estas,
+   nunca un font-size literal.
+   --------------------------------------------------------------- */
+
+.sw-display {
+  font-family: var(--sw-font-display);
+  font-size: var(--sw-t-display);
+  font-weight: var(--sw-w-semibold);
+  line-height: var(--sw-lh-display);
+  letter-spacing: var(--sw-tr-display);
+}
+
+.sw-h1 {
+  font-family: var(--sw-font-display);
+  font-size: var(--sw-t-h1);
+  font-weight: var(--sw-w-semibold);
+  line-height: var(--sw-lh-h1);
+  letter-spacing: var(--sw-tr-h1);
+}
+
+.sw-h2 {
+  font-family: var(--sw-font-display);
+  font-size: var(--sw-t-h2);
+  font-weight: var(--sw-w-semibold);
+  line-height: var(--sw-lh-h2);
+}
+
+/* EL TITULO DE NODO NO LLEVA RALEWAY. A 14px, en una caja de nodo de 180px de
+   ancho, el cambio de forma no se lee como jerarquía: se lee como que el nodo
+   usa otra fuente. La escalera de display arranca en h2. */
+/* Titulo de nodo */
+.sw-h3 {
+  font-size: var(--sw-t-h3);
+  font-weight: var(--sw-w-medium);
+  line-height: var(--sw-lh-h3);
+}
+
+.sw-body {
+  font-size: var(--sw-t-body);
+  font-weight: var(--sw-w-regular);
+  line-height: var(--sw-lh-body);
+}
+
+/* Subtitulo de nodo, celda de tabla, item de menu */
+.sw-body-sm {
+  font-size: var(--sw-t-body-sm);
+  font-weight: var(--sw-w-regular);
+  line-height: var(--sw-lh-body-sm);
+}
+
+.sw-caption {
+  font-size: var(--sw-t-caption);
+  font-weight: var(--sw-w-regular);
+  line-height: var(--sw-lh-caption);
+  color: var(--sw-muted);
+}
+
+/* Label de grupo en sidebar */
+.sw-overline {
+  font-size: var(--sw-t-overline);
+  font-weight: var(--sw-w-medium);
+  line-height: var(--sw-lh-overline);
+  letter-spacing: var(--sw-tr-overline);
+  text-transform: uppercase;
+  color: var(--sw-muted);
+}
+
+.sw-mono {
+  font-family: var(--sw-font-mono);
+  font-size: var(--sw-t-body-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Cifras alineadas en columna */
+.sw-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------
+   SUPERFICIES
+   La elevacion se construye por escalon de valor + hairline.
+   La sombra existe SOLO en lo que flota sobre el contenido.
+   --------------------------------------------------------------- */
+
+.sw-surface {
+  background: var(--sw-surface);
+  border: var(--sw-border) solid var(--sw-line);
+}
+
+.sw-raised {
+  background: var(--sw-raised);
+  border: var(--sw-border) solid var(--sw-line);
+  border-radius: var(--sw-r-md);
+  box-shadow: var(--sw-e-flat);
+}
+
+.sw-pop {
+  background: var(--sw-raised-2);
+  border: var(--sw-border) solid var(--sw-line);
+  border-radius: var(--sw-r-lg);
+  box-shadow: var(--sw-e-pop);
+}
+
+/* Grilla punteada — la firma visual del producto */
+.sw-grid-surface {
+  /* --sw-canvas-bg y no --sw-ink: en claro el lienzo es el escalon MAS ALTO
+     de la escalera y en oscuro el mas bajo. Ver el token en tokens.css. */
+  background-color: var(--sw-canvas-bg);
+  background-image: radial-gradient(circle at 1px 1px, var(--sw-grid-dot) 1px, transparent 0);
+  background-size: var(--sw-grid-step) var(--sw-grid-step);
+}
+
+/* ---------------------------------------------------------------
+   TACTIL
+   El area de toque puede ser mayor que el pixel visible. Esta es la
+   herramienta para eso: el elemento se ve del tamano que se ve, y
+   responde en 44px. No agranda el diseno.
+   --------------------------------------------------------------- */
+
+.sw-touch-target {
+  position: relative;
+}
+
+.sw-touch-target::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--sw-touch-min);
+  height: var(--sw-touch-min);
+  transform: translate(-50%, -50%);
+  /* sin fondo: es area sensible, no un elemento visible */
+}
+
+/* En dispositivos sin hover, los patrones que dependen de el necesitan
+   un equivalente. Los componentes que revelan acciones al hover deben
+   mostrarlas siempre acá. */
+@media (hover: none) {
+  .sw-hover-reveal {
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+}
+
+/* ---------------------------------------------------------------
+   MODO REVISION — decision D7
+   Debajo de 768px el producto es de lectura. Los controles de
+   autoria no se muestran: no se crean nodos, no se conectan
+   puertos, no se arrastra para reposicionar.
+   --------------------------------------------------------------- */
+
+@media (max-width: 767px) {
+  .sw-authoring-only {
+    display: none !important;
+  }
+
+  /* Los puertos pasan a decorativos: muestran la conexion pero no
+     responden al toque, asi que no necesitan area de 44px. */
+  .sw-port {
+    pointer-events: none;
+  }
+}
+
+/* ---------------------------------------------------------------
+   MOVIMIENTO REDUCIDO
+   Requisito de accesibilidad. No es opcional.
+   --------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================================================
+   BARRA DE SCROLL — una sola vez, para todos los que scrollean
+   ----------------------------------------------------------------------------
+   Superpuesta y sin riel: un pulgar fino y redondeado que aparece al pasar
+   por encima o al entrar con el teclado, y nada mas. Sin flechas, sin canal,
+   sin ancho reservado — la barra nativa de Windows mete los tres y en una
+   caja de 420px se come el margen del texto.
+
+   POR QUE ACA Y NO EN CADA COMPONENTE. El patron estaba escrito dos veces
+   —.sw-side__list y .sw-side__dbody, identicas— y faltaba en otras dos. Con
+   cuatro copias, el dia que cambie el grosor hay que acordarse de cuatro
+   lugares.
+
+   VA EN `*` Y YA NO EN UNA LISTA, y el cambio tiene fecha. Al factorizarlo se
+   uso `:is()` con cinco nombres, anotando el precio: «la lista hay que
+   mantenerla; si aparece un scroll nuevo y no se anota, se queda con la barra
+   nativa». Ese precio se cobro — se contaron DOCE contenedores que scrollean
+   en el proyecto contra los cinco anotados, asi que siete tenian la barra de
+   Windows y nadie lo habia visto.
+
+   Una lista que hay que acordarse de actualizar es una lista que va a quedar
+   incompleta. `*` no se olvida de nada, incluye lo que venga despues, y no
+   pide tocar el markup de ningun componente. Alcanza porque lo que se declara
+   es inofensivo donde no hay scroll: un elemento sin desbordar no dibuja
+   barra, asi que la regla no hace nada en el 99% de los nodos.
+
+   DOS MECANISMOS PORQUE SON DOS MOTORES. `scrollbar-width`/`scrollbar-color`
+   es el estandar y lo entiende Firefox; `::-webkit-scrollbar` es lo que
+   entiende Chromium, que ignora el color del estandar cuando hay
+   pseudo-elementos. Los dos dicen lo mismo.
+   ============================================================================ */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color var(--sw-d-micro) linear;
+}
+*:hover,
+*:focus-within {
+  scrollbar-color: var(--sw-line-strong) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 4px; height: 4px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: var(--sw-r-pill);
+  transition: background var(--sw-d-micro) linear;
+}
+*:hover::-webkit-scrollbar-thumb,
+*:focus-within::-webkit-scrollbar-thumb {
+  background: var(--sw-line-strong);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--sw-faint);
+}
+
+/* EQUIVALENTE TACTIL (regla 9). Un pulgar que solo aparece al pasar por
+   encima no existe para un dedo: sin hover, el contenedor no da ninguna
+   señal de que hay mas contenido abajo. Con puntero grueso se queda puesto.
+
+   Estaba resuelto en sidebar.css para sus dos contenedores; al mudar la barra
+   aca, el equivalente tactil tiene que mudarse con ella — si no, el hilo del
+   chat y el campo de escribir quedaban sin barra visible en tactil, que es
+   justo donde mas falta hace. */
+@media (hover: none) {
+  * { scrollbar-color: var(--sw-line-strong) transparent; }
+  *::-webkit-scrollbar-thumb { background: var(--sw-line-strong); }
+}
