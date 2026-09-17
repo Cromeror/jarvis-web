@@ -241,19 +241,25 @@ export function FloatingChat(): React.ReactElement | null {
             <button className="sw-comp__mas" type="button" aria-label="Agregar" title="Agregar">
               <Icon name="plus" />
             </button>
-            <button className="sw-comp__pill" type="button">
-              <Icon name="wrench" />
+            {/* Herramientas es una pastilla CON modificador, y sin ícono: el
+                template la arma como `sw-comp__pill sw-comp__herr` con sólo el
+                rótulo y el chevron. */}
+            <button className="sw-comp__pill sw-comp__herr" type="button" aria-haspopup="menu" aria-expanded="false">
               <span>Herramientas</span>
               <Icon name="chevron" />
             </button>
-            <button className="sw-comp__pill" type="button">
+            <button className="sw-comp__pill" type="button" aria-haspopup="menu" aria-expanded="false">
               <Icon name="message" />
               <span>Normal</span>
               <Icon name="chevron" />
             </button>
           </div>
           <div className="sw-comp__lado">
-            <button className="sw-comp__modelo" type="button">
+            {/* `sw-comp__modelo` es un MODIFICADOR, no una clase suelta: el
+                template hace `pastilla()` —que ya es `.sw-comp__pill`— y recién
+                después le agrega el modificador. Sin la base no hay layout de
+                pastilla, y el chevron se caía al renglón de abajo. */}
+            <button className="sw-comp__pill sw-comp__modelo" type="button" aria-haspopup="menu" aria-expanded="false">
               <span>Opus 5</span>
               <Icon name="chevron" />
             </button>
