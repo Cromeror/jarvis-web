@@ -23,8 +23,9 @@
    gana a lo layered, así que el template manda y sus tres componentes en uso
    siguen funcionando mientras se reemplazan.
 
-   El look anterior (`styles.css`, 913 líneas) ya NO se importa. El archivo
-   sigue en disco y en main: reactivarlo es una línea.
+   El look anterior (`styles.css`, 913 líneas) se BORRÓ: dejó de importarse al
+   adoptar el template y un archivo muerto de ese tamaño invita a reactivarlo.
+   Sigue en el historial si alguna vez hace falta.
    ============================================================================ */
 
 @layer primereact;

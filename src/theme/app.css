@@ -33,3 +33,26 @@
   height: 100%;
   overflow: auto;
 }
+
+/* ── LOS PARES DE TIPOGRAFÍA DE TAILWIND, COMPLETADOS ────────────────────
+   Tailwind 4 declara cada escalón de texto EN PAR:
+
+     --text-sm: .875rem
+     --text-sm--line-height: calc(1.25 / .875)   ← ratio calibrado PARA 14px
+
+   El seam del template pisa `--text-sm` y sus hermanos, pero NO sus
+   line-heights — y como el par es un `calc` relativo al tamaño viejo, el
+   interlineado queda calculado para una fuente que ya no es esa. Basecoat aplica
+   `text-sm` a los ítems de menú, así que ahí se ve.
+
+   Esto NO pasa en el template porque su Basecoat viene compilado; acá lo compila
+   nuestro Tailwind, y el par queda a la vista. Va en nuestro archivo y no en el
+   seam: el seam viene del template y se re-sincroniza.
+
+   Los valores son los del sistema (`--sw-lh-*`), no números nuevos. */
+:root {
+  --text-xs--line-height: var(--sw-lh-caption);
+  --text-sm--line-height: var(--sw-lh-body);
+  --text-base--line-height: var(--sw-lh-body);
+  --text-lg--line-height: var(--sw-lh-h3);
+}
