@@ -1,0 +1,253 @@
+/* ============================================================================
+   SpaceMyWork — Menu, menu contextual y barra de comando
+   ============================================================================ */
+
+/* ---------------------------------------------------------------
+   MENU con INDICADOR DESLIZANTE
+   La microinteraccion mas caracteristica del corpus: el resaltado de
+   hover no aparece y desaparece por item — es una unica pildora que
+   viaja, interpolando posicion y alto.
+
+   Se resuelve en el componente, nunca item por item.
+   --------------------------------------------------------------- */
+
+.sw-menu {
+  position: relative;
+  min-width: 200px;
+  padding: var(--sw-s-1);
+  background: var(--sw-raised-2);
+  border: var(--sw-border) solid var(--sw-line);
+  border-radius: var(--sw-r-lg);
+  box-shadow: var(--sw-e-pop);
+}
+
+/* La pildora vive detras de los items, en su propia capa. Al estar fuera
+   del flujo, cambiar su alto no reflowea a nadie: solo se repinta ella.
+   El desplazamiento — que es la parte cara — va por transform. */
+.sw-menu__pill {
+  position: absolute;
+  left: var(--sw-s-1);
+  right: var(--sw-s-1);
+  top: 0;
+  height: var(--pill-h, 0px);
+  border-radius: var(--sw-r-sm);
+  /* Un escalón ARRIBA de la superficie del menú. Con --sw-raised la píldora
+     quedaba más oscura que el menú y retrocedía en vez de destacar: el menú
+     ya vive en --sw-raised-2, que está por encima. */
+  background: var(--sw-hover);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(var(--pill-y, 0px));
+  transition:
+    transform var(--pill-d, 180ms) var(--sw-ease-inout),
+    height    var(--pill-d, 180ms) var(--sw-ease-inout),
+    opacity   var(--sw-d-micro)    var(--sw-ease-out);
+}
+
+.sw-menu[data-hot="true"] .sw-menu__pill { opacity: 1; }
+
+/* Primera aparicion: sin viaje, solo fade. Si no, la pildora entra
+   volando desde el borde superior y se ve como un error. */
+.sw-menu[data-warp="true"] .sw-menu__pill { transition: opacity var(--sw-d-micro) var(--sw-ease-out); }
+
+.sw-menu__group + .sw-menu__group {
+  margin-top: var(--sw-s-1);
+  padding-top: var(--sw-s-1);
+  border-top: var(--sw-border) solid var(--sw-line);
+}
+
+.sw-menu__item {
+  position: relative;          /* sobre la pildora */
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--sw-s-2);
+  width: 100%;
+  height: 30px;
+  padding: 0 var(--sw-s-2);
+  border: 0;
+  border-radius: var(--sw-r-sm);
+  background: none;
+  text-align: left;
+  font-size: var(--sw-t-body-sm);
+  color: var(--sw-text-2);
+  cursor: pointer;
+  transition: color var(--sw-d-micro) var(--sw-ease-out);
+}
+
+.sw-menu__item:hover,
+.sw-menu__item[data-active="true"] { color: var(--sw-text); }
+
+.sw-menu__item[aria-disabled="true"] {
+  color: var(--sw-faint);
+  cursor: not-allowed;
+}
+
+.sw-menu__item--danger:hover,
+.sw-menu__item--danger[data-active="true"] { color: var(--sw-error); }
+
+.sw-menu__item svg { --sw-ico: var(--sw-ico-sm); flex: 0 0 auto; }
+
+.sw-menu__label {
+  flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.sw-menu__kbd {
+  flex: 0 0 auto;
+  font-family: var(--sw-font-mono);
+  font-size: var(--sw-t-overline);
+  color: var(--sw-faint);
+}
+
+/* Menu contextual: se ancla al punto de invocacion */
+.sw-context {
+  position: fixed;
+  z-index: var(--sw-z-popover);
+  animation: sw-pop var(--sw-d-short) var(--sw-ease-out);
+  transform-origin: var(--origin-x, 0) var(--origin-y, 0);
+}
+
+@keyframes sw-pop {
+  from { opacity: 0; transform: scale(.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* ---------------------------------------------------------------
+   BARRA DE COMANDO
+   Anclada al borde inferior, persistente sobre cualquier vista.
+   El historial se despliega hacia arriba.
+   --------------------------------------------------------------- */
+
+.sw-cmd {
+  position: absolute;
+  bottom: var(--sw-s-4);
+  left: 50%;
+  width: min(520px, calc(100% - var(--sw-s-16)));
+  transform: translateX(-50%);
+  z-index: var(--sw-z-chrome);
+}
+
+.sw-cmd__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-s-2);
+  padding: var(--sw-s-2) var(--sw-s-2) var(--sw-s-2) var(--sw-s-3);
+  background: var(--sw-raised-2);
+  border: var(--sw-border) solid var(--sw-line);
+  border-radius: var(--sw-r-lg);
+  box-shadow: var(--sw-e-pop);
+  transition: border-color var(--sw-d-micro) var(--sw-ease-out);
+}
+
+.sw-cmd__bar:focus-within { border-color: var(--sw-accent); }
+
+.sw-cmd__bar input {
+  flex: 1 1 auto; min-width: 0;
+  border: 0; background: none; outline: none;
+  font-size: var(--sw-t-body);
+  color: var(--sw-text);
+}
+.sw-cmd__bar input::placeholder { color: var(--sw-muted); }
+
+.sw-cmd__hint {
+  flex: 0 0 auto;
+  font-family: var(--sw-font-mono);
+  font-size: var(--sw-t-overline);
+  color: var(--sw-faint);
+  border: var(--sw-border) solid var(--sw-line);
+  border-radius: var(--sw-r-sm);
+  padding: 2px 5px;
+}
+
+.sw-cmd__send {
+  flex: 0 0 auto;
+  display: grid; place-items: center;
+  width: 26px; height: 26px;
+  padding: 0; border: 0;
+  border-radius: var(--sw-r-sm);
+  background: var(--sw-accent);
+  color: var(--sw-on-accent);
+  cursor: pointer;
+  transition: background var(--sw-d-micro) var(--sw-ease-out);
+}
+.sw-cmd__send:hover { background: var(--sw-accent-lit); }
+.sw-cmd__send svg { --sw-ico: var(--sw-ico-sm); }
+
+/* Chips de sugerencia — sobre el input, como en las referencias */
+.sw-cmd__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sw-s-1);
+  margin-bottom: var(--sw-s-2);
+}
+
+.sw-chip {
+  padding: var(--sw-s-1) var(--sw-s-2);
+  font-size: var(--sw-t-caption);
+  color: var(--sw-text-2);
+  background: var(--sw-raised-2);
+  border: var(--sw-border) solid var(--sw-line);
+  border-radius: var(--sw-r-pill);
+  cursor: pointer;
+  transition: color var(--sw-d-micro) var(--sw-ease-out),
+              border-color var(--sw-d-micro) var(--sw-ease-out);
+}
+.sw-chip:hover { color: var(--sw-text); border-color: var(--sw-line-strong); }
+
+/* Historial: se despliega hacia arriba */
+.sw-cmd__history {
+  margin-bottom: var(--sw-s-2);
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--sw-raised-2);
+  border: var(--sw-border) solid var(--sw-line);
+  border-radius: var(--sw-r-lg);
+  box-shadow: var(--sw-e-pop);
+  animation: sw-rise var(--sw-d-normal) var(--sw-ease-out);
+}
+
+@keyframes sw-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.sw-cmd__history[hidden] { display: none; }
+
+.sw-cmd__row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sw-s-3);
+  padding: var(--sw-s-2) var(--sw-s-3);
+  font-size: var(--sw-t-body-sm);
+  color: var(--sw-text-2);
+  cursor: pointer;
+  transition: color var(--sw-d-micro) var(--sw-ease-out),
+              background var(--sw-d-micro) var(--sw-ease-out);
+}
+.sw-cmd__row:hover { color: var(--sw-text); background: var(--sw-raised); }
+.sw-cmd__row time { font-family: var(--sw-font-mono); font-size: var(--sw-t-overline); color: var(--sw-faint); }
+
+/* En modo revisión no hay barra de comando: no se opera, se mira. */
+@media (max-width: 767px) {
+  .sw-cmd { display: none; }
+}
+
+/* EL TILDE DE UN ITEM QUE SE ALTERNA.
+
+   Ocupa la ranura del ícono SIEMPRE, prendido o apagado: si apareciera y
+   desapareciera, la etiqueta de la fila se correría 20px cada vez que se tilda
+   una — en una lista de siete columnas, eso es la lista entera saltando.
+
+   Se apaga con opacidad y no con `visibility`, que es lo mismo para el ojo y
+   más barato para el navegador; y el estado de verdad lo lleva `aria-checked`,
+   que es lo que lee el lector de pantalla. El dibujo es la consecuencia, no la
+   fuente. */
+.sw-menu__tilde {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  opacity: 0;
+  transition: opacity var(--sw-d-micro) var(--sw-ease-out);
+}
+.sw-menu__item[aria-checked="true"] .sw-menu__tilde { opacity: 1; }

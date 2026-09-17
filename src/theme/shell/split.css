@@ -1,0 +1,138 @@
+/* ============================================================================
+   DOS PANELES CON UN DIVISOR — src/shell/split.js
+
+   El reparto vive en una variable y no en un `width` de cada panel: así el JS
+   escribe un número y el CSS decide qué hacer con él, y el mínimo de cada panel
+   lo pone el layout en vez de tener que calcularlo en dos lados.
+   ============================================================================ */
+
+.sw-partido {
+  --sw-partido-izq: 60%;
+  display: grid;
+  /* El divisor no ocupa columna propia de layout: se superpone a la juntura.
+     Una tercera columna de 11px correría los dos paneles y el filete quedaría
+     con aire a los costados, que es justo lo que no tiene un filete. */
+  grid-template-columns: var(--sw-partido-izq) 1fr;
+  min-height: 0;
+  min-width: 0;
+  position: relative;
+}
+
+.sw-partido__panel {
+  min-width: 0;
+  min-height: 0;
+  /* CADA PANEL SCROLLEA LO SUYO. Es la misma regla que ya vale en la caja y en
+     los catálogos: el que scrollea es el contenido, no la pantalla. Partido en
+     dos, importa el doble — un scroll común movería el asiento al bajar por los
+     ítems, y el asiento está a la derecha justamente para no moverse. */
+  overflow: auto;
+}
+
+/* Y SUELTA EL RECORTE CUANDO HAY ALGO FLOTANDO ADENTRO, igual que cualquier
+   contenedor que scrollea en este proyecto. El precio es que mientras el combo
+   está abierto ese panel no scrollea; a cambio, el combo se ve entero — y un
+   desplegable abierto es justamente el momento en que nadie scrollea. */
+.sw-partido__panel:has([data-popover][aria-hidden="false"]) { overflow: visible; }
+
+/* ---- el divisor ----
+
+   SE VE DE 1px Y SE AGARRA EN 11. El filete es del sistema —el mismo que separa
+   cualquier par de superficies— pero un blanco de mira de un píxel obliga a
+   apuntar, y apuntar para arrastrar son dos gestos. La zona de agarre se monta
+   sobre la juntura con un `translate` de la mitad de su ancho, así el filete
+   queda en el centro exacto. */
+.sw-partido__div {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--sw-partido-izq);
+  width: 11px;
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
+  cursor: col-resize;
+  /* Por encima del contenido de los dos paneles, o el borde de una tarjeta que
+     llegue a la juntura se lo come. */
+  z-index: 1;
+  /* El arrastre es manipulación directa: 0ms (regla 5). Lo que sí transiciona
+     es el color de la línea al pasar el puntero, que es un cambio de estado. */
+  touch-action: none;
+}
+
+.sw-partido__linea {
+  width: var(--sw-border);
+  height: 100%;
+  background: var(--sw-line);
+  transition: background var(--sw-d-micro) linear, width var(--sw-d-micro) linear;
+}
+
+/* AL PASAR Y AL AGARRAR, la línea se enciende con el acento y engorda un píxel.
+   No es decoración: es lo único que dice que esa juntura se puede mover, porque
+   un filete quieto se lee como el borde de una caja. Y es acento legítimo —
+   estado, no marca (regla 2).
+
+   VA CON `--sw-accent` Y NO CON `--sw-accent-solid`, que es la trampa que el
+   CLAUDE.md anota: el solid vale LO MISMO en los dos temas porque está pensado
+   para rellenar, con `--sw-on-accent` encima. Medido acá: el solid da 4,27 en
+   claro y 2,45 en OSCURO contra la card, o sea que la línea encendida se apagaba
+   justo en el tema en que hay menos luz. `--sw-accent` tiene su paso por tema y
+   da 4,27 / 3,64 contra la card y 3,98 / 4,31 contra el panel — pasa el piso de
+   3:1 en los cuatro casos. */
+.sw-partido__div:hover .sw-partido__linea,
+.sw-partido__div:focus-visible .sw-partido__linea,
+.sw-partido[data-arrastrando] .sw-partido__linea {
+  background: var(--sw-accent);
+  width: calc(var(--sw-border) * 2);
+}
+
+/* MIENTRAS SE ARRASTRA, NADA SE SELECCIONA. Sin esto, mover el divisor sobre un
+   texto lo va pintando de azul y el gesto parece que hizo otra cosa. */
+.sw-partido[data-arrastrando] { user-select: none; cursor: col-resize; }
+.sw-partido[data-arrastrando] .sw-partido__panel { pointer-events: none; }
+
+/* EL FOCO ES EL DEL SISTEMA (regla 11): una línea de 1px, declarada una sola vez
+   en base.css. Acá sólo se le da forma al área, que es angosta y alta. */
+.sw-partido__div:focus-visible { border-radius: var(--sw-r-sm); }
+
+/* ---- táctil (regla 9) ----
+
+   El dedo no apunta a 11px. Pero acá NO se agranda el área invisible sin más:
+   un divisor de 44px de ancho invisible se come el canto de los dos paneles y
+   el primer clic sobre un control pegado a la juntura activa el arrastre. Se
+   agranda hasta 24 —que es lo que un pulgar acierta sin apuntar— y a cambio se
+   dibuja un agarre visible, que es lo que las apps táctiles hacen: donde no hay
+   hover, la afordancia tiene que estar dibujada. */
+@media (pointer: coarse) {
+  .sw-partido__div { width: 24px; }
+  .sw-partido__linea {
+    width: var(--sw-border);
+    position: relative;
+  }
+  .sw-partido__linea::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 4px;
+    height: 32px;
+    border-radius: var(--sw-r-pill);
+    background: var(--sw-line-strong);
+  }
+}
+
+/* ---- angosto ----
+
+   POR DEBAJO DE CIERTO ANCHO NO HAY DOS COLUMNAS QUE REPARTIR: el divisor
+   dejaría dos columnas malas en vez de una buena. Se apilan, el divisor
+   desaparece —no se esconde con `visibility`, se va del layout— y cada panel
+   queda a ancho completo, en el orden del DOM. */
+@media (max-width: 1100px) {
+  .sw-partido {
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: min-content;
+    overflow: auto;
+  }
+  .sw-partido__panel { overflow: visible; }
+  .sw-partido__div { display: none; }
+}

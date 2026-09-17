@@ -1,61 +1,62 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { AppSidebar2 } from './AppSidebar2.js';
+import { AppShell } from '../shell/AppShell.js';
 import { EnvironmentsMenu } from './EnvironmentsMenu.js';
 import { PipelinesMenu } from './PipelinesMenu.js';
-import { AppShellTemplate } from '../ui/templates/AppShellTemplate.js';
 import { FloatingChat } from '../Chat/FloatingChat.js';
 import { WorkspaceAnchorProvider, useShellAnchorRef } from './workspace-anchor.js';
 
 /**
- * Título de página según el primer segmento de la ruta — mismo criterio que
- * tenía TopNav.tsx (reemplazado por Topbar, ver node 6963:42 de Figma).
+ * El shell de la app, sobre el chasis del template SpaceMyWork.
+ *
+ * Reemplaza a `AppShellTemplate` (el shell portado de Figma): la demo adopta el
+ * sistema del template entero, y dos chasis conviviendo significaría dos
+ * respuestas distintas a dónde va cada cosa.
+ *
+ * Acá sólo se resuelve QUÉ va en cada slot; la estructura vive en AppShell,
+ * donde el árbol es el contrato con el CSS.
  */
-const PAGE_TITLES: Record<string, string> = {
-  '': 'Dashboard',
-  'chat': 'Chat',
-  'plans': 'Planes',
-  'environments': 'Environments',
-  'workspaces': 'Workspaces',
+
+const TITULOS: Record<string, { titulo: string; sub?: string }> = {
+  '': { titulo: 'Dashboard', sub: 'El estado de la flota' },
+  chat: { titulo: 'Chat', sub: 'Conversaciones por proyecto' },
+  plans: { titulo: 'Planes', sub: 'Lo que se ejecuta por pasos' },
+  environments: { titulo: 'Environments', sub: 'Lo que cada proyecto necesita corriendo' },
+  workspaces: { titulo: 'Workspaces', sub: 'Espacios de trabajo y sus cambios' },
+  catalogo: { titulo: 'Catálogo', sub: 'Paquetes y módulos' },
+  users: { titulo: 'Usuarios', sub: 'Quién entra y con qué permisos' },
 };
 
-function usePageTitle(): string {
+function useSeccion(): { titulo: string; sub?: string } {
   const { pathname } = useLocation();
-  const [, segment] = pathname.split('/');
-  return PAGE_TITLES[segment ?? ''] ?? 'Jarvis';
+  const [, segmento] = pathname.split('/');
+  return TITULOS[segmento ?? ''] ?? { titulo: 'Jarvis' };
 }
 
-/**
- * Wiring de ruta (título, estado del drawer mobile) sobre AppShellTemplate
- * (Figma node 7224:858, "Layout / App Shell") — la estructura visual del
- * shell vive en el template, acá solo se resuelve qué va en cada slot.
- */
 export function AppLayout(): React.ReactElement {
   return (
     // El provider envuelve al shell porque el anchor por defecto ES el área de
     // contenido del shell: quien lo registra tiene que estar adentro.
     <WorkspaceAnchorProvider>
-      <AppShellWithAnchor />
+      <ShellConAnchor />
     </WorkspaceAnchorProvider>
   );
 }
 
-function AppShellWithAnchor(): React.ReactElement {
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const title = usePageTitle();
+function ShellConAnchor(): React.ReactElement {
+  const { titulo, sub } = useSeccion();
   const contentRef = useShellAnchorRef();
 
   return (
-    <AppShellTemplate
-      sidebar={<AppSidebar2 mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />}
-      topbarTitle={title}
-      topbarActions={
+    <AppShell
+      titulo={titulo}
+      sub={sub}
+      acciones={
         <>
           <EnvironmentsMenu />
           <PipelinesMenu />
         </>
       }
-      onMenuClick={() => setMobileNavOpen(true)}
       contentRef={contentRef}
     >
       <Outlet />
@@ -63,6 +64,6 @@ function AppShellWithAnchor(): React.ReactElement {
           disponible sin importar dónde estés. Él decide no dibujarse en /chat,
           que es donde sobra. */}
       <FloatingChat />
-    </AppShellTemplate>
+    </AppShell>
   );
 }

@@ -1,0 +1,514 @@
+/* ============================================================================
+   CAMPO — el bloque de dato con rótulo
+
+   Es la traducción del componente `Field` de shadcn/ui a este sistema
+   (https://ui.shadcn.com/docs/components/base/field). Basecoat no lo trae
+   —Field es de la variante React— así que entra como `.sw-*`, que es lo que la
+   regla del repo permite cuando la librería no tiene la pieza.
+
+   LO QUE SE TRAJO ES SU ANATOMIA, no su CSS: un vocabulario chico de piezas que
+   se componen siempre igual, en vez de que cada pantalla invente su fila de
+   rótulo y valor. Hasta ahora la ficha de una factura tenía `__dato`, la hoja
+   otra cosa y el canvas otra: tres maneras de dibujar «un rótulo y su valor».
+
+     .sw-grupo            FieldSet    — una sección de campos
+       .sw-grupo__leyenda FieldLegend — su título, con ícono
+       .sw-campos         FieldGroup  — la pila de campos
+         .sw-campo        Field       — un campo (role="group")
+           .sw-campo__rotulo  FieldLabel
+           .sw-campo__cuerpo  FieldContent — el valor y lo que lo acompaña
+             .sw-campo__valor
+             .sw-campo__nota  FieldDescription
+       .sw-campos__sep    FieldSeparator
+
+   LA ORIENTACION ES DEL CAMPO, no de la pantalla: `vertical` por defecto —el
+   rótulo arriba, que es lo que aguanta una columna angosta— y `horizontal` para
+   los pares que se leen en una línea, como un monto y su cifra.
+
+   NO ES UN COMPONENTE DE FORMULARIO. El `Field` de la librería envuelve
+   controles; acá envuelve DATOS, que es el uso que este producto le da nueve de
+   cada diez veces. Lo que se comparte es la forma, que es lo que hace que un
+   formulario y una ficha se lean como la misma cosa.
+   ============================================================================ */
+
+/* ---- FieldSet + FieldLegend ---- */
+
+.sw-grupo { display: grid; gap: var(--sw-s-2); }
+
+/* EL FILETE VA ARRIBA y no abajo: así el primer grupo no lleva línea —queda
+   pegado a lo que tenga encima, que ya es su separación— y el último no deja
+   una raya colgando contra el fondo del panel. */
+.sw-grupo + .sw-grupo {
+  margin-top: var(--sw-s-3);
+  padding-top: var(--sw-s-3);
+  /* EL FILETE SE PUEDE PEDIR CON RELIEVE, y por variables: una pantalla no escribe
+     reglas sobre este componente (campo.cjs lo mide), así que las dos perillas
+     viven acá. Sin pedirlas, el filete de siempre y ninguna sombra. Causar pide el
+     surco oscuro y un píxel de brillo debajo (accounting.css). */
+  border-top: var(--sw-border) solid var(--sw-grupo-filete, var(--sw-line));
+  box-shadow: var(--sw-grupo-relieve, none);
+}
+/* SALVO QUE HAYA RIEL. El filete y el hilo hacen el mismo trabajo —decir dónde
+   termina un grupo y empieza el otro— y juntos lo dicen dos veces: una raya
+   horizontal cruzando un hilo vertical cada cuatro renglones. Con riel manda el
+   hilo; el aire se queda, porque eso el riel no lo dice.
+
+   Y vuelve sola si el riel no está: una ficha sin riel necesita el filete para
+   no ser una lista corrida. */
+.sw-grupos[data-hilo] .sw-grupo + .sw-grupo { border-top: 0; box-shadow: none; }
+/* Y CON MENOS AIRE, por lo mismo. Doce píxeles separaban dos grupos que además
+   estaban partidos por una línea; sacada la línea, el hilo y el nodo ya dicen
+   dónde empieza cada uno y el aire sólo tiene que dar respiro. Son 24px de
+   ficha, medidos, que es lo que faltaba para que el bloque del CUFE entrara. */
+.sw-grupos[data-hilo] .sw-grupo + .sw-grupo {
+  margin-top: var(--sw-s-2);
+  padding-top: var(--sw-s-2);
+}
+
+/* Y HAY UN CASO EN QUE LA LINEA TIENE QUE HACER MAS TRABAJO: `data-separado`.
+
+   El filete de arriba alcanza mientras los grupos son cortos —la ficha de una
+   factura, que se mira de un vistazo—. DEJA DE ALCANZAR CUANDO SON LARGOS: los
+   pasos de causar están abiertos a la vez y el de ítems solo puede tener seis
+   tarjetas, así que entre una línea y la siguiente hay un metro de contenido.
+   Ahí la división tiene que leerse como el corte de una franja y no como el
+   subrayado del grupo de arriba: más aire a los dos lados, y de canto a canto.
+
+   NO PIDE `data-hilo`. Lo pedía, y era una atadura falsa: el riel y la línea
+   dicen cosas distintas —el riel CUAL está resuelto, la línea DONDE termina un
+   grupo— y la segunda hace falta igual sin la primera. Se vio al sacar el riel
+   de causar: los pasos quedaron largos como antes y la variante dejó de pintar.
+
+   Va como variante del componente y no como regla de la pantalla: una clase del
+   sistema con reglas repartidas en los módulos se ve distinta en cada pantalla
+   sin que nadie sepa por qué (regla 1 de §11, y `campo.cjs` la mide). */
+.sw-grupos[data-separado] .sw-grupo + .sw-grupo {
+  border-top: var(--sw-border) solid var(--sw-grupo-filete, var(--sw-line));
+  box-shadow: var(--sw-grupo-relieve, none);
+  /* El aire crece con la línea: pegados, el filete corta en vez de separar. */
+  margin-top: var(--sw-s-5);
+  padding-top: var(--sw-s-5);
+  /* De canto a canto de la columna, no del texto. Quien pide la variante dice
+     cuánto relleno tiene que devolver, porque eso sí es de su pantalla. */
+  margin-inline: calc(var(--sw-grupo-sangria, 0px) * -1);
+  padding-inline: var(--sw-grupo-sangria, 0px);
+}
+
+/* CADA LEYENDA CON SU ICONO, que es lo que deja encontrar una sección sin
+   leerla. Un panel al que se vuelve cien veces por día se recorre
+   reconociendo. */
+.sw-grupo__leyenda {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-s-2);
+  margin: 0;
+  padding: 0;
+  font-size: var(--sw-t-overline);
+  text-transform: uppercase;
+  letter-spacing: var(--sw-tr-overline);
+  font-weight: var(--sw-w-medium);
+  color: var(--sw-muted);
+}
+.sw-grupo__leyenda svg { --sw-ico: var(--sw-ico-sm); flex: none; }
+
+/* ---- el riel que ata los grupos ----
+
+   Es la misma pieza que ata los tres niveles de la caja de Documento
+   (`.sw-txt__riel`): nodo de 9px con filete, hilo de 1px que baja hasta el
+   siguiente y cruza la separación, y el último sin hilo porque no hay adónde
+   seguir. Trae la misma línea estética a las dos cajas.
+
+   PERO NO TRAE EL ACENTO, y esa es la parte que importa. Allá el riel cuenta
+   PROGRESO —cada nodo se llena cuando su paso está resuelto— y ahí el acento es
+   estado puro, que es para lo que la regla 2 lo reserva. Los grupos de una ficha
+   no son pasos: no hay nada que resolver en «quién la emitió», y un nodo de
+   acento diría que sí. Acá el riel dice «estas partes son de la misma cosa, en
+   este orden», que es estructura y se dibuja con filete.
+
+   Copiar el acento junto con la forma sería copiar el dibujo sin el motivo, y el
+   acento pasaría a significar «acá hay una sección» — que es como un sistema
+   pierde su vocabulario de estado.
+
+   OPCIONAL: sin `data-hilo` en el contenedor no hay riel, y las demás pantallas
+   no se enteran de nada. */
+.sw-grupos[data-hilo] .sw-grupo {
+  position: relative;
+  padding-left: 22px;
+  /* CUANTO PADDING HAY ARRIBA DEL TITULO. El hilo cuelga del grupo y el nodo de
+     la leyenda, así que para arrancar debajo del nodo el hilo tiene que contar
+     lo que haya entre el canto del grupo y el renglón del título. El primero no
+     tiene nada; los demás, el aire que los separa. */
+  --sw-riel-pt: 0px;
+}
+.sw-grupos[data-hilo] .sw-grupo + .sw-grupo { --sw-riel-pt: var(--sw-s-3); }
+/* EL NODO va a la altura de la leyenda, no del grupo: lo que ata es el TITULO
+   con el título de al lado.
+
+   LA LEYENDA ES EL ANCLA, y hace falta decirlo. Sin `position: relative` acá, el
+   nodo se posiciona contra el GRUPO —que es el ancestro posicionado más cercano—
+   y entonces `top: 50%` cae a la mitad del bloque entero: el punto quedaba al
+   lado del segundo campo en vez de al lado del título, que es justo lo contrario
+   de lo que el riel dice. Y medido contra el grupo daba desvío cero, porque
+   estaba perfectamente centrado en la caja equivocada.
+
+   CENTRADO CON `50%` Y NO CON UN NUMERO. Estuvo en `top: 7px`, calculado a ojo.
+   Con `50%` y medio nodo de corrección sigue centrado aunque cambie el cuerpo de
+   la leyenda o el tamaño del punto; un número escrito vuelve a estar mal el día
+   que alguien toque cualquiera de los dos.
+
+   El `left` negativo saca el nodo del `padding-left` del grupo para dejarlo en
+   el riel — la leyenda empieza donde empieza el texto, no donde empieza el
+   grupo. */
+.sw-grupos[data-hilo] .sw-grupo__leyenda { position: relative; }
+.sw-grupos[data-hilo] .sw-grupo__leyenda::before {
+  content: "";
+  position: absolute;
+  left: -22px;
+  top: 50%;
+  margin-top: -4.5px;
+  width: 9px;
+  height: 9px;
+  border-radius: var(--sw-r-pill);
+  border: var(--sw-border) solid var(--sw-line-strong);
+  background: var(--sw-raised);
+}
+/* EL HILO baja del nodo hasta el grupo siguiente y CRUZA la separación que los
+   divide: por eso su `bottom` es negativo y del tamaño del aire entre grupos.
+   Sin cruzarla, el hilo se corta en cada canto y en vez de un riel hay cuatro
+   rayitas sueltas. */
+.sw-grupos[data-hilo] .sw-grupo::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  /* ARRANCA DEBAJO DEL NODO, y eso se cuenta: el padding de arriba, más medio
+     renglón de título, más medio nodo, más dos de aire.
+
+     El 12 es lo único escrito a mano de todo el riel —medio renglón (7,5) más
+     medio nodo (4,5)— porque el hilo cuelga del GRUPO y el nodo de la LEYENDA, y
+     un elemento no puede medir al otro en CSS. Estuvo en 18px sin contar el
+     padding, y entonces caía bien en el primer grupo y 6px ARRIBA en los otros
+     tres: el hilo entraba por dentro del punto en vez de salir de abajo.
+
+     Si alguien cambia el cuerpo del título o el tamaño del nodo, esto queda mal
+     — por eso la suite lo mide en vez de confiar en el número. */
+  top: calc(var(--sw-riel-pt) + 12px + 2px);
+  bottom: calc(var(--sw-s-3) * -2);
+  width: var(--sw-border);
+  background: var(--sw-line);
+}
+/* El último no lleva: no hay adónde seguir. */
+.sw-grupos[data-hilo] .sw-grupo:last-child::after { display: none; }
+
+/* ---- CUANDO LOS GRUPOS SON PASOS, el riel cuenta progreso ----
+
+   Un grupo con `data-hecho` deja de ser una sección y pasa a ser un PASO: su
+   nodo se llena cuando está resuelto, y el hilo que baja al siguiente se llena
+   con él. Ahí sí va el acento, porque ahí sí es estado —«esto ya está»— que es
+   exactamente para lo que la regla 2 lo reserva.
+
+   ES LO QUE SEPARA ESTE RIEL DEL DE LA FICHA, y la diferencia no es
+   decorativa: los grupos de una factura no son pasos —no hay nada que resolver
+   en «quién la emitió»— y un nodo de acento ahí diría que sí. Sin
+   `data-hecho` el riel no se pinta y sigue siendo estructura.
+
+   Un paso se pinta cuando está RESUELTO, no cuando se miró: es el único
+   criterio que hace que el riel signifique algo. Es la misma regla que el riel
+   de tres niveles de la caja de Documento, que fundó esta pieza.
+
+   Y la transición va en `background` y `border-color`, que son las dos que
+   cambian: un nodo de nueve píxeles no se mueve, se llena. */
+.sw-grupos[data-hilo] .sw-grupo[data-hecho] .sw-grupo__leyenda::before,
+.sw-grupos[data-hilo] .sw-grupo[data-hecho]::after {
+  transition: background-color var(--sw-d-normal) var(--sw-ease-out),
+              border-color var(--sw-d-normal) var(--sw-ease-out);
+}
+.sw-grupos[data-hilo] .sw-grupo[data-hecho="true"] .sw-grupo__leyenda::before {
+  background: var(--sw-accent-solid);
+  border-color: var(--sw-accent-solid);
+}
+.sw-grupos[data-hilo] .sw-grupo[data-hecho="true"]::after {
+  background: var(--sw-accent-solid);
+}
+/* Y EL TITULO DEL PASO RESUELTO no se apaga ni se tacha: sigue siendo un
+   título que hay que poder leer para volver. Lo único que cambia es el nodo. */
+
+/* UN GRUPO DESTACADO — una banda a sangre, celeste.
+
+   Marca el grupo que no es como los otros. VA A SANGRE Y NO COMO UNA TARJETA:
+   toca los dos cantos, igual que la banda del monto, y por eso no lleva radio ni
+   filete. Una tarjeta con margen diría «esto está encima»; la banda dice «esta
+   parte es de otra naturaleza», que es lo que pasa con los códigos de una
+   factura frente a sus datos.
+
+   EL COLOR ES UNA SEPTIMA FAMILIA y se pagó a sabiendas; el porqué está escrito
+   donde vive el valor, en `--sw-destacado-bg` de tokens.css.
+
+   LA SANGRIA LA DECLARA LA PANTALLA. El componente no puede saber cuánto padding
+   lateral tiene la tarjeta que lo contiene, y clavarle el de la ficha de factura
+   lo ataría a una pantalla — que es exactamente lo que este archivo existe para
+   evitar. Sin sangría declarada vale 0 y el grupo se destaca sin salirse, que es
+   lo correcto para quien no tenga cantos a los que llegar. */
+.sw-grupo[data-destacado] {
+  margin-inline: calc(var(--sw-grupo-sangria, 0px) * -1);
+  padding: var(--sw-s-3) var(--sw-grupo-sangria, 0px);
+  background: var(--sw-destacado-bg);
+}
+/* El riel sigue derecho: el grupo se corre hacia afuera pero su leyenda queda
+   donde estaba, así que el padding suma la sangría al carril del riel. */
+.sw-grupos[data-hilo] .sw-grupo[data-destacado] {
+  padding-left: calc(22px + var(--sw-grupo-sangria, 0px));
+}
+
+/* Y SI ES EL ULTIMO, CIERRA LA TARJETA. Una banda a sangre que se detiene a
+   veinte píxeles del canto de abajo deja una franja de fondo que no significa
+   nada y que hace ver la banda como una tarjeta mal puesta. Llegando al canto,
+   la ficha queda cerrada por una banda igual que abierta por la del monto.
+
+   SALIRSE Y RESPIRAR SON DOS COSAS DISTINTAS y llevan dos tokens. Estuvieron en
+   uno solo y el resultado fue que al pedirle más aire al pie, la banda se salió
+   doce píxeles por debajo del canto: el mismo número movía el margen negativo
+   —que tiene que valer exactamente el padding de la tarjeta— y el relleno de
+   adentro, que es libre.
+
+   `--sw-grupo-fondo` es cuánto hay que salirse: el padding de ABAJO de la
+   tarjeta, que no tiene por qué ser el de los costados. `--sw-grupo-pie` es el
+   aire de adentro. Y el radio es el de la tarjeta, o la banda le desborda las
+   esquinas. */
+.sw-grupo[data-destacado]:last-child {
+  margin-bottom: calc(var(--sw-grupo-fondo, 0px) * -1);
+  padding-bottom: var(--sw-grupo-pie, var(--sw-grupo-fondo, var(--sw-s-3)));
+  border-end-start-radius: var(--sw-grupo-radio, 0);
+  border-end-end-radius: var(--sw-grupo-radio, 0);
+}
+/* EL NODO NO NECESITA CORRECCION ACA: cuelga de la leyenda, y la leyenda del
+   destacado arranca en el mismo sitio que las otras —su margen negativo y su
+   padding de más se cancelan—. El HILO sí, porque ése cuelga del grupo, que es
+   lo que está corrido.
+
+   Y el nodo se pinta del color de ESTE fondo. Los otros llevan el de la carta y
+   ahí el relleno no se ve: lo que se lee es el aro. Sobre el destacado, un
+   relleno de la carta convertiría el punto en un disco claro, que dice «este
+   nodo es distinto» cuando lo distinto es el grupo. */
+.sw-grupos[data-hilo] .sw-grupo[data-destacado]::after {
+  left: calc(4px + var(--sw-grupo-sangria, 0px));
+}
+.sw-grupos[data-hilo] .sw-grupo[data-destacado] .sw-grupo__leyenda::before {
+  background: var(--sw-destacado-bg);
+}
+
+/* ---- FieldGroup ---- */
+
+.sw-campos { display: grid; gap: var(--sw-s-3); }
+/* Apretado: para pares cortos que se leen como una tabla —subtotal, IVA,
+   total—, donde el aire de un campo por renglón los desarma. */
+.sw-campos[data-junto] { gap: var(--sw-s-1); }
+
+/* FieldSeparator. Acepta contenido al medio, como en la librería: sin texto es
+   una línea, con texto es una línea con una palabra encima. */
+.sw-campos__sep {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-s-2);
+  font-size: var(--sw-t-caption);
+  color: var(--sw-muted);
+}
+.sw-campos__sep::before,
+.sw-campos__sep::after {
+  content: "";
+  flex: 1;
+  height: var(--sw-border);
+  background: var(--sw-line);
+}
+.sw-campos__sep:empty::after { display: none; }
+
+/* ---- Field ---- */
+
+/* VERTICAL POR DEFECTO: el rótulo arriba y el valor abajo, que es lo que aguanta
+   una columna angosta cuando el valor puede ser cualquier cosa. */
+.sw-campo {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* HORIZONTAL para los pares que se leen en una línea. El valor se va a la
+   derecha y no se encoge: es el que hay que poder comparar con el de arriba. */
+.sw-campo[data-orientacion="horizontal"] {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--sw-s-3);
+}
+.sw-campo[data-orientacion="horizontal"] .sw-campo__valor { text-align: right; }
+
+/* ---- EL ROTULO AL LADO, cuando el campo tiene caja ----
+
+   UN CAMPO CON CAJA APILADO GASTA EL DOBLE DE ALTO por dato: el rótulo se lleva
+   un renglón entero para decir «NIT». Medido en la ficha de una factura, los
+   cinco campos con caja costaban 100px de más — y esos 100px eran justo los que
+   dejaban al grupo del CUFE abajo del canto de la carta, invisible salvo que uno
+   supiera que hay que scrollear.
+
+   EL ARGUMENTO PARA APILARLOS ERA QUE EL VALOR NECESITA EL ANCHO, y está medido
+   que no alcanza igual: el CUFE pide 691px y la columna entera da 325. No entra
+   de las dos formas, así que el ancho no decide nada y el alto sí. Lo que se
+   pierde son doce caracteres de un código que nadie lee de corrido —para eso
+   está el botón de copiar— y lo que se gana es que el grupo entero se vea.
+
+   LO DECIDE EL GRUPO Y NO CADA CAMPO, y no por comodidad: lo que hace legible a
+   una pila de campos con caja es que todas las cajas arranquen en la misma x, y
+   eso sólo lo puede decidir quien los contiene. Con cada campo armando su propia
+   reja, la caja de «NIT» empieza sesenta píxeles antes que la de «Régimen
+   fiscal» y la columna se ve rota. `subgrid` les presta la reja del grupo.
+
+   `:has()` y no un atributo en el HTML porque la condición ES «este grupo tiene
+   campos con caja»: escribirla en la plantilla sería repetir en otro lado algo
+   que el CSS puede ver solo, y que quedaría desincronizado el día que un campo
+   deje de ser copiable. */
+.sw-campos:has(.sw-campo__caja) {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+.sw-campos:has(.sw-campo__caja) > .sw-campo {
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+  gap: var(--sw-s-2);
+}
+.sw-campos:has(.sw-campo__caja) > .sw-campo > .sw-campo__rotulo { grid-column: 1; }
+.sw-campos:has(.sw-campo__caja) > .sw-campo > .sw-campo__cuerpo { grid-column: 2; }
+
+.sw-campo__rotulo {
+  font-size: var(--sw-t-body-sm);
+  color: var(--sw-muted);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sw-campo__cuerpo { display: grid; gap: 2px; min-width: 0; }
+
+.sw-campo__valor {
+  font-size: var(--sw-t-body);
+  color: var(--sw-text);
+  font-variant-numeric: tabular-nums;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Los códigos van en monoespaciada y un escalón más chico: un NIT o un CUFE se
+   leen de a grupos de dígitos, y eso lo hace la fuente, no el tamaño. */
+.sw-campo__valor--codigo {
+  font-family: var(--sw-font-mono);
+  font-size: var(--sw-t-body-sm);
+}
+/* El valor que cierra una cuenta: el total de una columna de montos. */
+.sw-campo--cierre {
+  margin-top: var(--sw-s-1);
+  padding-top: var(--sw-s-1);
+  border-top: var(--sw-border) solid var(--sw-line);
+}
+.sw-campo--cierre .sw-campo__rotulo { color: var(--sw-text); }
+.sw-campo--cierre .sw-campo__valor { font-weight: var(--sw-w-medium); }
+
+/* FieldDescription. */
+/* LA NOTA TIENE TONO, y lo declara el componente.
+
+   Una pantalla que quiera decir «esto todavía no está» no puede pintarle el
+   color a  desde su propio CSS: así es como una clase del
+   sistema termina con reglas repartidas en los módulos y se ve distinta en cada
+   pantalla sin que nadie sepa por qué. El componente declara los tonos que
+   existen; la pantalla elige cuál con un atributo. */
+.sw-campo__nota[data-tono="atencion"] { color: var(--sw-warning); }
+.sw-campo__nota[data-tono="error"] { color: var(--sw-error); }
+
+.sw-campo__nota {
+  font-size: var(--sw-t-caption);
+  color: var(--sw-muted);
+}
+
+/* ---- el valor que se puede tomar ----
+
+   UN DATO QUE SE COPIA NO ES TEXTO, ES UN VALOR, y tiene que verse como uno:
+   con su caja, como el campo de un formulario que no se puede editar. Un NIT o
+   un CUFE dibujados como párrafo se leen como prosa, y hay que descubrir que se
+   pueden agarrar. Con la caja se ve antes de leer nada.
+
+   Y EL BOTON VA ADENTRO, que es el patrón que el sistema ya usa en el buscador:
+   `.input-group` de Basecoat es la caja con filete y el ícono entra como
+   hermano del campo. Afuera, el botón flotaba al costado del valor y se leía
+   como una segunda cosa; adentro es parte del control, igual que la lupa.
+
+   LA TRAMPA DEL DOBLE FILETE, que en este repo ya se pisó dos veces: la CAJA es
+   la que lleva el borde. El valor de adentro no lleva ninguno, o quedan dos
+   hairlines concéntricos de colores distintos.
+
+   Y VA SIN RELLENO PROPIO, sólo el filete. Estuvo con un escalón de superficie
+   apoyándose en la regla 3, y estaba mal leída: la regla 3 es de ELEVACION —lo
+   que FLOTA sobre el contenido: menú, popover, modal— y esto no flota, está
+   apoyado en la misma tarjeta. El `.input` de la librería tampoco trae relleno.
+   Con diez campos en una carta, diez rectángulos grises pesaban más que los
+   datos que contienen.
+
+   NO ES UN INPUT DE VERDAD, a propósito. Un `<input readonly>` entra en el
+   recorrido de tabulación, y en una ficha de diez campos eso son diez paradas
+   de teclado antes de llegar al primer botón que hace algo. Lo que se toma
+   prestado es la FORMA; lo que se enfoca de verdad es el botón de copiar. */
+.sw-campo__caja {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-s-1);
+  min-width: 0;
+  padding: 3px 3px 3px var(--sw-s-2);
+  border-radius: var(--sw-r-sm);
+  border: var(--sw-border) solid var(--sw-line);
+}
+/* La caja avisa cuando se la toca, igual que un control. */
+.sw-campo:hover .sw-campo__caja { border-color: var(--sw-line-strong); }
+/* EL FOCO NO SE TOCA ACA. La tentación era mostrarlo en la caja —como hace
+   `.input-group`— y apagar el del botón, pero eso es redeclarar foco, que es
+   justo lo que la regla 11 prohíbe: había veinticinco declaraciones repartidas
+   en cinco archivos y se borraron todas. El botón muestra el anillo de 1px que
+   declara `base.css`, y el borde de la caja es de otro elemento, a tres píxeles.
+   Medido: se leen como un control enfocado adentro de una caja, no como un
+   borde grueso. */
+.sw-campo__caja .sw-campo__valor {
+  flex: 1;
+  min-width: 0;
+  /* Se puede seleccionar con el mouse: copiar a mano tiene que seguir siendo
+     posible, sobre todo para llevarse un pedazo y no el valor entero. */
+  user-select: all;
+  cursor: text;
+}
+
+/* ---- la acción de un campo ----
+
+   Un botón pegado al valor —copiar, casi siempre—. ADENTRO DE LA CAJA SE VE
+   SIEMPRE, apagado, y se enciende al pasar por encima. Afuera estaba escondido
+   hasta el hover, que es lo correcto para un botón que flota sobre una fila de
+   texto: ahí aparecer es lo que lo distingue del contenido. Adentro de un
+   control ya no flota —ocupa su lugar reservado— así que esconderlo sólo lo
+   vuelve menos descubrible, y de paso resuelve solo la regla 9: donde no hay
+   hover, se ve igual. */
+.sw-campo__accion {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--sw-r-sm);
+  background: none;
+  color: var(--sw-muted);
+  cursor: pointer;
+  transition: color var(--sw-d-micro) var(--sw-ease-out),
+              background-color var(--sw-d-micro) var(--sw-ease-out);
+}
+.sw-campo__accion svg { --sw-ico: var(--sw-ico-sm); }
+.sw-campo__accion:hover { background: var(--sw-hover); color: var(--sw-text); }
+/* El aviso es el propio botón por un rato, como el de copiar código del chat.
+   Un cartel para confirmar algo que el usuario ya espera mueve la vista entera
+   por nada. */
+.sw-campo__accion[data-hecho] { color: var(--sw-success); }

@@ -1,0 +1,2154 @@
+/* ============================================================================
+   SpaceMyWork — El lienzo: topbar, toolbar, superficie de trabajo, dock
+   ----------------------------------------------------------------------------
+   El riel, el panel de lista y el detalle viven en styles/sidebar.css — son
+   el sidebar de tres niveles (src/shell/sidebar.js), y ya no un chasis de columnas
+   fijas. Lo que queda acá es el contenido de `.sw-side__canvas`: la
+   topbar con el título y el conmutador de tema, y las tres cajas que
+   cada módulo llena si quiere (toolbar, surface, dock — D8).
+   ============================================================================ */
+
+/* ---------------------------------------------------------------
+   EL LIENZO — .sw-side__canvas es flex:1 dentro de .sw-side
+   (sidebar.css define su posición/z-index; acá sólo su contenido interno).
+   --------------------------------------------------------------- */
+
+/* Filas fijas por número, no por orden de aparición: un hijo oculto con
+   `display:none` (la toolbar, cuando el módulo no la llena) sale por
+   completo del auto-placement de grid, y los que vienen después
+   escalan una fila hacia arriba — el chat terminaba apretado contra el
+   título en vez de al pie. Fijar `grid-row` en cada caja lo vuelve
+   inmune a que cualquier otra se oculte. */
+/* El chat ya no es una fila de acá: es inquilino de la columna lateral,
+   dentro de `.sw-container` (ver chat.css y decisión 43). Quedan tres
+   filas. */
+.sw-side__canvas {
+  display: grid;
+  /* La fila del medio tiene PISO, no 0. Con `minmax(0, 1fr)` el topbar
+     —que es `auto`— se queda con todo lo que pida y el bloque de trabajo se
+     colapsa sin avisar. El piso invierte quién cede: crece el topbar hasta
+     que el bloque llega a su mínimo, y de ahí en más el que se arregla es
+     el topbar. Y el topbar YA NO SCROLLEA: crece. Si algun dia deja de entrar,
+     lo que cede es su contenido, no el bloque de trabajo. */
+  grid-template-rows: auto minmax(var(--sw-block-min), 1fr) auto;
+  min-width: 0;
+  min-height: 0;
+  /* SIN MARGEN. Lo tuvo —8px alrededor— y era lo que despegaba el bloque
+     de trabajo del riel y del marco de la ventana. Ahora las cajas se tocan:
+     el riel, el topbar, el bloque y el dock forman una sola superficie
+     continua, y lo único que las separa entre sí es un filete.
+
+     Los radios se fueron por lo mismo. Una caja redondeada avisa que hay
+     algo detrás; pegadas, esos radios dejaban cuatro muescas de fondo en
+     las junturas. El único radio que queda es el del borde IZQUIERDO del
+     riel, que sí tiene algo detrás: el marco de la ventana. */
+  padding: 0;
+}
+.sw-topbar    { grid-row: 1; }
+.sw-container { grid-row: 2; min-width: 0; min-height: 0; }
+.sw-dock-slot { grid-row: 3; }
+
+/* EL BLOQUE DE TRABAJO — design/brief-bloque-de-trabajo.md: el lienzo y
+   la caja de herramientas no son dos zonas hermanas, son un bloque con
+   dos adentro, y la toolbar es del bloque entero (decisión 31, la caja
+   empuja). `.sw-container` es ese bloque en el DOM: toolbar arriba, y
+   abajo DOS columnas — el lienzo y la caja. Antes había una sola columna
+   implícita en `.sw-side__canvas` y `.sw-surface-slot`/`.sw-inspector-
+   slot` compartían fila sin grid-column propio, así que se pisaban — la
+   caja nunca se vio, no porque faltara el slot. */
+.sw-container {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
+  /* Sin borde ARRIBA y sin radio arriba: el topbar se apoya encima y los dos
+     forman UN panel. El filete que los separa lo pone el topbar (su
+     border-bottom), asi no quedan dos bordes de 1px pegados haciendo una
+     linea doble de 2px. */
+  border: var(--sw-border) solid var(--sw-line-strong);
+  border-top: 0;
+  /* SIN borde contra el marco de la ventana. Ese lo pone ahora .sw-side, y
+     dos filetes de 1px apilados dan una línea doble de 2px con dos colores
+     distintos — medido: #3b3b43 del shell contra #4d4d56 de acá. El propio
+     sistema ya llama a eso un error de render (ver la costura topbar/bloque).
+     El borde IZQUIERDO se queda: ese no toca el marco, separa del riel. */
+  border-right: 0;
+  border-bottom: 0;
+  /* Sin radio: el bloque llega hasta el marco. */
+  border-radius: 0;
+  overflow: hidden;
+}
+/* El `margin: 5px` que habia acá se fue: la separacion la reparte el shell
+   con gap + padding (arriba). De paso desaparece la pelea de especificidad
+   con el `.sw-side, .sw-side * { margin:0 }` de sidebar.css, que era el motivo
+   de que este selector estuviera reforzado. */
+/* La fila de la toolbar se fue del bloque con la toolbar: quedaba una fila
+   `auto` sin inquilino, que mide cero pero se lee como si esperara algo.
+
+   QUEDA UNA SOLA FILA, Y TODO HIJO NUEVO VA A ELLA. Pedir una fila que no
+   existe no da error: grid crea una implícita de `auto` y la de contenido, que
+   es `1fr`, se queda con lo que sobre. Ya pasó — `.sw-flota` seguía pidiendo la
+   2 y al sacar el chat de la caja el bloque se desplomaba de 787px a 227. */
+.sw-surface-slot   { grid-row: 1; grid-column: 1; }
+.sw-side-col      { grid-row: 1; grid-column: 2; }
+/* `.sw-flota` es el tercer hijo y su regla vive en chat.css, con el motivo. */
+
+[data-slot][hidden] { display: none !important; }
+
+/* Caja: toolbar.
+
+   YA NO ES UNA FRANJA CON SUPERFICIE PROPIA. Mientras vivió abajo del header
+   era la fila 1 del bloque de trabajo, y como tal tenía su chrome, su costura
+   contra la hoja y su sombra de canto. Subida al header, ese fondo se lee como
+   una caja suelta flotando adentro de otra: en oscuro se ve un rectángulo más
+   claro alrededor de las acciones. Acá la superficie es la del header.
+
+   Y EL `subgrid` NO HACIA NADA desde la mudanza: `grid-template-columns:
+   subgrid` sin una grilla padre que heredar se comporta como `none`, en
+   silencio. Lo que resolvía —dónde termina el lienzo y dónde empieza la caja—
+   lo resuelve ahora `.sw-topbar__caja`, con los mismos dos tokens de ancho.
+
+   El ancho y el reparto de la caja están al final del archivo, con las franjas
+   del header. */
+
+/* El envoltorio del botón de la columna. Tuvo `grid-column: 2` para caer sobre
+   la caja; ahora eso lo hace su contenedor, así que acá sólo queda el aire. */
+.sw-toolbar__aside {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-s-2);
+  min-width: 0;
+}
+
+.sw-toolbar {
+  display: flex;
+  align-items: center;
+  /* EL AIRE ENTRE GRUPOS ES EL TRIPLE QUE ADENTRO, y desde que el filete se fue
+     es lo ÚNICO que los agrupa. Estaban a 8 entre grupos y 4 adentro: con el
+     filete en el medio alcanzaba, sin él la fila se lee como una hilera pareja de
+     botones sueltos. Doce contra cuatro es la relación que hace que el ojo los
+     junte de a grupos sin que haga falta dibujar nada. */
+  gap: var(--sw-s-3);
+  /* SIN RELLENO LATERAL. Lo tuvo mientras era una franja con superficie propia —
+     el aire entre su contenido y su canto— y esa superficie se fue cuando la barra
+     subió al header: ahora el canto es el de la franja, que ya pone el suyo.
+
+     No era decorativo: son 24px que se sumaban al `gap` de la franja y hacían que
+     el contenido pidiera 1031 en un hueco de 1021. Medido a 1600px, la barra
+     desbordaba 21 y el CTA principal quedaba a medio salir. Un relleno que ya no
+     separa de nada sigue midiendo.
+
+     El vertical queda: ése es el aire del botón contra su propia caja. */
+  padding: var(--sw-s-1) 0;
+  overflow-x: auto;
+  min-width: 0;
+}
+
+.sw-toolbar__seg { display: flex; align-items: center; gap: var(--sw-s-1); }
+
+/* DOS LINEAS, no una: la oscura hunde y la clara devuelve el borde del otro
+   lado. Ver --sw-sep-oscura en tokens.css, donde estan las mediciones.
+
+   La clara va como box-shadow y no como un segundo pixel de ancho: asi el
+   separador sigue ocupando 1px de layout y las dos lineas no corren la fila
+   de botones. Lo que crece es lo que se ve, no lo que mide. */
+.sw-toolbar__sep {
+  width: var(--sw-border); height: 18px;
+  background: var(--sw-sep-oscura);
+  box-shadow: var(--sw-border) 0 0 var(--sw-sep-clara);
+  flex: 0 0 auto;
+}
+
+.sw-toolbar__btn {
+  display: inline-flex; align-items: center; gap: var(--sw-s-1);
+  height: 26px;
+  padding: 0 var(--sw-s-2);
+  border: var(--sw-border) solid transparent; border-radius: var(--sw-r-pill);
+  background: none;
+  font-size: var(--sw-t-body-sm);
+  color: var(--sw-text-2);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--sw-d-micro) var(--sw-ease-out),
+              background var(--sw-d-micro) var(--sw-ease-out);
+}
+.sw-toolbar__btn:hover { color: var(--sw-text); background: var(--sw-hover); }
+
+/* EL LADO DEL ICONO LLEVA MENOS RELLENO — ver `--sw-ico-aire` en tokens.css.
+
+   `:has()` y no una clase: de qué lado va el ícono depende de lo que el botón
+   diga, y preguntando por el DOM no hay nada que recordar marcar. */
+.sw-toolbar__btn:has(> svg:first-child) {
+  padding-inline-start: calc(var(--sw-s-2) - var(--sw-ico-aire));
+}
+.sw-toolbar__btn:has(> svg:last-child) {
+  padding-inline-end: calc(var(--sw-s-2) - var(--sw-ico-aire));
+}
+/* Punto 7 del brief: con el lienzo vacío, Ejecutar e Historial se
+   DESHABILITAN en vez de desaparecer — la chrome del módulo no cambia de
+   forma entre vacío y lleno. --sw-faint ya es el token de "deshabilitado"
+   (tokens.css), no un gris inventado para la ocasión. */
+.sw-toolbar__btn[disabled] { color: var(--sw-faint); cursor: not-allowed; }
+.sw-toolbar__btn[disabled]:hover { color: var(--sw-faint); background: none; }
+
+/* UN BOTON DE SOLO ICONO LLEVA BORDE, y es lo que lo separa de una etiqueta: sin
+   rótulo que lo nombre, lo único que dice «esto se aprieta» es la caja. Los que
+   tienen texto no lo necesitan — ahí el verbo hace el trabajo.
+
+   Va DESPUES de la regla base a propósito: tienen la misma especificidad, así
+   que el `border: ... transparent` de arriba le ganaría por orden. */
+.sw-toolbar__btn--solo {
+  border-color: var(--sw-line-strong);
+  padding: 0;
+  width: 26px;
+  justify-content: center;
+}
+.sw-toolbar__btn--solo:hover { border-color: var(--sw-text-2); }
+.sw-toolbar__btn--primary[disabled] { color: var(--sw-faint); background: var(--sw-hover); }
+.sw-toolbar__btn--primary[disabled]:hover { color: var(--sw-faint); background: var(--sw-hover); }
+.sw-toolbar__btn svg { --sw-ico: var(--sw-ico-sm); }
+
+/* Texto sobre acento: acá SÍ es --sw-on-fill, el blanco fijo, y eso cambió.
+
+   La decisión 38 decía lo contrario —que la tinta fuera el extremo opuesto
+   de la escalera en cada tema— y el motivo era correcto: blanco sobre
+   --sw-accent da 3,13:1 en oscuro, debajo del piso para 13px.
+
+   Lo que cambió no es la tinta, es el RELLENO. Este botón ya no se pinta
+   con --sw-accent (el acento de estado, que en oscuro tiene que quedar por
+   encima de la escalera y por eso es claro) sino con --sw-accent-solid, el
+   paso oscuro del mismo violeta. Sobre ese, el blanco da 4,65:1 en los dos
+   temas — y el botón primario se ve igual en claro que en oscuro, que es
+   lo que se pidió. Ver el bloque del acento sólido en tokens.css. */
+.sw-toolbar__btn--primary {
+  color: var(--sw-on-fill); background: var(--sw-accent-solid);
+}
+.sw-toolbar__btn--primary:hover { color: var(--sw-on-fill); background: var(--sw-accent-solid-lit); }
+/* EXCEPCION declarada: `play` de Lucide es un unico path CERRADO, asi que
+   rellenarlo da el triangulo macizo que pide un boton primario y no pierde
+   nada del dibujo. Es la unica del sistema. */
+.sw-toolbar__btn--primary svg { fill: currentColor; stroke: none; }
+
+/* El botón que alterna la caja de herramientas (abierta/riel — nunca
+   cierra del todo, decisión 31). No necesita `margin-left:auto`: vive en
+   `.sw-toolbar__aside`, que ya es la columna de la caja. */
+.sw-toolbar__btn--der { padding: 0 var(--sw-s-2); }
+.sw-toolbar__btn--der[aria-expanded="false"] { color: var(--sw-faint); }
+
+/* ---------------------------------------------------------------
+   LA COLUMNA LATERAL — .sw-side-col (decisión 43)
+
+   Es del SHELL, no de un módulo. Hospeda dos inquilinos que NO conviven:
+   la conversación y la caja de herramientas del módulo activo. Se ve uno
+   u otro y se cambia con un click — el supuesto es que no se conversa y
+   se busca en el catálogo al mismo tiempo.
+
+   EMPUJA, no flota (decisión 31): le saca ancho al lienzo con `width`,
+   la SEGUNDA excepción anotada a la regla 7 del repo (sólo transform y
+   opacity) — no hay forma de sacarle ancho a un vecino con transform.
+   Mitigación real: el plano del lienzo ya está transformado para pan y
+   zoom, así que lo único que reflowea es el viewport, no el grafo.
+   La excepción se movió de .sw-tools para acá con el ancho: es una sola
+   excepción que cambió de dueño, no una segunda.
+
+   Dos estados, no tres: abierta y riel. No se cierra del todo, porque el
+   chat es del shell y nunca se va — a lo sumo queda a un click (D8).
+   --------------------------------------------------------------- */
+/* LA CLASE SÓLO MANEJA EL ANCHO. Todo lo que tenga que reaccionar a que
+   la columna esté angosta va por container query contra el ancho REAL, no
+   contra la clase — ver el bloque de más abajo. El motivo es un defecto
+   concreto: `is-riel` se aplica de una y el ancho tarda --sw-d-normal, así
+   que el contenido se reacomodaba entero ANTES de que la columna se
+   moviera. Se leía como dos animaciones distintas, primero los botones y
+   después la caja. Contra el ancho real, el reacomodo cae en el medio del
+   movimiento y se lee como una sola cosa.
+
+   Es la misma trampa que la regla 6 de §11 desde el otro lado: aquella
+   dice que no se mide un borde que se está moviendo; ésta, que no se
+   afirma un estado de layout antes de que sea cierto. */
+.sw-side-col {
+  display: flex;
+  flex-direction: column;
+  width: var(--sw-col-w);
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;   /* regla 5 de §11: una zona que se anima recorta */
+  /* La columna es del BLOQUE DE TRABAJO (decisión 43), no chrome del shell,
+     así que comparte superficie con la toolbar del bloque: --sw-raised, el
+     tercer nivel del sidebar.
+
+     Va en el CONTENEDOR y no sólo en sus inquilinos. Estaba puesto en la caja
+     de herramientas nada más, y entonces la columna cambiaba de color al
+     pasar de «Conversación» a «Herramientas» — el conmutador y el cuerpo del
+     chat se quedaban con el color anterior. Un contenedor que se pinta según
+     quién esté adentro no es un contenedor. */
+  /* EL CHROME DEL BLOQUE — un escalón por DEBAJO de la hoja en claro y por
+     encima en oscuro. Ver el bloque del bloque de trabajo en tokens.css.
+
+     LA COLUMNA ES EL FONDO, EL CHAT ES EL VIDRIO. La atmósfera va acá y no
+     en .sw-chat porque un backdrop-filter borronea lo que hay DETRÁS del
+     elemento: si el fondo viviera en el mismo elemento que el blur, no
+     habría nada que borronear.
+
+     Y el conmutador de arriba queda sin fondo propio, o sea sobre la
+     atmósfera NÍTIDA. Eso no es un descuido: sin un pedazo nítido al lado,
+     el vidrio no se lee como vidrio — se lee como una imagen mal resuelta.
+     El contraste entre los dos es lo que hace el efecto. */
+  background-color: var(--sw-block-chrome);
+  /* LA IMAGEN DE FONDO DEL CHAT NO VA ACA: va sólo en el hilo (chat.css, pedido
+     del dueño), con su mezcla. La columna se queda con su atmósfera. */
+  background-image: var(--sw-atmosfera);
+  background-repeat: no-repeat;
+  box-shadow: var(--sw-e-canto);
+  /* El filete contra el lienzo. La toolbar ya tenía el suyo (border-bottom)
+     y la columna no: con las dos cajas del mismo color, sin esta línea el
+     lienzo se cortaba contra la nada. */
+  border-left: var(--sw-border) solid var(--sw-block-seam);
+  transition: width var(--sw-d-normal) var(--sw-ease-inout);
+  /* Habilita las consultas de más abajo. Seguro acá: la columna tiene
+     ancho propio declarado, así que la contención de tamaño en línea no
+     puede colapsarla; y los dos únicos descendientes con `position:
+     absolute` son un clip visualmente oculto y la píldora del tema, que
+     vive en la topbar, fuera de la columna. El globo del conmutador se
+     cuelga del BLOQUE justamente para no quedar atrapado acá. */
+  container-type: inline-size;
+  container-name: sidecol;
+}
+.sw-side-col.is-riel { width: var(--sw-tools-nav-w); }
+/* El cambio de ancho SIN animar (setRiel con `quieto`, side-column.js): la
+   columna y la caja de la barra, que la sigue con su propia transición. La marca
+   dura un solo cálculo de estilo. */
+:root[data-columna-quieta] .sw-side-col,
+:root[data-columna-quieta] .sw-topbar__caja { transition: none; }
+
+/* ---- el conmutador ---- */
+/* TAMBIEN ES VIDRIO, y esto se decidio con un numero. La idea original era
+   dejarlo sin fondo —la franja NITIDA al lado del vidrio es lo que hace
+   que el vidrio se lea como vidrio— pero al poner una imagen de fondo esa
+   franja se come la foto cruda, y ahi vive texto: medido, --sw-muted caia
+   a 4,18:1 y --sw-faint a 2,68:1, los dos por debajo del piso.
+
+   Con el vidrio puesto dan 5,22 y 3,34. Se pierde la referencia nitida,
+   pero se pierde poco: con una imagen suave como la de hoy, nitido y
+   borroneado casi no se distinguen, y el efecto igual se lee por el tinte
+   y por las tarjetas que flotan encima. Legibilidad le gana a truco.
+
+   Si algun dia el fondo vuelve a ser solo la atmosfera, esta regla se
+   puede sacar y la franja nitida vuelve gratis. */
+.sw-side-col__switch {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  /* CON AIRE ABAJO. Iba con el ultimo valor en 0 y la fila quedaba pegada a
+     lo que tuviera debajo — con el chat afuera, a las pestanias de la caja
+     (Traer / Vista / Nodo), y las dos filas se leian como una sola cosa
+     apilada. Son dos niveles distintos y necesitan verse asi. */
+  padding: var(--sw-s-2);
+  overflow: hidden;
+  background: var(--sw-vidrio);
+  backdrop-filter: blur(var(--sw-vidrio-blur));
+}
+/* LAS PESTANIAS SE ENVUELVEN APARTE. La fila dejo de ser el tablist el dia
+   que tuvo que alojar «sacar de la caja», que no es una pestania: un
+   role=tablist sólo puede contener tabs, y meter un boton suelto adentro
+   rompe la navegacion por flechas del lector de pantalla.
+
+   Asi que la FILA es el contenedor visual y .sw-side-col__tabs es el
+   tablist de verdad. */
+.sw-side-col__tabs {
+  display: flex;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* El filete que cerraba el grupo de pestanias se fue con el boton: la
+   flecha se mudo a la esquina del hilo (ver .sw-chat__sacar en chat.css) y
+   una linea que ya no separa dos cosas es ruido (decision 19). */
+
+/* ---- el chat afuera: queda un solo inquilino ----
+   Una pestania sola estirada al 100% con el relleno de «activa» miente dos
+   veces: promete una eleccion que no existe y se lee como un boton de
+   cabecera enorme, compitiendo con las pestanias de verdad que la caja de
+   herramientas tiene abajo (Traer / Vista / Nodo).
+
+   Con un solo inquilino esto no es un conmutador, es el NOMBRE de lo que
+   hay en la columna: se encoge a su contenido, se va a la izquierda y
+   pierde el relleno y el filete de activa. */
+.sw-side-col[data-chat="fuera"] .sw-side-col__tab {
+  flex: 0 0 auto;
+}
+/* Ya no hace falta apagarle el relleno: ahora NINGUNA pestania lo tiene.
+   Lo unico propio de este estado es que la pestania sola se encoge a su
+   contenido en vez de estirarse al ancho de la columna. */
+
+
+.sw-side-col__tab {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sw-s-2);
+  height: 30px;
+  padding: 0 var(--sw-s-2);
+  border: 0;
+  border-radius: var(--sw-r-pill);
+  background: none;
+  font-family: inherit;
+  font-size: var(--sw-t-body-sm);
+  color: var(--sw-muted);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--sw-d-micro) var(--sw-ease-out),
+              background var(--sw-d-micro) var(--sw-ease-out);
+}
+.sw-side-col__tab svg { --sw-ico: var(--sw-ico-md); flex: 0 0 auto; }
+.sw-side-col__tab:hover:not([disabled]) { color: var(--sw-text); background: var(--sw-hover); }
+/* ACTIVO — SIN RELLENO, marcado por PESO.
+
+   Antes llevaba tinte y filete de acento, copiando el tratamiento del activo
+   del riel de la caja (decision 42). El problema no era el acento en si sino
+   que convertia la pestania en un BOTON: relleno, filete y capsula, tres
+   señales de control sobre algo que no es una accion sino una eleccion de
+   vista. Y con el chat afuera, esa capsula estirada al ancho de la columna
+   era lo primero que se veia al entrar.
+
+   Ahora la distincion es peso + valor: activa en --sw-text y semibold,
+   inactiva en --sw-muted y regular. Son DOS señales, no una — el peso solo
+   seria demasiado sutil, y el color solo dependeria de distinguir dos grises.
+   Ninguna de las dos es color en el sentido de la 1.4.1, asi que no hay que
+   pagar un tercer indicador.
+
+   El ancho no se mueve al cambiar de pestania: con `flex: 1 1 0` las dos
+   miden lo mismo pase lo que pase con el peso.
+
+   NOTA PARA LA 42: aquella decision es sobre el riel de la CAJA y sigue en
+   pie donde vive. Lo que se rompe es el paralelo visual que este comentario
+   afirmaba —que los dos activos se trataban igual—, que ya no es cierto.
+   De paso baja el uso de acento, que la regla 2 tiene en 0,5%. */
+.sw-side-col__tab[aria-selected="true"] {
+  color: var(--sw-text);
+  font-weight: var(--sw-w-semibold);
+  background: none;
+  box-shadow: none;
+}
+/* Deshabilitada = el módulo activo no llena el inspector. No se esconde:
+   si el control entra y sale, la columna salta de tamaño al cambiar de
+   superficie (mismo criterio que Ejecutar/Historial en la toolbar). */
+.sw-side-col__tab[disabled] { color: var(--sw-faint); cursor: default; }
+
+/* ---- el cuerpo: un inquilino por vez ---- */
+.sw-side-col__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* Regla 3 de §11: la zona que no se ve queda fuera del tab order. Lo
+   escribe side-column.js con `inert`; acá sólo se saca del flujo. */
+.sw-side-col__body > [data-tenant-off] { display: none; }
+
+/* EL INQUILINO QUE ENTRA SE ASOMA. Cambiar de pestania era un corte seco:
+   una caja desaparecia y otra aparecia en el mismo fotograma, sin nada que
+   dijera que una reemplazo a la otra.
+
+   No hace falta orquestar nada para que se dispare en el momento justo: el
+   que se va sale del arbol de render con display:none y el que llega vuelve
+   a entrar, y un elemento que re-entra reinicia sus animaciones. El que ya
+   estaba visible no se reanima, porque su display nunca cambio — asi que
+   marcar() puede correr las veces que quiera sin producir parpadeo.
+
+   4px de recorrido: el minimo que se lee como movimiento. Mas que eso, en
+   una caja que ocupa toda la columna, se siente como un rebote. */
+.sw-side-col__body > :not([data-tenant-off]) {
+  animation: sw-tenant-in var(--sw-d-short) var(--sw-ease-out);
+}
+@keyframes sw-tenant-in {
+  from { opacity: 0; translate: 0 4px; }
+  to   { opacity: 1; translate: 0 0; }
+}
+
+/* ---------------------------------------------------------------
+   LA COLUMNA ANGOSTA — por ancho real, no por clase
+
+   Dos umbrales, y cada uno cae donde el contenido deja de entrar de
+   verdad, no en una fracción del recorrido:
+
+   · 300px — la palabra ya no entra al lado del ícono en dos pestañas
+     que se reparten el ancho («Conversación» sola pide ~150px con su
+     glifo y su aire).
+   · 130px — no entran dos controles uno al lado del otro, así que el
+     conmutador se apila y las pestañas pasan a cuadradas. Es también
+     donde el cuerpo entero se va: ni la conversación ni la caja tienen
+     forma útil a 56px.
+
+   Los dos son ANCHO DE LA COLUMNA, no del viewport: la columna se
+   angosta sola, con la ventana quieta. Un @media no se enteraría.
+   --------------------------------------------------------------- */
+@container sidecol (max-width: 300px) {
+  .sw-side-col__label { display: none; }
+  /* Sin la palabra, la pestaña deja de repartirse el ancho y se achica a
+     su ícono. Si siguiera con `flex:1 1 0` quedaría un botón enorme con un
+     glifo de 15px flotando en el medio — se ve en el cuadro intermedio del
+     colapso, y es peor que el estado del que viene y que al que va. */
+  .sw-side-col__switch,
+  .sw-side-col__tabs { justify-content: center; }
+  .sw-side-col__tab {
+    flex: 0 0 auto;
+    width: 40px; height: 40px;
+    padding: 0;
+  }
+}
+
+@container sidecol (max-width: 130px) {
+  /* El conmutador se apila y pierde la palabra: el mismo control, sin
+     ancho para la etiqueta. No desaparece — es la única forma de volver
+     al chat. */
+  .sw-side-col__switch,
+  .sw-side-col__tabs {
+    flex-direction: column;
+    gap: var(--sw-s-1);
+  }
+  .sw-side-col__switch {
+    padding: var(--sw-s-2);
+    /* Sin filete: no hay nada abajo de qué separarse. Lo llevaba cuando el
+       nav de la caja seguía visible y los cinco íconos se leían como un
+       riel único; ahora sobra, y una línea que no separa dos cosas es
+       ruido (decisión 19). */
+  }
+  .sw-side-col__tab { align-self: center; }
+
+  /* EL CUERPO ENTERO SE VA. En riel se ven sólo las dos categorías —
+     conversación y herramientas— y nada más. Antes quedaba abajo el nav
+     de secciones de la caja, y con su activo también en acento había DOS
+     marcas de activo a la vez para dos niveles distintos: cuál inquilino
+     está elegido y qué sección de la caja quedó abierta. El segundo no se
+     puede accionar mientras la columna está cerrada, así que informaba de
+     algo que no se podía tocar.
+
+     Se esconde el CUERPO y no cada inquilino por separado, y no es
+     preferencia: `.sw-chat { display:none }` acá adentro no alcanzaba.
+     chat.css carga después de chrome.css y su `.sw-chat { display:flex }`
+     pesa lo mismo, así que ganaba y el chat se seguía viendo al pie del
+     riel. Un @container no sube la especificidad de lo que envuelve.
+     `.sw-side-col__body` sólo se declara en este archivo y no tiene con
+     quién empatar. */
+  .sw-side-col__body { display: none; }
+}
+
+/* ---------------------------------------------------------------
+   CAJA DE HERRAMIENTAS — .sw-inspector-slot, uno de los dos inquilinos
+   de la columna lateral (design/brief-bloque-de-trabajo.md, decisión 43).
+   La monta window.SW.toolbox (src/shell/toolbox.js) dentro de la caja; acá sólo
+   el componente visual, igual que .sw-toolbar vive dentro de
+   .sw-toolbar-slot.
+
+   Ya no fija su ancho ni se anima: eso es de la columna, que es del shell.
+   La caja ocupa el ancho que le den y refleja el estado que le dictan.
+   --------------------------------------------------------------- */
+.sw-inspector-slot { min-height: 0; flex: 1 1 auto; }
+
+.sw-tools {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;   /* regla 5 de §11: una zona que se anima a cero recorta */
+  /* MISMO VIDRIO QUE EL CHAT, y no por simetría: los dos son inquilinos de
+     la MISMA columna (decisión 43) y se cambia de uno al otro con un click.
+     Con la caja opaca y el chat traslúcido, esa pestaña dejaba de ser un
+     cambio de contenido y pasaba a ser un cambio de material — la columna
+     se veía hecha de dos cosas distintas según qué estuviera adentro.
+     Es el mismo defecto que el comentario de .sw-side-col ya describe para
+     el color, visto una capa más arriba. */
+  background: var(--sw-vidrio);
+  backdrop-filter: blur(var(--sw-vidrio-blur));
+  box-shadow: var(--sw-e-canto);
+  /* Sin filete izquierdo: lo dibujaba a lo alto de toda la caja, pero
+     `.sw-tools__body` tiene fondo opaco propio y lo tapaba de ahí para
+     abajo — quedaba un muñón suelto al lado de los tabs. Y no hace
+     falta: la caja ya se separa del lienzo por escalón de valor
+     (--sw-surface contra --sw-ink), y una línea que separa dos zonas
+     que ya se distinguen por color es ruido (decisión 19). */
+  /* El ancho y su animación ya NO viven acá: los mueve la columna
+     (.sw-side-col, decisión 43). La caja sólo refleja el estado que la
+     columna le dicta. Dos elementos animando el mismo ancho se pelean.
+
+     Y lo que la caja hace cuando está angosta —esconder tabs y panel,
+     apretar el nav, marcar el activo con el acento— ya NO se dispara con
+     una clase: está en el @container de la columna, más arriba, contra su
+     ancho real. Con la clase, el contenido se reacomodaba antes de que la
+     columna se moviera y se leían dos animaciones en vez de una. */
+}
+
+.sw-tools__tabs {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 2px;
+  padding: var(--sw-s-2) var(--sw-s-2) 0;
+  overflow: hidden;
+}
+
+
+.sw-tools__tab {
+  flex: 1 1 0;
+  min-width: 0;
+  font: inherit;
+  font-size: var(--sw-t-caption);
+  cursor: pointer;
+  border: 0;
+  padding: 6px 4px 7px;
+  background: transparent;
+  color: var(--sw-faint);
+  border-radius: var(--sw-r-sm) var(--sw-r-sm) 0 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: color var(--sw-d-micro) var(--sw-ease-out), background var(--sw-d-micro) var(--sw-ease-out);
+}
+.sw-tools__tab:hover { color: var(--sw-text-2); background: var(--sw-hover); }
+/* decisión 18: el activo se pinta del PANEL —la zona que abre— y se
+   pega a él. Sin filete, sin acento: la misma cadena que el riel del
+   sidebar y la fila del detalle. */
+.sw-tools__tab[aria-selected="true"] { color: var(--sw-text); background: var(--sw-surface-2); }
+
+.sw-tools__body { flex: 1 1 auto; min-height: 0; display: flex; background: var(--sw-surface-2); }
+
+.sw-tools__nav {
+  flex: 0 0 var(--sw-tools-nav-w);
+  width: var(--sw-tools-nav-w);
+  min-width: 0;
+  overflow-y: auto; overflow-x: hidden;
+  /* +10px arriba para bajar con el panel, que arranca 10px más abajo:
+     los dos tienen que empezar a la misma altura o la cadena de la
+     decisión 18 (el ítem activo se pega al panel) se corta. */
+  padding: calc(var(--sw-s-2) + 10px) 0 var(--sw-s-2) var(--sw-s-2);
+  display: flex; flex-direction: column; gap: 2px;
+}
+/* En riel no hay panel al que alinearse: vuelve a su inset parejo. */
+
+
+.sw-tools__item {
+  display: flex; align-items: center; justify-content: center;
+  font: inherit; font-size: var(--sw-t-body-sm);
+  cursor: pointer; border: 0; height: 36px; padding: 0;
+  border-radius: var(--sw-r-md);
+  background: transparent; color: var(--sw-text-2);
+  min-width: 0; position: relative;
+  transition: color var(--sw-d-micro) var(--sw-ease-out), background var(--sw-d-micro) var(--sw-ease-out);
+}
+.sw-tools__item:hover { background: var(--sw-hover); color: var(--sw-text); }
+/* Sólo el ACTIVO toca el panel; el resto se corta 8px antes, igual que
+   en el riel del sidebar — así el hover es una pastilla suelta y no un
+   bloque pegado a la caja. Se hace con margin-right y no con el
+   calc(100% + 8px) del riel: esa columna no scrollea y ésta sí, y ahí
+   los 8px de sobresalto se vuelven barra horizontal (regla 17 de §11).
+
+   Selector reforzado por la misma razón que el panel: sidebar.css trae
+   `.sw-side, .sw-side * { margin:0 }` con la misma especificidad y
+   cargando después — con una sola clase el margen quedaba en 0 y TODOS
+   los ítems terminaban tocando el panel, activos o no. */
+.sw-tools .sw-tools__item { margin-right: var(--sw-s-2); }
+.sw-tools__item[aria-selected="true"] {
+  background: var(--sw-raised); color: var(--sw-text);
+  margin-right: 0;
+  border-radius: var(--sw-r-md) 0 0 var(--sw-r-md);
+}
+
+
+/* Decisión 42 — el ÚNICO punto de esta cadena donde entra el acento.
+   Con la caja abierta rige la 18: el activo se pinta del color del panel
+   y se pega a él. En riel ese panel no está, así que no hay de qué
+   pintarse — y a diferencia del riel del sidebar, acá el estado sigue
+   siendo verdadero (`sel` se conserva y vuelve al expandir), así que
+   apagarlo escondía algo que sí existe. El acento lo marca: es estado,
+   que es exactamente para lo que está. --sw-accent-weak es el token que
+   tokens.css reserva para "fondo de estado activo", y el glifo de 15px
+   deja la superficie de acento muy por debajo del 0,5%. */
+
+/* Los iconos del sistema son de CONTORNO y heredan currentColor: sin
+   declarar stroke/fill acá, el SVG cae al relleno negro por defecto —
+   con los glifos viejos (círculos, elipses) se leía como puntos y no
+   cantaba; con los nuevos, sí. */
+.sw-tools__item svg {
+  --sw-ico: var(--sw-ico-md);
+  color: var(--sw-faint);
+  /* el ícono tiene su propio `color`, así que la transición del botón no
+     lo alcanza: sin esto, el pase al acento al colapsar sería un salto */
+  transition: color var(--sw-d-micro) var(--sw-ease-out);
+}
+.sw-tools__item[aria-selected="true"] svg { color: var(--sw-text-2); }
+/* la palabra queda para el lector de pantalla; se ve al pasar, en el
+   globo (decisión 29 aplicada a la caja). */
+.sw-tools__item span {
+  position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+
+.sw-tools__panel {
+  flex: 1 1 auto; min-width: 0; background: var(--sw-raised);
+  overflow-y: auto; overflow-x: hidden;
+  padding: var(--sw-s-3);
+  display: flex; flex-direction: column; gap: var(--sw-s-2);
+  border-radius: var(--sw-r-md);
+}
+/* Aire arriba, derecha y abajo — a la IZQUIERDA no: ahí el panel tiene
+   que seguir tocando la columna, porque el ítem activo se pinta de su
+   color y se pega a él (decisión 18). Un margen izquierdo cortaría esa
+   cadena.
+
+   Selector reforzado: sidebar.css trae `.sw-side, .sw-side * { margin:0 }`
+   como reset del componente, misma especificidad que una sola clase pero
+   cargando después — con `.sw-tools__panel` solo, el margen quedaba en 0. */
+.sw-tools .sw-tools__panel { margin: 10px 10px 10px 0; }
+
+/* ---------------------------------------------------------------
+   ENTRADA DE CONTENIDO — que se note que cambiaste de panel
+   Sólo transform y opacity (regla 7). Los nodos son nuevos en cada
+   repintado, así que la animación se dispara sola: no hace falta ni una
+   línea de JS para re-lanzarla.
+
+   Escalonado, no al unísono: el orden en que aparecen las cosas es lo
+   que hace legible que esto es contenido NUEVO y no un parpadeo. Las
+   duraciones salen de los tokens — --sw-d-short es el escalón de "bajo
+   100px de desplazamiento", que es exactamente lo que recorren.
+
+   El campo entra desde abajo (viene del propio panel) y los ítems de la
+   columna desde la izquierda (vienen del riel): cada uno entra desde
+   donde está su origen. Con prefers-reduced-motion base.css ya lleva
+   toda duración a 0.01ms, así que aparecen sin desplazarse.
+   --------------------------------------------------------------- */
+@keyframes sw-tools-panel-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes sw-tools-item-in {
+  from { opacity: 0; transform: translateX(-5px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.sw-tools__panel > * {
+  animation: sw-tools-panel-in var(--sw-d-short) var(--sw-ease-out) both;
+}
+.sw-tools__panel > *:nth-child(2) { animation-delay: 45ms; }
+
+.sw-tools__nav > * {
+  animation: sw-tools-item-in var(--sw-d-short) var(--sw-ease-out) both;
+}
+.sw-tools__nav > *:nth-child(2) { animation-delay: 35ms; }
+.sw-tools__nav > *:nth-child(3) { animation-delay: 70ms; }
+.sw-tools__nav > *:nth-child(4) { animation-delay: 105ms; }
+.sw-tools__nav > *:nth-child(5) { animation-delay: 140ms; }
+/* EL RÓTULO DE SECCIÓN PASÓ DE --sw-faint A --sw-muted, y es un arreglo de
+   contraste, no un ajuste de gusto. Medido: 3,89:1 en claro y 3,62:1 en
+   oscuro, contra el piso de 4,5:1 que pide la 1.4.3 para texto chico — y esto
+   es texto chico de verdad, una versalita de 10px con tracking abierto, que es
+   el caso peor de todos. Con --sw-muted da 6,09:1 y 5,70:1.
+
+   --sw-faint es el token de lo decorativo y de los glifos, que van por el piso
+   de 3:1. Este rótulo no es decorativo: nombra la sección abierta, y en la
+   columna es la ÚNICA vez que esa palabra se ve —al costado quedó reducida a un
+   ícono (decisión 29)—. Si no se lee, la sección no tiene nombre.
+
+   Toca las dos cajas que usan el chasis, la de Flujos y la de texto. Es a
+   propósito: es la misma palabra en el mismo lugar del mismo componente. */
+.sw-tools__label {
+  font-size: var(--sw-t-overline);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--sw-muted);
+}
+/* Bloque vacío A PROPÓSITO (punto 3 del brief): el contenido de esta
+   sección todavía no está diseñado — ver design/caja-herramientas.md.
+   Rellenarlo con campos inventados haría que el ancho de la caja
+   saliera de contenido falso, que es justo lo que se está evitando. */
+.sw-tools__block {
+  flex: 0 0 auto; min-height: 96px;
+  border-radius: var(--sw-r-md);
+  background: var(--sw-raised-2);
+  box-shadow: inset 0 0 0 1px var(--sw-line);
+}
+
+/* El globo de la columna vive en EL BLOQUE (.sw-side__canvas), no
+   adentro de .sw-tools: .sw-tools recorta para poder animarse a cero
+   (regla 5 de §11). Sale hacia el LIENZO —la caja está contra el borde
+   derecho, es el espejo del riel del sidebar— y lo ubica el JS, igual
+   que el popover del filtro (punto 5 del brief). */
+/* GLOBO — primitiva compartida, no un elemento de la caja: lo usan la
+   caja de herramientas y el conmutador de la columna, los dos cuando el
+   control queda reducido a un ícono y pierde su palabra. Se ancla al
+   ÍTEM (regla 18) y siempre a la IZQUIERDA, porque los dos viven contra
+   el borde derecho del bloque. */
+.sw-tip {
+  position: absolute; z-index: var(--sw-z-popover);
+  padding: 5px 9px; border-radius: var(--sw-r-sm);
+  background: var(--sw-raised-2); color: var(--sw-text);
+  box-shadow: var(--sw-e-pop);
+  font-size: var(--sw-t-body-sm); line-height: 1.2; font-weight: var(--sw-w-medium);
+  white-space: nowrap; pointer-events: none;
+  opacity: 0; transform: translate(4px, -50%);
+  transition: opacity var(--sw-d-micro) linear, transform var(--sw-d-short) var(--sw-ease-out);
+}
+.sw-tip.is-on { opacity: 1; transform: translate(0, -50%); }
+
+/* NO HAY UNA "CAJA EN RIEL". Acá vivían las reglas que la achicaban a su
+   nav de íconos cuando la columna se cerraba. Ya no existen: en riel se
+   esconde el cuerpo entero de la columna (ver el @container de arriba) y
+   quedan sólo las dos categorías del conmutador.
+
+   Con esto la decisión 42 queda sin caso en la app — decía que en riel el
+   activo de la caja toma el acento porque no hay panel que señalar, y
+   ahora tampoco hay nav donde marcarlo. Su razonamiento sobrevive en el
+   conmutador, que es el que ahora lleva el acento en su activo.
+
+   Y con esto la caja pierde el tercer estado que le daba la decisión 31:
+   tiene abierta y nada más. El colapso es de la COLUMNA (decisión 43). */
+
+/* Caja: surface.
+   El fondo lo da `.sw-grid-surface` en el HTML — la grilla punteada es la
+   firma visual del producto y pertenece a la caja, no a cada módulo. El
+   canvas la vuelve a pintar encima porque la suya tiene que moverse con el
+   pan y el zoom; las demás superficies la usan quieta. */
+.sw-surface-slot {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Caja: dock */
+.sw-dock-slot {
+  border-top: var(--sw-border) solid var(--sw-line);
+  background: var(--sw-surface);
+  max-height: 180px;
+  overflow: hidden;
+}
+.sw-dock__inner { display: flex; flex-direction: column; height: 100%; }
+.sw-dock__head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sw-s-3);
+  padding: var(--sw-s-2) var(--sw-s-4);
+  border-bottom: var(--sw-border) solid var(--sw-line);
+}
+.sw-dock__out {
+  margin: 0;
+  padding: var(--sw-s-2) var(--sw-s-4);
+  overflow: auto;
+  font-family: var(--sw-font-mono);
+  font-size: var(--sw-t-body-sm);
+  line-height: 1.6;
+  color: var(--sw-text-2);
+  white-space: pre-wrap;
+}
+
+/* ---------------------------------------------------------------
+   TOPBAR — la cabecera del área de trabajo.
+
+   Es una COLUMNA de filas, no una barra de dos lados. La disposición
+   está fijada contra referencia:
+
+     fila 1   [ nombre ][ ←——— buscador ———→ ][ avisos · Nuevo · avatar ]
+     fila 2   [ pestañas de vista ................... meta del archivo ]
+
+   Antes era `space-between` con un lado izquierdo que adentro era otra
+   columna. Con esa forma el buscador COMPETÍA por el ancho contra el
+   título en vez de ocupar el hueco entre las tres zonas, y quedaba de
+   215px con aire muerto a la derecha: el síntoma era «se ve roto».
+
+   NO LLEVA `overflow` EN NINGÚN NIVEL, y es a propósito. El topbar
+   hospeda el menú de usuario, que es un popover posicionado adentro:
+   con overflow queda ATRAPADO —se recorta contra el borde inferior y
+   desaparecen «Perfil», «Ayuda» y «Cerrar sesión»—, verificado, no
+   supuesto. El bloque crece hacia abajo en vez de scrollear, que es lo
+   que se pidió: anclado arriba, lo que entra empuja para abajo.
+   --------------------------------------------------------------- */
+
+.sw-topbar {
+  display: flex;
+  flex-direction: column;
+  /* ARRIBA, no centrado. Hoy la caja mide lo que miden sus filas, pero en
+     cuanto algo la estire —una fila más, un contenido más alto— centrado el
+     contenido flotaría en el medio y se movería de lugar. Anclado arriba, lo
+     que ya estaba se queda donde está. */
+  justify-content: flex-start;
+  gap: var(--sw-s-2);
+  padding: var(--sw-s-2) var(--sw-s-4);
+  background: var(--sw-surface);
+  /* El topbar y el bloque se TOCAN (no hay gap entre filas de la grilla):
+     juntos son un solo panel, y lo que los separa es una línea tenue, no
+     espacio.
+
+     Por eso el borde exterior va con `--sw-line-strong` —el marco del panel
+     entero— y la costura de abajo con `--sw-seam`, que es el filete que se
+     funde. Dos filetes fuertes pegados darían una línea doble de 2px, que se
+     lee como un error de render, no como una separación.
+
+     El radio redondea SOLO arriba: abajo lo redondea el bloque. */
+  border: var(--sw-border) solid var(--sw-line-strong);
+  border-bottom: var(--sw-border) solid var(--sw-seam);
+  /* SIN borde contra el marco de la ventana. Ese lo pone ahora .sw-side, y
+     dos filetes de 1px apilados dan una línea doble de 2px con dos colores
+     distintos — medido: #3b3b43 del shell contra #4d4d56 de acá. El propio
+     sistema ya llama a eso un error de render (ver la costura topbar/bloque).
+     El borde IZQUIERDO se queda: ese no toca el marco, separa del riel. */
+  border-top: 0;
+  border-right: 0;
+  /* Sin radio arriba: el topbar llega hasta el borde de la ventana y se
+     apoya en el riel sin muesca. */
+  border-radius: 0;
+  /* Un ítem de grid usa min-width:auto, o sea que NO baja de su contenido
+     mínimo: sin esto la barra desborda su columna en vez de encoger, y con
+     overflow:hidden en el body el desborde se recorta sin aviso. */
+  min-width: 0;
+}
+
+/* Cada fila es horizontal y NO crece a lo alto. En una columna el eje
+   principal es el VERTICAL: un `flex: 1` acá las estiraría a repartirse el
+   alto disponible en vez de medir lo que mide su contenido — es el mismo
+   error que estiraba la cabecera a 162px cuando el lado izquierdo pasó a ser
+   columna. */
+.sw-topbar__fila {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-s-3);
+  flex: 0 0 auto;
+  min-width: 0;
+  /* El relleno lateral del header vive acá y no en la pila: la franja de la
+     barra lo anula del lado derecho para llegar al canto de la columna. */
+  padding-inline: var(--sw-s-6);
+}
+
+/* El conmutador de tema (.sw-theme) se mudó a shell/theme-switch.css, con su
+   JS. Acá no lo monta nadie: el tema de la app vive en el menú de usuario. */
+
+/* ---------------------------------------------------------------
+   VISTA PREVIA DE COMPONENTES en la caja de herramientas
+   No es el contenido definitivo de la caja —ese sigue sin diseñarse, ver
+   design/caja-herramientas.md—: son las primitivas de Basecoat (decisión
+   46) puestas en su contenedor real, para juzgarlas con las superficies,
+   los 13px y los dos temas de verdad.
+
+   Sólo LAYOUT. Ni un color, ni un radio, ni un tamaño de fuente: eso lo
+   traen las clases de Basecoat, que ya leen los tokens vía
+   basecoat-map.css. Si algo acá necesitara un color, estaría mal puesto.
+   --------------------------------------------------------------- */
+.sw-tools__block--preview {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sw-s-4);
+  padding: var(--sw-s-4);
+}
+
+/* Las pastillas de estado envuelven: en la columna en riel no entran las
+   cinco en una línea y no tiene sentido que la corten. */
+.sw-tools__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sw-s-1);
+}
+
+/* El primario primero y a la izquierda, como en la toolbar del bloque:
+   la acción que abre algo va donde ya se la busca. */
+.sw-tools__acciones {
+  display: flex;
+  gap: var(--sw-s-2);
+  margin-top: var(--sw-s-1);
+}
+
+/* ---------------------------------------------------------------
+   MENU DE USUARIO — el avatar del topbar (decisión 46)
+
+   El contenedor y los ítems los pinta Basecoat: acá va sólo lo que la
+   librería no puede saber — el tamaño del disparador contra la densidad
+   del topbar, y la cabecera con el nombre y el perfil.
+
+   Ni un color literal: el avatar y el menú ya leen los tokens a través
+   de basecoat-map.css.
+   --------------------------------------------------------------- */
+.sw-user__trigger {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: var(--sw-r-pill);
+  cursor: pointer;
+}
+
+/* El avatar baja de los 40px de fábrica de Basecoat a la altura de un
+   control del topbar: la barra mide 56px con 8px de padding, así que un
+   avatar de 40 la deja sin aire. 28px es la misma altura que tenía el
+   conmutador de tema que estaba acá antes. */
+.sw-user__trigger .avatar {
+  width: var(--sw-s-8);
+  height: var(--sw-s-8);
+  font-size: var(--sw-t-caption);
+}
+
+/* Cabecera del menú: no es un ítem, no se enfoca ni se navega con flechas
+   —por eso role="presentation"—, es la identidad de lo que se está por
+   tocar. */
+.sw-user__cab {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--sw-s-2) var(--sw-s-3);
+}
+.sw-user__nombre {
+  font-size: var(--sw-t-body-sm);
+  font-weight: var(--sw-w-medium);
+  /* Hereda la tinta de la pastilla: sobre acento sólido va --sw-on-fill, no
+     el texto normal. */
+  color: inherit;
+}
+.sw-user__perfil {
+  font-size: var(--sw-t-caption);
+  color: var(--sw-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--sw-tr-overline);
+}
+
+/* El menú necesita un piso de ancho: con el contenido solo salía a 170px y
+   cortaba «Gus Baamonde», «Seguir al sistema» y «Cerrar sesión». No es un
+   ancho elegido a ojo — es el que hace entrar la etiqueta más larga del
+   menú sin recortar, medido. */
+#sw-user [data-popover] { min-width: 232px; }
+
+/* ---------------------------------------------------------------
+   FILA 1 — nombre de sección · buscador · usuario y opciones
+   Sólo layout. El aspecto de los controles lo traen .input-group y .btn
+   de Basecoat, que ya leen los tokens vía basecoat-map.css.
+   --------------------------------------------------------------- */
+
+/* El nombre NO cede: cede el buscador. Un nombre de sección recortado
+   informa peor que un buscador angosto — el primero dice dónde estás, el
+   segundo se sigue usando con menos ancho. Dejarlo ceder se probó y era
+   peor: se recortaba antes de que el buscador tocara su piso, porque
+   flexbox encoge proporcional a la base. */
+.sw-topbar__seccion {
+  margin: 0;
+  flex: 0 0 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* EL BUSCADOR ES LA FILA, no un cajón al lado del título. Con
+   `flex: 1 1 auto` se come todo el ancho que dejan el nombre y las
+   acciones, y es el único de los tres que encoge.
+
+   SIN TOPE MÁXIMO, a propósito. Un `max-width` lo devolvería a ser una caja
+   con aire muerto a los costados — que es exactamente lo que estaba mal.
+
+   El piso no es 0: cediendo sin límite llegaba a 76px, donde ya no entra ni
+   una palabra. */
+.sw-topbar__buscador {
+  flex: 1 1 auto;
+  min-width: 180px;
+  /* 32px, la altura de todo lo demás de esta fila —campana, avatar, «Nuevo»,
+     las píldoras de vista—. El .input de Basecoat mide 36 y no trae variante
+     de tamaño para campos de texto (su data-size=sm existe sólo para el
+     switch), así que se fija acá. Sin esto el buscador era el único de 36 en
+     una fila de 32 y la fila se leía desalineada. */
+  height: var(--sw-s-8);
+  /* El borde va con --sw-seam y no con el que trae Basecoat (--input →
+     --sw-line). Es el MISMO problema que la costura del topbar: --sw-line
+     está resuelto contra la card, y este control se apoya en el RIEL.
+     Medido: 1,384:1 en oscuro pero 1,025:1 en claro, o sea invisible.
+     --sw-seam da 1,384 / 1,388 — la misma línea en los dos temas. */
+  border-color: var(--sw-seam);
+}
+/* AL FOCO el filete se tiñe de acento. Hace falta declararlo: Basecoat ya lo
+   hace en `.input-group:focus-within`, pero esa regla vive en una capa y la
+   línea de arriba —`border-color: var(--sw-seam)`, sin capa— le gana siempre.
+   Sin esto, apagado el outline, el foco quedaba sólo en el anillo translúcido
+   de 3px y el borde del control seguía gris. */
+.sw-topbar__buscador:focus-within { border-color: var(--sw-accent-line); }
+.sw-topbar__buscador .input { height: 100%; }
+
+/* --- Usuario y opciones -------------------------------------------- */
+
+/* No necesita `margin-inline-start: auto`: el buscador ya se comió todo el
+   espacio libre, así que este grupo queda pegado al borde derecho solo. */
+.sw-topbar__acciones {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-s-2);
+  flex: 0 0 auto;
+}
+
+/* LOS BOTONES DE ÍCONO DEL TOPBAR — «Nuevo» y la campana. Mismo tamaño
+   que el avatar (--sw-s-8) para que los tres controles de la derecha sean
+   una sola familia: tres cuadrados de 32 con un glifo adentro. */
+.sw-topbar__nuevo,
+.sw-topbar__aviso {
+  position: relative;
+  display: grid; place-items: center;
+  width: var(--sw-s-8); height: var(--sw-s-8);
+  padding: 0;
+  /* Círculos, como el avatar que tienen al lado: los tres controles de la
+     esquina son la misma pieza y ahora también la misma silueta. */
+  border: 0; border-radius: var(--sw-r-pill);
+  background: none;
+  color: var(--sw-text-2);
+  cursor: pointer;
+  transition: color var(--sw-d-micro) var(--sw-ease-out),
+              background var(--sw-d-micro) var(--sw-ease-out);
+}
+.sw-topbar__nuevo:hover,
+.sw-topbar__aviso:hover { color: var(--sw-text); background: var(--sw-hover); }
+.sw-topbar__nuevo svg,
+.sw-topbar__aviso svg { --sw-ico: var(--sw-ico-md); }
+
+/* El globo de sin-leer, montado sobre la esquina de la campana.
+
+   GRITA, Y SE DECIDIO QUE GRITE. Estuvo en `mute` con este argumento escrito
+   acá: en este sistema el rojo significa «algo falló», y tres avisos sin leer no
+   son un fallo, así que pintarlos de rojo deja al usuario sin poder distinguir
+   «te llegó algo» de «se rompió algo». El argumento sigue siendo cierto y el
+   dueño del producto decidió pagar ese precio: un globo que no se ve no avisa
+   nada, y es el único lugar de la pantalla donde aparece un número sin leer.
+
+   NO USA EL MECANISMO DE BADGE DE LA DECISION 26 —tinte translúcido en oscuro,
+   pastel en claro— porque eso da un badge que se lee como estado, y acá hace
+   falta relleno pleno con número en blanco. Por eso tiene sus propios tokens,
+   `--sw-globo-bg` y `--sw-globo-tinta`: el rojo de relleno no puede ser el mismo
+   `--sw-error` de los dos temas —en oscuro ese rojo es CLARO, calibrado para
+   texto sobre fondo oscuro, y con número blanco encima no llega al piso. */
+/* EL SELECTOR LLEVA `.badge` ADELANTE A PROPOSITO, y no es redundancia: las
+   variantes de badge viven en `basecoat-ext.css`, que carga DESPUES del CSS del
+   proyecto. Un `.sw-topbar__globo` solo —(0,1,0)— perdía contra
+   `.badge[data-variant="mute"]` —(0,2,0)— por especificidad y por orden: el
+   color estaba escrito y el globo seguía saliendo gris.
+
+   El `data-variant` se le sacó al elemento en chrome.js: este globo no usa el
+   mecanismo de badge de la decisión 26 sino relleno pleno. Declararlo y después
+   pisarlo sería dejar escrito que usa un mecanismo que no usa. */
+.badge.sw-topbar__globo {
+  background: var(--sw-globo-bg);
+  color: var(--sw-globo-tinta);
+  font-weight: var(--sw-w-semibold);
+  position: absolute;
+  top: 0; inset-inline-end: 0;
+  transform: translate(35%, -35%);
+  min-width: var(--sw-s-4);
+  height: var(--sw-s-4);
+  padding: 0 var(--sw-s-1);
+  border-radius: var(--sw-r-pill);
+  font-size: var(--sw-t-overline);
+  font-variant-numeric: tabular-nums;
+  /* El globo se apoya sobre el riel, no sobre la campana: sin este anillo
+     del color de la superficie, el badge y el trazo del ícono se tocan y se
+     lee como suciedad. */
+  box-shadow: 0 0 0 2px var(--sw-surface);
+}
+
+/* ---------------------------------------------------------------
+   FILA 2 — pestañas de vista + meta del archivo abierto
+
+   Las pestañas quedan A LA IZQUIERDA, alineadas con el nombre de sección.
+   En la referencia están repartidas a lo ancho de la barra; acá no: a
+   1600px repartir tres pestañas las deja a ~500px una de otra y el ojo
+   tiene que cruzar la pantalla para comparar dos opciones del mismo grupo.
+   Alineadas a la izquierda arrancan donde arranca todo lo demás.
+   --------------------------------------------------------------- */
+.sw-topbar__vistas { gap: var(--sw-s-4); }
+
+/* ---------------------------------------------------------------
+   CAJA: CONTEXT — la franja que dice SOBRE QUÉ se trabaja.
+
+   Es del MODULO, igual que toolbar o surface, y vive en el topbar porque el
+   topbar es la caja que crece: acá abajo ya están el nombre de la sección y su
+   meta, o sea el contexto. La toolbar es la fila de ACCIONES del bloque de
+   trabajo, y un dato que no se puede apretar no es una acción.
+
+   No trae fondo ni filete propios: es una fila más del topbar, y dos franjas
+   con dos fondos distintos dentro del mismo panel se leen como dos paneles.
+   Lo único que la separa de la fila de arriba es el espacio que ya pone el
+   `gap` de la columna.
+   --------------------------------------------------------------- */
+/* SU DECLARACION ESTA MAS ABAJO, con las franjas del header. Acá quedó el
+   comentario, que sigue valiendo, y se fue la regla: tenía un `flex-wrap: wrap`
+   de cuando esta franja era una fila de pastillas de estado que podía caer a dos
+   renglones sin costo. Ahora son tres datos y un renglón de más empuja el header
+   entero cuarenta píxeles — medido: 209 pasaba a 249. */
+
+/* Cede a lo ancho antes que la meta: son pestañas, se pueden desplazar.
+   `overflow-x` acá es seguro —no hay ningún popover adentro de la fila de
+   vistas—, a diferencia del topbar entero, donde atrapaba el menú.
+
+   CRECE, y no es cosmético: es lo que empuja la meta contra el borde
+   derecho. Un `margin-inline-start: auto` en la meta sería lo natural,
+   pero NO FUNCIONA acá: sidebar.css declara `.sw-side, .sw-side * { margin: 0 }`
+   —un reset universal del shell— con la misma especificidad (0,1,0) y en un
+   archivo que carga DESPUÉS. Gana por orden. Medido con CDP, no deducido.
+
+   Así que dentro de .sw-side no se empuja con márgenes: se empuja con flex.
+   Vale para cualquier cosa que se quiera alinear en este chasis. */
+.sw-topbar__tabs {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  /* El overflow recorta el anillo de foco de la pestaña de los extremos si
+     la caja va justa. Dos píxeles de aire alcanzan y no mueven nada. */
+  padding: 2px;
+}
+
+/* Basecoat da por sentado que las pestañas se REPARTEN el ancho del tablist
+   (`flex: 1` en cada una) y le pone fondo de riel al grupo. Acá las dos cosas
+   estorban: las píldoras miden lo que mide su contenido —esa es toda la
+   idea— y cada una trae su propio fondo. */
+.sw-topbar__tabs [role="tablist"] {
+  display: flex;
+  gap: var(--sw-s-1);
+  background: none;
+  padding: 0;
+  border: 0;
+  height: auto;
+}
+
+/* ---------------------------------------------------------------
+   LA PESTAÑA DE VISTA — una píldora que se abre.
+
+   Inactiva muestra SÓLO el ícono. Activa se ensancha y saca su etiqueta.
+   Referencia: capturas/referencias/componentes/tabs.mp4.
+
+   Lo que hace que se lea como una sola cosa moviéndose —y no como dos
+   controles distintos— es que la caja y el texto NO llegan juntos: primero
+   se abre el hueco, y el texto entra 40ms después, cuando ya hay lugar. Es
+   el mismo escalonamiento que usa el acordeón del sidebar.
+
+   COSTO ACEPTADO: una pestaña inactiva no dice su nombre, sólo su ícono.
+   Es el trato de la referencia y sólo funciona con íconos inequívocos y
+   pocas vistas. Con más de cuatro o con dos íconos parecidos, esto deja de
+   informar y hay que volver a las etiquetas visibles.
+   --------------------------------------------------------------- */
+.sw-vista {
+  display: flex;
+  align-items: center;
+  /* NO se reparte el ancho (Basecoat pone flex:1): mide su contenido. */
+  flex: 0 0 auto;
+  height: var(--sw-s-8);
+  /* El padding DESCUENTA el filete, y sin eso no hay círculo: la caja mide
+     32 de alto, así que para que cerrada mida 32 de ancho el reparto tiene
+     que dar 1+7+16+7+1. Con --sw-s-2 pelado daba 34x32 — una píldora chata,
+     no un círculo. Medido.
+
+     Va como resta de tokens y no como un 7px literal: si cambia el filete o
+     el paso de espaciado, la cuenta se mantiene sola. */
+  padding-inline: calc(var(--sw-s-2) - var(--sw-border));
+  /* SIN gap, y hay que decirlo explicitamente: Basecoat le pone 6px a sus
+     pestañas, y ese hueco sobrevive a la etiqueta cerrada — queda entre el
+     ícono y una caja de ancho cero. Medido: la píldora colapsada daba 40px
+     con 9px de aire a la izquierda del ícono y 15 a la derecha.
+
+     El hueco entre ícono y etiqueta no es de la píldora: vive DENTRO de la
+     columna que se cierra, como padding de .sw-vista__txt, así que se va
+     con ella. */
+  gap: 0;
+  /* CÍRCULO CERRADA, PÍLDORA ABIERTA — y sale de un solo valor, sin ningún
+     caso especial: 999px se recorta a la mitad del lado más corto, así que
+     sobre 32x32 da un círculo y sobre 71x32 una píldora. La transición de
+     ancho lo interpola solo. */
+  border-radius: var(--sw-r-pill);
+  background: var(--sw-hover);
+  color: var(--sw-muted);
+  cursor: pointer;
+  /* EL FILETE NO ES DECORACION, es lo que hace que la pildora exista en
+     claro. Medido sin el: el relleno da 1,47:1 contra la barra en oscuro
+     pero 1,09:1 en claro — o sea que en claro no habia pildora, habia un
+     icono suelto. Es el mismo problema de siempre (regla 3): --sw-hover
+     esta resuelto contra la CARD y esto se apoya en el RIEL.
+
+     Y la solucion es la misma que la del buscador de al lado: --sw-seam,
+     que es el unico filete buscado para dar la misma relacion en los dos
+     temas (1,384 / 1,388). El relleno queda, pero deja de ser el unico
+     que sostiene la forma. */
+  border: var(--sw-border) solid var(--sw-seam);
+  /* El ancho lo cambia la rejilla de la etiqueta (más abajo), no una
+     transición de width: acá sólo van color y fondo. */
+  transition: color var(--sw-d-micro) var(--sw-ease-out),
+              background var(--sw-d-micro) var(--sw-ease-out);
+}
+.sw-vista svg { --sw-ico: var(--sw-ico-md); }
+.sw-vista:hover { color: var(--sw-text-2); }
+/* La activa no se distingue por el color del relleno —los dos escalones
+   quedan a menos de 1,2:1 entre si— sino por TRES cosas a la vez: saca su
+   etiqueta, sube la tinta a --sw-text, y su filete pasa al fuerte. La
+   etiqueta es la senal principal; el color acompana. */
+/* LA VISTA ACTIVA SE PINTA COMO EL BOTON PRIMARIO: relleno de acento
+   solido y tinta blanca. Es la misma pieza que «Nuevo flujo» y «+ Nuevo»,
+   con los mismos dos tokens, asi que no hay un tercer tratamiento de acento
+   que mantener.
+
+   Va con --sw-accent-solid y no con --sw-accent por lo de siempre: el acento
+   de estado en oscuro es demasiado claro para aguantar blanco (3,13:1). El
+   solido da 4,65:1 en los dos temas.
+
+   Y se puede usar ACA porque la pestaña se apoya en el RIEL, que es una de
+   las dos superficies donde el solido esta medido (3,30:1). Sobre --sw-raised
+   o --sw-raised-2 en oscuro no serviria — ver el bloque del acento solido en
+   tokens.css.
+
+   El icono NO declara color: hereda currentColor, asi que sale blanco junto
+   con la etiqueta. El filete se pinta del color del relleno para que la
+   pildora tenga la misma silueta que el boton, que no lleva borde. */
+.sw-vista[aria-selected="true"] {
+  color: var(--sw-on-fill);
+  background: var(--sw-accent-solid);
+  border-color: var(--sw-accent-solid);
+}
+/* El hover de la activa oscurece, igual que el del boton primario, y por el
+   mismo motivo: un paso opaco que SE ALEJA, no un alfa que se disuelve en el
+   fondo y va para lados opuestos segun el tema. */
+.sw-vista[aria-selected="true"]:hover {
+  color: var(--sw-on-fill);
+  background: var(--sw-accent-solid-lit);
+  border-color: var(--sw-accent-solid-lit);
+}
+
+/* EXCEPCIÓN ANOTADA a la regla 7 (sólo transform y opacity — regla 14 de
+   §11), gemela horizontal de la del acordeón en sidebar.css: una etiqueta de
+   ancho desconocido no se puede abrir con transform sin deformar el texto.
+   `grid-template-columns: 0fr → 1fr` interpola el ancho sin tocar nada más
+   de la píldora, y el texto entra aparte con opacity.
+
+   180ms (--sw-d-short) porque el recorrido es de ~90px: por debajo de los
+   100px que la escala llama "indicador deslizante" (regla 5). */
+.sw-vista__et {
+  display: grid;
+  /* minmax(0, 0fr) y NO 0fr a secas, y la diferencia se veía en pantalla:
+     con `0fr` el mínimo de la pista sigue siendo el min-content del hijo, y
+     el padding NO lo achica ningún min-width. Resultado medido: la píldora
+     colapsada quedaba en 48px con 9px de aire a la izquierda del ícono y 23
+     a la derecha — el ícono corrido, que es lo que se veía raro. Forzando
+     el mínimo a 0 la pista se cierra del todo y el ícono queda centrado
+     entre los dos padding de la píldora. */
+  grid-template-columns: minmax(0, 0fr);
+  overflow: hidden;
+  transition: grid-template-columns var(--sw-d-short) var(--sw-ease-out);
+}
+
+/* SE ABRE AL PASAR POR ENCIMA, no sólo estando activa: una píldora que sólo
+   muestra su ícono no dice qué es, y el hover es donde se pregunta.
+   :focus-visible va junto y no es opcional — con teclado no hay hover, y sin
+   esto el que navega con Tab tendría que adivinar. */
+.sw-vista[aria-selected="true"] .sw-vista__et,
+.sw-vista:hover .sw-vista__et,
+.sw-vista:focus-visible .sw-vista__et { grid-template-columns: minmax(0, 1fr); }
+
+/* El padding va ACÁ y no como `gap` de la píldora: un gap sigue ocupando su
+   espacio con la etiqueta cerrada, y la píldora inactiva quedaba con un
+   hueco a la derecha del ícono que no contenía nada. Adentro de la columna
+   que se cierra, se cierra con ella. */
+.sw-vista__txt {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  padding-inline-start: var(--sw-s-2);
+  font-size: var(--sw-t-body-sm);
+  font-weight: var(--sw-w-medium);
+  opacity: 0;
+  transition: opacity var(--sw-d-micro) linear;
+}
+.sw-vista[aria-selected="true"] .sw-vista__txt,
+.sw-vista:hover .sw-vista__txt,
+.sw-vista:focus-visible .sw-vista__txt {
+  opacity: 1;
+  /* Se abre primero el hueco, entra después el texto. Al revés el texto
+     empuja el borde mientras se dibuja y se lee como un salto. */
+  transition-delay: 40ms;
+}
+
+/* Sin hover no hay forma de preguntar qué es cada ícono, así que en táctil
+   las etiquetas se muestran siempre y la píldora no colapsa (regla 9: todo
+   patrón que dependa de hover necesita equivalente acá). */
+@media (hover: none) {
+  .sw-vista .sw-vista__et  { grid-template-columns: minmax(0, 1fr); }
+  .sw-vista .sw-vista__txt { opacity: 1; }
+}
+
+/* El contador dentro de la etiqueta. No es un badge del sistema: es una
+   cifra al lado de una palabra, y por eso va sin relleno propio. */
+/* SIN opacidad. Tenia .65, y sobre el relleno de acento eso daba 2,87:1 en
+   oscuro y 1,94:1 en claro para una cifra que hay que poder leer. Es la
+   tercera vez en este archivo que atenuar por alfa sale mal, y siempre por
+   lo mismo: el resultado depende de lo que haya debajo, que cambia con el
+   tema y con el estado. La cifra se lee como secundaria por ser una cifra
+   detras de una palabra, no por estar apagada. */
+.sw-vista__n {
+  margin-inline-start: var(--sw-s-1);
+  font-variant-numeric: tabular-nums;
+}
+
+/* La meta va al final de la fila y cede primero: es contexto, no control. */
+.sw-topbar__meta {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Por debajo de este ancho el buscador se va del todo: con el nombre en su
+   mínimo y el buscador en el suyo la fila ya no entra, y lo que sobra se
+   resuelve sacando, no apretando. El buscador tiene su equivalente en el
+   panel del sidebar; el nombre no tiene reemplazo. */
+@media (max-width: 620px) {
+  .sw-topbar__buscador { display: none; }
+  /* Sin buscador que se coma el espacio libre, algo tiene que empujar las
+     acciones al borde. Otra vez con flex y no con margen, por el reset
+     universal de sidebar.css. */
+  .sw-topbar__seccion { flex: 1 1 auto; }
+}
+
+/* Por qué la columna está vacía. Aparece cuando Herramientas es el único
+   inquilino —el chat salió— y la superficie activa no trae caja. Sin esto la
+   columna quedaba en blanco, que se lee como algo roto y no como un estado.
+
+   Centrado y en tono bajo: es una explicación, no una tarea. No lleva acción
+   porque no hay ninguna que ofrecer — la caja la trae el módulo, no el
+   usuario. */
+.sw-side-col__vacio {
+  margin: 0;
+  padding: var(--sw-s-8) var(--sw-s-6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  text-wrap: balance;
+  font-size: var(--sw-t-body-sm);
+  line-height: 1.6;
+  color: var(--sw-muted);
+}
+
+/* ==========================================================================
+   LA PESTAÑA DEL DOCUMENTO — qué está abierto, en la barra del módulo
+   --------------------------------------------------------------------------
+   Reemplaza al botón de «Nuevo documento» que estaba acá. Crear ya se puede
+   desde el pie de la lista y desde el chat; esta barra es el lugar de lo que
+   se hace SOBRE lo que está abierto.
+
+   Y resuelve algo que faltaba: con la hoja acercada o scrolleada, el título
+   del documento queda fuera de pantalla y no había forma de saber qué se
+   estaba editando. Acá está siempre.
+
+   ES UNA PESTAÑA Y NO UN RÓTULO: lleva su cruz para cerrar y su disco para
+   guardar, que es lo que cualquiera espera de una pestaña de documento. La
+   forma promete lo que hace.
+   ========================================================================== */
+.sw-doctab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sw-s-1);
+  min-width: 0;
+  flex: 0 0 auto;
+  height: 26px;
+  padding: 0 var(--sw-s-1) 0 var(--sw-s-3);
+  border: 0;
+  border-radius: var(--sw-r-pill);
+
+  /* PASTILLA DE ACENTO, y aca el acento esta en su lugar (regla 2): esto es
+     SELECCION — que documento esta abierto — que es el primer uso legitimo de
+     la lista. No es marca ni decoracion.
+
+     Se probo antes como pestania pegada al piso de la barra, rompiendo la
+     costura para leerse unida al lienzo. Funcionaba como pestania y quedaba
+     pegada arriba: en una barra de 35px, una pieza que toca el techo y el
+     piso no respira. La pastilla flota en la franja y es lo que el resto de
+     la barra ya hace.
+
+     ES EL UNICO ACENTO DE LA PANTALLA. El boton primario que estaba en esta
+     barra —«Nuevo documento»— se fue con este cambio, asi que no hay dos.
+     Si alguna vez vuelve un CTA aca, uno de los dos tiene que ceder.
+
+     --sw-accent-solid y no --sw-accent: el primero es el paso resuelto para
+     llevar tinta encima (4,65:1 con --sw-on-fill en los dos temas); el otro es
+     el acento de ESTADO, que en oscuro tiene que quedar por encima de la
+     escalera y por eso es claro. Ver el bloque del acento solido en tokens. */
+  background: var(--sw-accent-solid);
+  color: var(--sw-on-fill);
+}
+/* El nombre se corta con puntos suspensivos y no empuja la barra: un documento
+   puede llamarse «Recordatorio de renovacion anual de contratos». */
+.sw-doctab__n {
+  min-width: 0;
+  max-width: 32ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--sw-t-body-sm);
+  font-weight: var(--sw-w-medium);
+  /* HEREDA LA TINTA DE LA PASTILLA. Sobre acento sólido la tinta es
+     --sw-on-fill, no el texto normal: --sw-text sobre el acento da 2,77:1 en
+     claro, bien por debajo del piso. Medido, no supuesto. */
+  color: inherit;
+}
+
+/* La cruz. Chica y en tono bajo: cerrar es lo que menos se quiere errar, asi
+   que no compite con el nombre — se encuentra cuando se la busca. */
+.sw-doctab__b {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  width: 20px; height: 20px;
+  padding: 0;
+  border: 0; border-radius: var(--sw-r-sm);
+  background: none;
+  color: inherit;
+  /* Un punto por debajo del nombre para que la cruz no compita con el, pero
+     sin bajar del piso de 3:1 que le toca a un control. */
+  opacity: .75;
+  cursor: pointer;
+  transition: opacity var(--sw-d-micro) var(--sw-ease-out),
+              background var(--sw-d-micro) var(--sw-ease-out);
+}
+.sw-doctab__b:hover { opacity: 1; background: color-mix(in oklab, var(--sw-on-fill) 18%, transparent); }
+/* El anillo va en la tinta de la pastilla: un anillo de acento sobre acento
+   no se ve. */
+/* EL UNICO COLOR DE FOCO PROPIO DEL PROYECTO, y con motivo medido: esta
+   pastilla lleva relleno de --sw-accent-solid, asi que la linea de acento de
+   la regla global caeria acento sobre acento y no se veria. Se cambia SOLO el
+   color —el ancho y el desplazamiento los sigue poniendo la regla— a la misma
+   tinta que usa el texto de la pastilla. */
+.sw-doctab__b:focus-visible { outline-color: var(--sw-on-fill); }
+.sw-doctab__b svg { --sw-ico: var(--sw-ico-xs); }
+
+/* Guardado: el boton mismo lo dice y se vuelve solo, como el de copiar del
+   bloque de codigo. Un toast moveria la vista entera por una confirmacion que
+   el usuario ya espera. */
+.sw-toolbar__btn[data-hecho="true"] { color: var(--sw-success); }
+/* Las utilidades también llevan grupos adentro, así que les toca la misma
+   relación: doce entre grupos, cuatro adentro. */
+.sw-toolbar__utiles {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-s-3);
+  flex: 0 0 auto;
+}
+/* EL SELECTOR LLEVA AL PADRE POR UNA RAZÓN, no por costumbre: sidebar.css declara
+   `.sw-side, .sw-side * { margin: 0 }` y carga DESPUÉS de este archivo. Con la
+   misma especificidad —las dos valen (0,1,0)— gana la última, así que un
+   `margin-left: auto` suelto acá se resetea a cero y el bloque se queda pegado
+   al de al lado.
+
+   Costó encontrarlo porque el resto de la regla SÍ se aplicaba: gap,
+   align-items y flex llegaban, y sólo el margen desaparecía. Lo dijo
+   CSS.getMatchedStylesForNode, no la lectura del archivo. */
+.sw-toolbar > .sw-toolbar__utiles { margin-left: auto; }
+
+/* ===============================================================
+   LA CAJA DE PILDORAS — el segundo tipo de caja de herramientas
+
+   Hay dos formas de caja en el producto y la diferencia no es de estilo:
+
+   · LA DE FLUJOS tiene una COLUMNA DE SECCIONES al costado. Se recorre: se
+     elige una sección y se mira lo que trae. El ítem activo se pinta del color
+     del panel y se le pega (decisión 18), y para eso el panel no lleva margen
+     izquierdo — tiene que tocarla.
+
+   · LA DE PILDORAS tiene una fila de solapas ARRIBA, flotando sobre el panel.
+     Su contenido se COMBINA en vez de recorrerse, así que no conviene partirlo
+     en secciones. El panel cierra por los cuatro lados y una punta lo sube a
+     tocar la píldora abierta, que es la misma cadena de la decisión 18 dicha de
+     otra manera.
+
+   ESTO VIVIA EN `text-tools.css`, acotado a `.sw-tools--txt`. El acotamiento
+   era correcto —su nota lo dice: «la de Flujos ya está medida y aprobada como
+   está»— pero estaba escrito como «qué MODULO» cuando lo que describe es «qué
+   TIPO de caja». Con Contabilidad hay dos módulos del mismo tipo, y copiar
+   doscientas líneas para que se vean iguales es como se desincronizan dos
+   cajas que tienen que leerse como una sola.
+
+   Lo que se quedó en text-tools.css es lo genuinamente suyo: el spinner del
+   campo numérico, el agarre de la lista, el alto de sus botones.
+   =============================================================== */
+/* ---------------------------------------------------------------
+   EL BORDE DE LA CAJA
+
+   El panel es un escalón de valor (--sw-raised sobre --sw-surface-2) y con eso
+   solo se leía como una mancha más clara sin canto. El filete de 1px es la
+   segunda mitad de la regla 3 —elevación por escalón de valor MÁS hairline—, y
+   acá hace falta más que en Flujos: ese panel tiene un bloque gris que le
+   dibuja su propio borde adentro, y éste tiene campos sueltos que no cierran
+   ninguna forma.
+
+   Va como box-shadow y no como border: el panel ya reparte su ancho con
+   `flex: 1 1 auto` y un borde le cambiaría la caja. Inset, así que no suma
+   sombra — la regla 3 reserva la sombra para lo que flota.
+
+   Sólo en esta caja, por el modificador. La de Flujos ya está medida y
+   aprobada como está; cambiarla de paso no es parte de este trabajo.
+   --------------------------------------------------------------- */
+/* DE QUE COLOR ES EL PISO. La punta se pinta con esto y no con un token fijo:
+   quien cambie el fondo del panel tiene que cambiar el de la punta en el mismo
+   gesto, o quedan dos superficies pegadas en vez de una sola con una punta. */
+.sw-tools--pildoras { --sw-tools-piso: var(--sw-raised); }
+
+.sw-tools--pildoras .sw-tools__panel {
+  box-shadow: inset 0 0 0 var(--sw-border) var(--sw-tools-filete);
+}
+/* LOS CAMPOS Y COMBOS DE LA CAJA, con el mismo filete que el panel (pedido del
+   dueño: en oscuro no se distinguían). Basecoat los dibuja con `--color-input`,
+   que se resuelve UNA vez en :root — redefinir `--input` acá no llegaría—, así
+   que se pisa la variable final en la caja. En claro vale lo mismo que antes. */
+.sw-tools { --color-input: var(--sw-tools-filete); }
+
+/* MARGEN PAREJO Y ALINEADO CON LAS PESTAÑAS. En Flujos el panel no lleva
+   margen izquierdo porque ahí tiene que tocar la columna de secciones (el ítem
+   activo se pinta de su color y se pega a él, decisión 18). Sin columna no hay
+   a qué pegarse, así que el panel cierra por los cuatro lados.
+
+   Y los 10px se copian en el padding de las pestañas: el activo se pinta del
+   color del panel y se apoya en él, y con el panel a 10px y la pestaña a 8px
+   ese apoyo quedaba dos píxeles corrido — visible justo en el canto, que es
+   donde la cadena tiene que leerse. Mismo número en los dos, no dos valores
+   parecidos.
+
+   Selector reforzado por lo mismo que el de chrome.css: sidebar.css trae
+   `.sw-side, .sw-side * { margin: 0 }` con la misma especificidad y cargando
+   después de chrome pero antes de este archivo. */
+.sw-tools--pildoras .sw-tools__panel { margin: 10px; }
+
+/* LA FILA DE SOLAPAS son píldoras `.sw-vista`, no las pestañas planas del
+   chasis: reusa `.sw-topbar__tabs`, que ya sabe hostearlas —tablist sin fondo
+   de riel, sin repartir anchos, con sus 2px de aire para el anillo de foco—.
+   Lo único propio es el aire exterior, que tiene que coincidir con el del
+   panel de abajo.
+
+   Selector con el padre por lo mismo que el del panel: sidebar.css trae
+   `.sw-side, .sw-side * { margin: 0 }` y `.sw-topbar__tabs` ya declara su
+   propio padding. */
+.sw-tools--pildoras .sw-tools__tabs {
+  flex: 0 0 auto;
+  /* CON AIRE ABAJO. Estaba en 0 y las pildoras quedaban apoyadas contra el
+     canto de la franja: el unico hueco hasta el panel lo ponia el margen del
+     panel, y con el cuerpo pintado de --sw-surface-2 eso se leia como que las
+     pestañas estaban paradas sobre una superficie distinta en vez de flotando
+     sobre la caja. */
+  padding: 10px 10px var(--sw-s-2);
+}
+/* ESTAS PÍLDORAS NO SE PINTAN DE ACENTO, y no es una preferencia: es la propia
+   advertencia del token, medida acá.
+
+   `.sw-vista` en la barra superior se rellena con --sw-accent-solid, y el
+   bloque de ese token en tokens.css dice por qué puede: la pestaña se apoya en
+   el RIEL, una de las dos superficies donde el sólido está medido (3,30:1), y
+   «sobre --sw-raised o --sw-raised-2 en oscuro no serviría». Esta caja es otro
+   escalón — vidrio sobre la columna. Medido con el relleno de acento acá:
+   4,26:1 en claro y **2,60:1 en oscuro**, por debajo del piso de 3:1 que la
+   1.4.11 pide para un elemento de interfaz que no es texto. El token avisó y
+   la medición lo confirmó.
+
+   Así que la activa se distingue por las otras TRES señales a la vez, que son
+   las que `.sw-vista` ya traía documentadas antes de pasar a acento: saca su
+   etiqueta, sube la tinta a --sw-text, y su filete pasa al fuerte. La etiqueta
+   es la señal principal y es inequívoca — ninguna otra píldora tiene palabra.
+
+   De paso se recupera la decisión 18: la activa se pinta del color del PANEL
+   que abre, que es la cadena que la pestaña plana sostenía y que el acento
+   cortaba. Y el acento de la pantalla se queda donde estaba.
+
+   `--sw-seam` es el filete de la barra superior; acá el de la caja. */
+.sw-tools--pildoras .sw-vista {
+  border-color: var(--sw-line);
+  background: var(--sw-raised-2);
+}
+.sw-tools--pildoras .sw-vista:hover {
+  background: var(--sw-hover);
+  border-color: var(--sw-line-strong);
+}
+.sw-tools--pildoras .sw-vista[aria-selected="true"],
+.sw-tools--pildoras .sw-vista[aria-selected="true"]:hover {
+  color: var(--sw-text);
+  background: var(--sw-raised);
+  border-color: var(--sw-line-strong);
+}
+
+
+/* ===============================================================
+   EL CUERPO NO PINTA NADA, Y EL PANEL APUNTA A SU PESTAÑA
+
+   `.sw-tools__body` trae `background: var(--sw-surface-2)` del chasis, y ahi
+   ese color hace falta: es la superficie sobre la que se apoya la columna de
+   secciones de Flujos. Acá no hay columna, así que lo único que pintaba era un
+   marco de 10px alrededor del panel — un segundo material entre el vidrio de
+   la caja y el panel, que hacía que la caja se viera hecha de tres cosas.
+
+   Se saca SOLO acá, con el modificador: la caja de Flujos sigue necesitándolo.
+   =============================================================== */
+.sw-tools--pildoras .sw-tools__body {
+  background: none;
+  /* Ancla de la punta: el panel no puede dibujarla porque recorta su propio
+     scroll y se la comería. */
+  position: relative;
+}
+
+/* LA PUNTA — el canto del panel subiendo a tocar la píldora activa.
+
+   Las píldoras FLOTAN sobre el panel en vez de pegarse a él, así que la cadena
+   de la decisión 18 —el activo se pinta del color del panel y se apoya en él—
+   quedaba cortada: se veía qué pestaña está abierta, pero nada la ataba al
+   panel que abre. Esto la vuelve a atar.
+
+   Un cuadrado rotado 45°, con el fondo del panel y su mismo filete en los dos
+   lados que quedan arriba. La mitad de abajo la tapa el propio panel, así que
+   se lee como una punta y no como un rombo.
+
+   La ubica el JS en `--sw-tools-punta` (el centro de la píldora activa medido
+   contra el panel), y se mueve con `translate` y no con `left`: es transform, y
+   la regla 7 no admite animar layout.
+   --------------------------------------------------------------- */
+.sw-tools--pildoras .sw-tools__body::after {
+  content: "";
+  position: absolute;
+  /* El panel arranca a 10px del cuerpo por su margen: la punta se apoya en ese
+     canto. */
+  top: 10px;
+  left: 10px;
+  width: 9px; height: 9px;
+  translate: calc(var(--sw-tools-punta, 40px) - 50%) -50%;
+  rotate: 45deg;
+  background: var(--sw-tools-piso, var(--sw-raised));
+  /* El MISMO filete que el panel, token incluido: con --sw-line la punta se
+     quedó sin borde en oscuro el día que el panel pasó a --sw-tools-filete. */
+  border-left: var(--sw-border) solid var(--sw-tools-filete);
+  border-top: var(--sw-border) solid var(--sw-tools-filete);
+  border-top-left-radius: 2px;
+  /* Por encima del panel para tapar su filete justo ahí, que es lo que hace que
+     la punta y el panel sean la misma superficie y no dos pegadas. */
+  z-index: 1;
+  pointer-events: none;
+  transition: translate var(--sw-d-normal) var(--sw-ease-out);
+}
+/* EN PANTALLAS DE DENSIDAD 1 LA DIAGONAL SE LEE MÁS FLOJA QUE EL CANTO. Un filete
+   de 1px a 45° se reparte en dos píxeles a medio tono: medido, 1,15:1 contra
+   1,21 del canto recto en claro y 1,26 contra 1,36 en oscuro — el dueño lo vio
+   como una punta sin borde. Un píxel de sombra detrás del filete lo iguala (1,21
+   y 1,36). A densidad 2 la diagonal ya empata sola y la sombra la engordaría,
+   así que va sólo abajo de 1,5. */
+@media (max-resolution: 1.49dppx) {
+  .sw-tools--pildoras .sw-tools__body::after {
+    box-shadow: -1px -1px 0 0 var(--sw-tools-filete);
+  }
+}
+
+
+/* ============================================================================
+   EL HEADER — una pila de franjas, con los espaciados de la referencia
+
+   Referencia: capturas/referencias/componentes/header-new.jpg.
+
+   LOS ESPACIADOS SE MIDIERON, no se estimaron. La captura NO tiene líneas
+   divisorias —se comprobó muestreando columnas vacías: blanco puro de arriba
+   abajo— así que lo que separa las franjas es aire, y eso es lo que se copió.
+
+   LA ESCALA SALE DE LA PILDORA DEL BUSCADOR, que es la única forma de la
+   captura cuya medida en la app está decidida (44px de alto). Mide 84px ahí, o
+   sea 1,91× — la captura es a 2×, como toda captura de pantalla Retina. El
+   factor se aplica sobre la franja 1 completa (84px de caja → 56 de franja),
+   que es 0,667.
+
+     aire arriba        29px  →  20
+     franja 1           84px  →  56   (título, buscador, nav, acciones)
+     hueco              54px  →  36
+     franja 2 (migas)   16px  →  20   (la tinta mide 16; la caja es su renglón)
+     hueco              36px  →  24
+     franja 3           59px  →  36   (la barra)
+     aire abajo         47px  →   4   ← ver abajo
+
+   La columna de la derecha es el valor llevado a la grilla de 4px del sistema
+   (regla 4).
+
+   EL HUECO DE ARRIBA DE LAS MIGAS ES VEZ Y MEDIA EL DE ABAJO —54 contra 36— y
+   estuvo aplicado como un `gap` uniforme para los dos. No es un detalle: ese
+   reparto es lo que separa «quién sos y qué buscás» de «dónde estás y qué podés
+   hacer acá», que son dos preguntas de distinto peso. Medirlo y no aplicarlo es
+   la misma clase de error que estimarlo.
+
+   TRAMPA DE LA MEDICION: entre las migas y la barra la captura tiene una banda
+   de 2px que NO es una franja — es el canto superior de la tarjeta de preview.
+   Contarla partía el hueco en dos y lo dejaba en 33 en vez de 36. Un barrido de
+   filas no distingue un separador de un borde: hay que mirar la imagen.
+
+   Los huecos van como `gap` de la pila y no como márgenes de cada franja: una
+   franja que se colapsa no tiene que dejar su hueco atrás. El único margen es
+   el de las migas, que suma los 12px que le faltan al gap para llegar a 36 — y
+   como va EN la franja, se colapsa con ella.
+   ============================================================================ */
+
+/* EL RELLENO LATERAL NO ES DE LA PILA SINO DE CADA FRANJA, y eso no es estilo:
+   la franja 4 tiene que llegar hasta el canto para caer sobre la columna, y las
+   otras tres no. Con el relleno en la pila no hay forma de que una franja se
+   salga — un margen negativo se pierde contra el blindaje del shell
+   (`.sw-side * { margin: 0 }` en sidebar.css), que se come TODO margen escrito
+   acá adentro sin decir nada. El computado lo dijo: marginRight=0px. */
+/* EL AIRE DE ABAJO NO ES EL DE LA REFERENCIA, y el motivo es que acá abajo hay
+   algo que en la referencia no hay: la columna lateral arranca con su propio
+   aire, así que los 32px medidos se sumaban a los suyos y quedaba una doble
+   separación. La referencia recorta ahí —no muestra qué sigue— y un espaciado
+   copiado de una captura que no tiene vecino abajo es un espaciado sin contexto.
+
+   Queda en 4px, la unidad del sistema (regla 4). Y de paso le devuelve 28px de
+   alto a la columna, que es de donde salen los de la ficha de causación. */
+.sw-topbar {
+  gap: var(--sw-s-6);
+  padding: var(--sw-s-5) 0 var(--sw-s-1);
+}
+
+/* ---- franja 1 ---- */
+
+.sw-topbar__cab {
+  gap: var(--sw-s-6);
+  min-height: 56px;
+}
+
+/* EL TITULO Y SU SUBTITULO. El subtítulo no es un dato más: dice de qué es el
+   título que tiene encima — «Contabilidad» / «13 accesos» — y estaba una franja
+   más abajo, suelto, donde se leía como si fuera de otra cosa. */
+.sw-topbar__ident {
+  display: grid;
+  gap: 2px;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+/* EL TITULO VA EN `display`, Y ESTA MEDIDO. La altura de mayúscula de
+   «Contabilidad» en la referencia son 39px sobre una captura a 2× —la escala la
+   da la píldora del buscador, 84px para 44— o sea 19,5px de caja alta, que a la
+   proporción habitual de 0,70 dan 27,9px de fuente. `--sw-t-display` son 28.
+
+   Estuvo en `.sw-h2` (16px), que es el tamaño de un título de panel: el título
+   de la sección es lo primero que se lee de la pantalla y competía de igual a
+   igual con los rótulos del nav. */
+.sw-topbar__seccion {
+  margin: 0;
+  /* Declara lo suyo en vez de llevar `.sw-h2` y pisarle el tamaño: una clase
+     que se llama h2 sobre un elemento que mide `display` es una pista falsa
+     para el que la lea. La familia y el peso son los mismos. */
+  font-family: var(--sw-font-display);
+  font-weight: var(--sw-w-semibold);
+  font-size: var(--sw-t-display);
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* DOS RENGLONES: la descripción de la sección y su cuenta. Ver el porqué del
+   reparto en `pintarCabecera` (shell/modules.js). */
+.sw-topbar__sub {
+  display: grid;
+  margin: 0;
+  font-size: var(--sw-t-caption);
+  color: var(--sw-text-2);
+  min-width: 0;
+}
+.sw-topbar__subL {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: var(--sw-lh-body-sm);
+}
+/* LA DIFERENCIA ENTRE LOS DOS RENGLONES LA HACE EL ORDEN, NO EL COLOR.
+
+   La cuenta estuvo un paso más apagada —en `faint`— y eso no llega al piso: 3,89:1
+   medido, contra 4,5 para texto de este tamaño. `faint` es el token de
+   DESHABILITADO; usarlo para bajar jerarquía convierte un dato en algo que parece
+   apagado. Y apagarlo con `opacity` es lo mismo por otro camino.
+
+   Los dos renglones van en el mismo tono. Lo que dice cuál manda es que uno está
+   arriba del otro, que alcanza cuando son dos. */
+.sw-topbar__sub:empty { display: none; }
+
+/* EL BUSCADOR ES UNA PILDORA, como en la referencia, y no una caja de campo:
+   es el control más redondo de la pantalla a propósito — se busca desde
+   cualquier lado, no pertenece a ninguna sección. */
+.sw-topbar__buscador {
+  flex: 1 1 460px;
+  max-width: 560px;
+  min-width: 0;
+  height: 44px;
+  border-radius: var(--sw-r-pill);
+  background: var(--sw-surface-2);
+  padding-right: 4px;
+}
+
+/* EL AMBITO: hasta dónde busca. Va ADENTRO de la píldora y pegado a la lupa
+   porque modifica a la búsqueda, no al header. En la referencia es «Shots»; acá
+   es «En Contabilidad» o «En todo», que es la pregunta real — buscar una
+   factura desde Documento no debería devolver nada y hoy tampoco lo dice. */
+.sw-topbar__ambito {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-s-1);
+  flex: none;
+}
+.sw-topbar__ambitoB {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 var(--sw-s-2);
+  border: 0;
+  border-radius: var(--sw-r-pill);
+  background: none;
+  color: var(--sw-muted);
+  font: inherit;
+  font-size: var(--sw-t-body-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sw-topbar__ambitoB:hover { color: var(--sw-text); background: var(--sw-hover); }
+.sw-topbar__ambitoB svg { --sw-ico: var(--sw-ico-sm); }
+/* EL BOTON DE BUSCAR ES UN CIRCULO LLENO, que es lo único de la referencia que
+   lleva relleno pleno en esta franja. No usa el acento: buscar no es un estado
+   ni el CTA de la pantalla, y el presupuesto de la regla 2 es para eso. */
+.sw-topbar__blup {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border: 0;
+  border-radius: var(--sw-r-pill);
+  background: var(--sw-contraste);
+  color: var(--sw-on-fill);
+  cursor: pointer;
+}
+.sw-topbar__blup svg { --sw-ico: var(--sw-ico-sm); }
+
+/* LAS VISTAS COMO NAV. Eran pestañas en su propia franja; acá son navegación
+   horizontal, que es lo que son: cambiar de vista no abre otra cosa, mueve la
+   misma. Se esconden en cuanto no entran — el buscador y las acciones mandan. */
+.sw-topbar__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-s-1);
+  /* Y SE LLEVA EL SOBRANTE, para que él y las acciones queden contra el canto
+     derecho. El buscador se planta en su `max-width` y lo que sobra tiene que
+     irse a algún lado: sin esto quedaba entre el buscador y el nav, o sea que el
+     avatar flotaba a 290px del borde.
+
+     LO ABSORBE EL NAV Y NO UN `margin-left: auto` EN LAS ACCIONES. Ahí estaba, y
+     el blindaje `.sw-side * { margin: 0 }` de sidebar.css se lo comía sin decir
+     nada: el computado devolvía 0px con la regla escrita a la vista. Adentro del
+     shell no se reparte con márgenes. */
+  flex: 1 1 auto;
+  justify-content: flex-end;
+  min-width: 0;
+  overflow: hidden;
+}
+.sw-topbar__navB {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 36px;
+  padding: 0 var(--sw-s-3);
+  border: 0;
+  border-radius: var(--sw-r-md);
+  background: none;
+  color: var(--sw-muted);
+  font: inherit;
+  font-size: var(--sw-t-body-sm);
+  font-weight: var(--sw-w-medium);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.sw-topbar__navB:hover { color: var(--sw-text); background: var(--sw-hover); }
+.sw-topbar__navB[aria-current="page"] { color: var(--sw-text); }
+/* LO QUE NO ESTA NO SE FINGE. La referencia tiene una entrada apagada («Get
+   Hired»): acá eso es una vista que todavía no existe, y decirlo apagada es más
+   honesto que sacarla —el usuario ve que va a estar— o que dejarla andar y no
+   llevar a ningún lado. */
+.sw-topbar__navB:disabled { color: var(--sw-faint); cursor: default; }
+.sw-topbar__navB:disabled:hover { background: none; }
+
+/* El `margin-left: auto` que había acá NO HACIA NADA: el blindaje del shell se
+   come todo margen escrito adentro. El sobrante lo absorbe el nav. */
+.sw-topbar__acciones {
+  flex: 0 0 auto;
+  gap: var(--sw-s-2);
+}
+/* La acción de la sección no vive en esta franja — ver el porqué en chrome.js.
+   `--sw-contraste-hover`, que se agregó para ella, queda: es el hover del relleno
+   de contraste y lo usa cualquiera que lo tome. */
+
+/* ---- franja 2: las migas ---- */
+
+/* DONDE ESTAS. Hasta acá no había ninguna: en qué superficie, por el riel
+   encendido; sobre qué objeto, sólo abriendo la caja. Y la última miga NO es un
+   enlace —es donde estás— que es la regla de cualquier breadcrumb y la que más
+   se rompe. */
+.sw-topbar__migas {
+  gap: var(--sw-s-2);
+  font-size: var(--sw-t-body-sm);
+  color: var(--sw-muted);
+  min-height: 20px;
+  /* LOS 12 QUE LE FALTAN AL GAP. La referencia separa las migas 36px de la
+     franja de arriba y 24 de la de abajo; el `gap` de la pila pone 24 a las
+     dos. Va en la franja y no en la pila para que se vaya con ella cuando se
+     colapsa, y va como RELLENO y no como margen porque el blindaje del shell
+     —`.sw-side * { margin: 0 }`— se come cualquier margen de acá adentro. Ya
+     pasó: el margen estaba escrito y el computado devolvía cero. */
+  padding-top: var(--sw-s-3);
+}
+.sw-topbar__migas:empty { display: none; }
+.sw-topbar__miga {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--sw-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 30ch;
+}
+.sw-topbar__miga:hover { color: var(--sw-text); text-decoration: underline; }
+.sw-topbar__miga[aria-current="page"] {
+  color: var(--sw-text);
+  cursor: default;
+  text-decoration: none;
+}
+.sw-topbar__migaSep {
+  color: var(--sw-faint);
+  flex: none;
+}
+.sw-topbar__migaSep svg { --sw-ico: 14px; display: block; }
+
+/* ---- franja 3: los números, todavía sin inquilino ---- */
+
+.sw-topbar__kpis { gap: var(--sw-s-4); }
+.sw-topbar__kpis[hidden] { display: none; }
+
+/* ---- franja 4: la barra ----
+
+   SOBRE QUE SE TRABAJA a la izquierda y QUE SE PUEDE HACER a la derecha, que es
+   la forma que las toolbars del proyecto ya tenían por separado. Acá se juntan:
+   `context` estaba arriba de todo y la toolbar abajo del bloque, o sea las dos
+   mitades de la misma frase con la pantalla entera en el medio. */
+.sw-topbar__barra {
+  gap: var(--sw-s-4);
+  /* 44 Y NO 36, QUE ES LO QUE PIDE SU CONTENIDO MAS ALTO. Medido: con el
+     contexto de Contabilidad —tres datos con rótulo arriba y valor abajo— la
+     franja pide 44, y con las seis superficies que no lo llenan se quedaba en 36.
+     O sea que el header medía 209 en una y 201 en las otras seis, y cambiar de
+     sección movía el bloque de trabajo ocho píxeles.
+
+     El alto del header es del SHELL: no puede depender de quién esté adentro. Se
+     paga con ocho píxeles de aire en seis superficies, que es bastante menos de
+     lo que cuesta un layout que salta al navegar.
+
+     Y 44 es además el objetivo táctil de la regla 9, así que la franja donde
+     viven las acciones del espacio de trabajo tiene el alto que un dedo pide. */
+  min-height: 44px;
+  /* Y LA CAJA DE LA COLUMNA SE QUEDA A LA DERECHA AUNQUE NO HAYA NADA MAS.
+
+     Con toolbar, el `flex: 1 1 auto` de ella se lleva el sobrante y empuja la
+     caja sola. Sin toolbar no: el shell le pone `hidden` al slot que el módulo
+     no llena —«una caja que el módulo no llena se colapsa», modules.js— y
+     `[data-slot][hidden]` lo saca del reparto con `display:none !important`. La
+     caja se quedaba pegada al borde izquierdo, a mil píxeles de la columna que
+     abre. Medido en cuatro de las siete superficies: desvío -1037px.
+
+     `flex-end` cubre los dos casos sin un margen, que acá no serviría: el
+     blindaje `.sw-side * { margin: 0 }` se come cualquiera que se escriba. */
+  justify-content: flex-end;
+  /* Y LLEGA HASTA EL CANTO DE VERDAD. Medido: con el ancho correcto en los dos
+     estados —460 y 56, los mismos que la columna— el canto izquierdo de la caja
+     caía 24px antes, siempre los mismos 24, porque el header tiene relleno
+     lateral y el bloque de abajo no.
+
+     EL MARGEN NEGATIVO VA ACA Y NO EN LA CAJA, y eso es flexbox y no una
+     preferencia: en la caja no movía nada, porque el espacio que el margen
+     libera vuelve al reparto y se lo lleva entero la toolbar, que es la que
+     tiene `flex: 1 1 auto`. Un margen negativo sobre un ítem flexible se anula
+     solo. En la franja no hay nada que lo reparta.
+
+     Con esto el filete de la caja cae exactamente sobre el de la columna: es la
+     misma juntura vista una franja más arriba, no dos líneas parecidas. */
+  padding-right: 0;
+}
+/* EL RELIEVE DE LA BARRA (pedido del dueño). Un filete hundido arriba de la
+   franja de las acciones: la línea oscura del surco y, pegado debajo, un píxel
+   de brillo. Separa «de qué es esta sección» de «qué se puede hacer» sin sumar un
+   escalón de valor, y cruza también la caja de la columna, que es la misma
+   franja. */
+.sw-topbar__fila.sw-topbar__barra {
+  border-top: var(--sw-border) solid var(--sw-relieve-surco);
+  box-shadow: inset 0 var(--sw-border) 0 var(--sw-relieve-brillo);
+}
+/* LA FRANJA YA NO SE COLAPSA. Tuvo un `display:none` para cuando ni `context`
+   ni la toolbar traían nada —cinco de las siete superficies— y esa regla dejó de
+   poder activarse el día que la caja de la columna pasó a estar siempre: es el
+   ancho de la columna, no un inquilino, así que no se esconde. Se saca en vez de
+   dejarla: una regla que no puede dispararse nunca se lee como si hiciera algo. */
+/* NO SE COMPRIME Y NO ENVUELVE, y las dos cosas son la misma decisión: el
+   contexto dice SOBRE QUÉ se trabaja, así que es lo último que tiene que ceder.
+
+   Cedía: con `flex: 0 1 auto` contra la toolbar en `flex: 1 1 auto`, la toolbar
+   reclamaba y el contexto se achicaba hasta partirse en dos renglones aunque
+   hubiera lugar de sobra a la derecha —medido a 1600px: contexto 622 + toolbar
+   383 = 1005 en un hueco de 1037—. Lo que cede es la toolbar, que para eso ya
+   tiene `overflow-x: auto`: una acción que no entra se alcanza desplazando, un
+   dato que no entra se pierde. */
+.sw-topbar__contexto {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-s-4);
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+.sw-topbar__contexto[hidden] { display: none; }
+/* La toolbar ocupa lo que sobra y empuja sus utilidades al canto derecho. */
+/* La clase es `sw-toolbar-slot` —la del slot, no la del topbar— y escribirla mal
+   dejaba la caja en 32px con su contenido de 293 desbordando afuera. */
+.sw-toolbar-slot { flex: 1 1 auto; min-width: 0; }
+/* Y NO SE ESCONDE CUANDO ESTA VACIA: es lo que separa el lienzo de la caja, así
+   que tiene que ocupar su ancho aunque no traiga nada. Con `display:none` las
+   cinco superficies que no llenan la barra dejaban al botón de la columna
+   pegado al borde izquierdo, o sea a 1200px de la columna que abre. */
+
+/* ---- y acá termina el lienzo ----
+
+   LA CAJA DE LA COLUMNA — referencia header-new2.jpg.
+
+   La segunda referencia es la primera con una sola diferencia: el grupo de
+   botones de la derecha se corrió 911px hacia adentro y apareció un filete
+   vertical de 1px, con un control suelto del otro lado. Medido, lo que queda a
+   la derecha del filete es el 24% del ancho — la columna lateral.
+
+   O SEA QUE LA BARRA NO CRUZA POR ENCIMA DE LA COLUMNA. Es la misma regla que
+   el `subgrid` del bloque ya resolvía cuando la toolbar vivía abajo: la franja
+   es continua pero por dentro sabe dónde termina el lienzo. Al subir al header
+   se salió de esa grilla, y acá vuelve por `:has()` — el ancestro común de la
+   topbar y del bloque es `.sw-side__canvas`, así que desde ahí se puede mirar
+   en qué estado está la columna.
+
+   EL ANCHO NO SE DUPLICA: sale de los mismos dos tokens que usa la columna
+   —`--sw-col-w` y `--sw-tools-nav-w`— y la transición es la misma, con la misma
+   curva y la misma duración, así que las dos se mueven como una sola pieza. Un
+   ancho copiado a mano se desincroniza el día que alguien toque uno de los dos.
+   ------------------------------------------------------------------ */
+.sw-topbar__caja {
+  flex: 0 0 auto;
+  width: var(--sw-col-w);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  /* El filete del medio es el mismo que separa la columna del lienzo abajo
+     (`--sw-block-seam` en el `border-left` de `.sw-side-col`): es la misma
+     juntura, vista una franja más arriba. */
+  border-left: var(--sw-border) solid var(--sw-block-seam);
+  padding-left: var(--sw-s-3);
+  margin-left: var(--sw-s-4);
+  transition: width var(--sw-d-normal) var(--sw-ease-inout);
+}
+/* En riel la columna son 56px y la caja también: el botón queda encima del
+   riel, que es donde el usuario lo va a buscar para volver a abrirlo. */
+.sw-side__canvas:has(.sw-side-col.is-riel) .sw-topbar__caja {
+  width: var(--sw-tools-nav-w);
+}

@@ -44,6 +44,11 @@
 
 /* El shell y las pantallas, en el MISMO orden que login.html del template. */
 @import "./theme/shell/ambience.css";
+@import "./theme/shell/chrome.css";
+@import "./theme/shell/sidebar.css";
+@import "./theme/shell/split.css";
+@import "./theme/shell/menus.css";
+@import "./theme/shell/field.css";
 @import "./theme/shell/theme-switch.css";
 @import "./theme/shell/tele.css";
 @import "./theme/shell/llegada.css";
