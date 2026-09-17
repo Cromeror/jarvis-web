@@ -1,6 +1,6 @@
 import React from 'react';
 import { Icon } from '../Icon.js';
-import { ThemeSwitch } from '../ThemeSwitch.js';
+import { UserMenu } from './UserMenu.js';
 
 /**
  * LA BARRA SUPERIOR — una PILA DE FRANJAS que crece, no una fila.
@@ -25,12 +25,15 @@ export function Topbar({
   acciones,
   columnaAbierta,
   onAlternarColumna,
+  sinLeer = 0,
 }: {
   titulo: string;
   sub?: string;
   acciones?: React.ReactNode;
   columnaAbierta: boolean;
   onAlternarColumna: () => void;
+  /** Avisos sin leer. Todavía no hay de dónde sacarlos: queda en 0, mockeado. */
+  sinLeer?: number;
 }): React.ReactElement {
   return (
     <div className="sw-topbar">
@@ -56,7 +59,37 @@ export function Topbar({
 
         <div className="sw-topbar__acciones">
           {acciones}
-          <ThemeSwitch />
+
+          {/* AVISOS. La referencia del header los pone justo antes del avatar.
+              El globo va montado sobre la esquina de la campana y es
+              `aria-hidden` porque visualmente ya está dicho — el número va
+              TAMBIÉN en la etiqueta accesible: un lector que sólo oiga
+              «Notificaciones» pierde el dato entero.
+
+              Tope en 9+: la cápsula está medida para un dígito, y un 12 la
+              deforma. */}
+          <button
+            className="sw-topbar__aviso"
+            type="button"
+            aria-label={`Notificaciones${sinLeer ? `, ${sinLeer} sin leer` : ''}`}
+          >
+            <Icon name="bell" />
+            {sinLeer > 0 && (
+              <span className="badge sw-topbar__globo" aria-hidden="true">
+                {sinLeer > 9 ? '9+' : sinLeer}
+              </span>
+            )}
+          </button>
+
+          {/* EL TEMA NO VA SUELTO ACÁ: vive adentro del menú de usuario, que es
+              donde lo puso el template. El segmentado de tres posiciones quedó
+              para la pantalla de entrar, que no carga el header y es su único
+              lugar suelto. Tenerlo en los dos sitios daría dos controles para
+              el mismo dato en la misma pantalla.
+
+              El avatar va ÚLTIMO, pegado al borde: es donde el ojo lo busca.
+              Adentro vive cerrar sesión. */}
+          <UserMenu />
         </div>
       </div>
 
