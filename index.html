@@ -38,7 +38,20 @@
          <body>; acá React monta en #root, que queda en el medio. Sin altura
          propia, el `height: 100%` de .sw-side mide contra una caja colapsada y
          el layout se desarma. */
-      #root { height: 100%; }
+      #root {
+        height: 100%;
+        /* flow-root, y NO es decorativo: sin esto el `margin: 8px` de .sw-side
+           COLAPSA con el de #root en vez de separar (CSS2.1 §8.3.1 — #root no
+           tiene border-top ni padding-top y no abre contexto de formato propio),
+           así que el chasis quedaba pegado al borde de la ventana. El margen
+           estaba puesto y medía 8px en el box model: lo que faltaba era que
+           #root lo contuviera.
+
+           Se descartó `overflow:hidden` —#root tiene que poder dejar salir
+           popovers y globos— y también el border/padding de 1px, que tapa el
+           síntoma en vez de arreglar la causa. */
+        display: flow-root;
+      }
     </style>
   </head>
   <body>
