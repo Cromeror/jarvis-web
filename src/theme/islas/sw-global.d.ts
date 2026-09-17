@@ -34,6 +34,11 @@ declare global {
           op?: { malla?: boolean; paso?: string },
         ) => { destroy: () => void; refresh: () => void };
       };
+      /* El dibujo del campo de puntos de los vacíos: devuelve el HTML entero
+         —los keyframes por punto y los spans posicionados—. Se publica una vez
+         y lo usan el vacío de sección y el del chat, para que no sean dos
+         dibujos que se parecen hoy y se separan en el primer ajuste. */
+      vacio?: { marca: () => string };
       theme?: {
         get: () => 'auto' | 'light' | 'dark';
         set: (v: 'auto' | 'light' | 'dark') => void;

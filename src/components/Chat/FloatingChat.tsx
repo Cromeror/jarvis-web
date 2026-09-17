@@ -5,6 +5,7 @@ import { useChatStream } from '../../hooks/useChatStream.js';
 import { MessageList } from '../ui/molecules/MessageList.js';
 import { useActiveProjectId } from '../../hooks/useActiveProject.js';
 import { Icon } from '../Icon.js';
+import '../../theme/islas/empty-state.js';
 import { ExecutorLoginPrompt } from './ExecutorLoginPrompt.js';
 
 
@@ -157,9 +158,23 @@ export function FloatingChat(): React.ReactElement | null {
         {vacio && (
           <div className="sw-chat__vacio empty">
             <header>
-              <span className="sw-chat__vacioIco">
-                <Icon name="mensajes" />
-              </span>
+              {/* EL CAMPO DE PUNTOS DETRÁS DEL ÍCONO. Es EL MISMO dibujo que el
+                  de los vacíos de sección, no una copia: lo publica la isla
+                  `empty-state.js` en `window.SW.vacio.marca()`. Copiarlo daría
+                  dos campos que se parecen hoy y se separan en el primer ajuste.
+
+                  Van en un <figure> y superpuestos —el CSS les da a los dos
+                  `grid-area: 1/1`—, así que el ícono queda encima y centrado: la
+                  figura pasa a ser el marco. */}
+              <figure>
+                <span
+                  aria-hidden="true"
+                  dangerouslySetInnerHTML={{ __html: window.SW?.vacio?.marca?.() ?? '' }}
+                />
+                <span className="sw-chat__vacioIco">
+                  <Icon name="mensajes" />
+                </span>
+              </figure>
               <h3>Empezá una conversación</h3>
               <p>
                 {sinProyecto
