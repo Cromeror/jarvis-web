@@ -18,3 +18,18 @@
      formulario que tiene debajo. */
   pointer-events: none;
 }
+
+/* LA ZONA QUE SCROLLEA — sigue la anatomía de `.sw-hoja-zona`
+   (documents/sheet.css), que es como el template resuelve esto:
+
+     · `.sw-surface-slot` NO scrollea (overflow: hidden). Es la caja.
+     · el MÓDULO trae su propia zona, con `height: 100%` y `overflow: auto`.
+
+   Nuestras páginas son el módulo, y como son genéricas la zona se nombra por la
+   palabra que ya usa el chasis para ellas —«Vistas», el aria-label de
+   `.sw-topbar__nav`— con el mismo sufijo que el template le pone a esta pieza.
+   No es vocabulario nuevo: es el mismo patrón, aplicado a nuestro módulo. */
+.sw-vista-zona {
+  height: 100%;
+  overflow: auto;
+}

@@ -74,8 +74,11 @@ export function AppShell({
         <Topbar titulo={titulo} sub={sub} acciones={acciones} />
 
         <div className="sw-container">
+          {/* El slot es la CAJA y no scrollea; la zona de adentro sí. Es la
+              anatomía de `.sw-hoja-zona` en el template: la superficie le pone
+              bordes al trabajo, y lo que se mueve es el contenido. */}
           <div className="sw-surface-slot sw-grid-surface" ref={contentRef}>
-            {children}
+            <div className="sw-vista-zona">{children}</div>
           </div>
           {/* El chat tiene DOS ubicaciones y el usuario elige: inquilino de la
               columna, o tarjeta que flota sobre el área de trabajo. */}

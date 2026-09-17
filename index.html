@@ -28,6 +28,18 @@
         if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
       } catch (e) { /* sin storage: arranca en auto */ }
     </script>
+
+    <style>
+      /* EL MODELO DE ALTURA DEL TEMPLATE, tal cual su index.html: la página no
+         scrollea nunca. El chasis ocupa la ventana y lo que scrollea es la zona
+         del módulo, adentro. */
+      html, body { height: 100%; overflow: hidden; }
+      /* LO ÚNICO QUE EL TEMPLATE NO NECESITA: él escribe el chasis directo en el
+         <body>; acá React monta en #root, que queda en el medio. Sin altura
+         propia, el `height: 100%` de .sw-side mide contra una caja colapsada y
+         el layout se desarma. */
+      #root { height: 100%; }
+    </style>
   </head>
   <body>
     <div id="root"></div>
