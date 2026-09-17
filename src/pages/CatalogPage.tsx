@@ -7,21 +7,21 @@ import {
   CatalogApiError,
   createModule,
   createPackage,
-  createUtility,
+  createModuleTool,
   deleteModule,
   deletePackage,
-  deleteUtility,
+  deleteModuleTool,
   esCompatible,
   listAssignments,
   listCatalogTools,
   listModules,
   listPackages,
-  listUtilities,
-  setModuleUtilities,
+  listModuleTools,
+  setModuleTools as asignarHerramientasAlModulo,
   setPackageModules,
   setProjectPackages,
 } from '../lib/catalog-api.js';
-import type { CatalogModule, CatalogPackage, CatalogToolOption, CatalogUtility } from '../lib/catalog-api.js';
+import type { CatalogModule, CatalogPackage, CatalogToolOption, CatalogModuleTool } from '../lib/catalog-api.js';
 import { StatusBadge } from '../components/ui/atoms/StatusBadge.js';
 
 const PANEL_CLASS = 'rounded-xl border border-white/10 bg-white/[0.03] p-4';
@@ -37,7 +37,7 @@ function mensajeDeError(err: unknown, fallback: string): string {
 
 /**
  * Alta de un elemento del catálogo. Los tres niveles comparten formulario
- * —nombre, slug opcional, descripción— porque comparten forma; la utilidad
+ * —nombre, slug opcional, descripción— porque comparten forma; la herramienta
  * agrega su tool y es la única diferencia.
  */
 function AltaRapida({
@@ -100,7 +100,7 @@ function AltaRapida({
  * La composición: qué hijos tiene el elegido, en una lista de casillas.
  *
  * Es el mismo control para las tres relaciones (módulos de un paquete,
- * utilidades de un módulo, proyectos de un paquete) porque las tres son lo
+ * herramientas de un módulo, proyectos de un paquete) porque las tres son lo
  * mismo: elegir un subconjunto de un catálogo y guardarlo COMPLETO. El guardado
  * es un reemplazo total, así que no hay que decir aparte qué se quitó.
  */
@@ -165,7 +165,7 @@ function Composicion<T extends { id: string; name: string }>({
 }
 
 /**
- * Configuración del catálogo — paquetes, módulos y utilidades.
+ * Configuración del catálogo — paquetes, módulos y herramientas.
  *
  * Exclusiva del superadmin, igual que el backend: acá se define el producto que
  * después se le asigna a cada cliente. Un cliente no ve esta pantalla; ve el
@@ -173,13 +173,13 @@ function Composicion<T extends { id: string; name: string }>({
  *
  * Las tres secciones están en una sola página y no en tres porque configurar
  * uno de los niveles sin ver los otros dos es adivinar: el paquete se arma con
- * módulos que hay que poder crear ahí mismo, y el módulo con utilidades.
+ * módulos que hay que poder crear ahí mismo, y el módulo con herramientas.
  */
 export function CatalogPage(): React.ReactElement {
   const { user } = useAuth();
   const [packages, setPackages] = useState<CatalogPackage[]>([]);
   const [modules, setModules] = useState<CatalogModule[]>([]);
-  const [utilities, setUtilities] = useState<CatalogUtility[]>([]);
+  const [moduleTools, setModuleTools] = useState<CatalogModuleTool[]>([]);
   const [tools, setTools] = useState<CatalogToolOption[]>([]);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [assignments, setAssignments] = useState<Record<string, string[]>>({});
@@ -193,14 +193,14 @@ export function CatalogPage(): React.ReactElement {
       const [p, m, u, t, proj, asg] = await Promise.all([
         listPackages(),
         listModules(),
-        listUtilities(),
+        listModuleTools(),
         listCatalogTools(),
         listProjects(),
         listAssignments(),
       ]);
       setPackages(p);
       setModules(m);
-      setUtilities(u);
+      setModuleTools(u);
       setTools(t);
       setProjects(proj);
       setAssignments(asg);
@@ -238,10 +238,10 @@ export function CatalogPage(): React.ReactElement {
   return (
     <div className="h-full overflow-y-auto bg-[var(--app-bg)] p-6">
       <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-lg font-semibold text-white">Paquetes, módulos y utilidades</h1>
+        <h1 className="text-lg font-semibold text-white">Paquetes, módulos y herramientas</h1>
       </div>
       <p className="mb-4 max-w-3xl text-xs text-slate-400">
-        Un paquete contiene módulos y un módulo contiene utilidades. Nada de eso viene dado: se arma acá y se le asigna
+        Un paquete contiene módulos y un módulo contiene herramientas. Nada de eso viene dado: se arma acá y se le asigna
         a cada proyecto, y eso es lo que termina siendo su menú.
       </p>
 
@@ -352,7 +352,7 @@ export function CatalogPage(): React.ReactElement {
                     >
                       <button type="button" onClick={() => setModuleId(m.id)} className="flex-1 truncate text-left">
                         {m.name}
-                        <span className="ml-2 text-xs text-slate-400">{m.utilities.length} utilidades</span>
+                        <span className="ml-2 text-xs text-slate-400">{m.module_tools.length} herramientas</span>
                         {/* De dónde salió la fila. Un módulo `code` lo declara el
                             código y tiene vista; uno `manual` sirve para diseñar
                             el menú pero no resuelve nada todavía. */}
@@ -389,19 +389,19 @@ export function CatalogPage(): React.ReactElement {
 
               {modulo ? (
                 <Composicion
-                  titulo={`Utilidades de ${modulo.name}`}
+                  titulo={`Herramientas de ${modulo.name}`}
                   vacio={
-                    utilities.length === 0
-                      ? 'Creá una utilidad abajo para poder ponerla en este módulo.'
-                      : 'Ninguna utilidad es compatible con este módulo. Una utilidad declara con qué módulos sirve; las abiertas sólo entran si el módulo acepta abiertas.'
+                    moduleTools.length === 0
+                      ? 'Creá una herramienta abajo para poder ponerla en este módulo.'
+                      : 'Ninguna herramienta es compatible con este módulo. Una herramienta declara con qué módulos sirve; las abiertas sólo entran si el módulo acepta abiertas.'
                   }
                   // Sólo las compatibles: ofrecer una que el backend va a
                   // rechazar hace perder el tiempo y enseña mal el modelo.
-                  opciones={utilities.filter((u) => esCompatible(u, modulo))}
-                  seleccionados={modulo.utilities.map((u) => u.id)}
-                  onGuardar={(ids) => conManejoDeError(() => setModuleUtilities(modulo.id, ids))}
+                  opciones={moduleTools.filter((u) => esCompatible(u, modulo))}
+                  seleccionados={modulo.module_tools.map((u) => u.id)}
+                  onGuardar={(ids) => conManejoDeError(() => asignarHerramientasAlModulo(modulo.id, ids))}
                   etiqueta={(u) => {
-                    const util = utilities.find((x) => x.id === u.id);
+                    const util = moduleTools.find((x) => x.id === u.id);
                     return (
                       <span className="flex items-center gap-2">
                         {u.name}
@@ -421,14 +421,14 @@ export function CatalogPage(): React.ReactElement {
           </section>
 
           <section className={PANEL_CLASS}>
-            <h2 className="text-sm font-semibold text-white">Utilidades</h2>
+            <h2 className="text-sm font-semibold text-white">Herramientas</h2>
             <p className="mt-1 text-xs text-slate-400">
-              Una utilidad es la presentación de una tool que ya existe. Puede declararse antes que su tool: mientras
+              Una herramienta es la presentación de una tool que ya existe. Puede declararse antes que su tool: mientras
               tanto se muestra, pero no ejecuta nada.
             </p>
             <div className="mt-3 max-h-64 space-y-1 overflow-y-auto rounded-lg border border-white/10 p-2">
-              {utilities.length === 0 && <p className="px-1 py-2 text-xs text-slate-500">Todavía no hay utilidades.</p>}
-              {utilities.map((u) => (
+              {moduleTools.length === 0 && <p className="px-1 py-2 text-xs text-slate-500">Todavía no hay herramientas.</p>}
+              {moduleTools.map((u) => (
                 <div key={u.id} className="flex items-center gap-2 rounded px-2 py-1 text-sm text-slate-200 hover:bg-white/5">
                   <span className="flex-1 truncate">
                     {u.name}
@@ -454,8 +454,8 @@ export function CatalogPage(): React.ReactElement {
                     disabled={u.origin === 'code'}
                     title={u.origin === 'code' ? 'La declara el código: se va cuando se la saque de ahí' : undefined}
                     onClick={() => {
-                      if (!window.confirm(`¿Eliminar la utilidad '${u.name}'?`)) return;
-                      void conManejoDeError(() => deleteUtility(u.id));
+                      if (!window.confirm(`¿Eliminar la herramienta '${u.name}'?`)) return;
+                      void conManejoDeError(() => deleteModuleTool(u.id));
                     }}
                     className="rounded px-1 text-xs text-red-400 hover:bg-red-500/10 disabled:opacity-30"
                   >
@@ -465,11 +465,11 @@ export function CatalogPage(): React.ReactElement {
               ))}
             </div>
             <AltaRapida
-              titulo="Nombre de la utilidad"
+              titulo="Nombre de la herramienta"
               conTool
               tools={tools}
               onCrear={async (input) => {
-                await conManejoDeError(() => createUtility(input));
+                await conManejoDeError(() => createModuleTool(input));
               }}
             />
           </section>

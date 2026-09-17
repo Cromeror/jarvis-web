@@ -2,6 +2,7 @@ import React from 'react';
 import { DropdownMenu } from 'radix-ui';
 import { Icon } from '../Icon.js';
 import { useAuth } from '../../hooks/useAuth.js';
+import { useActiveProject } from '../../hooks/useActiveProject.js';
 import { useTheme, type Tema } from '../../hooks/useTheme.js';
 
 /**
@@ -31,6 +32,14 @@ import { useTheme, type Tema } from '../../hooks/useTheme.js';
  *
  * `align="end"` por lo mismo que en el template: el disparador vive pegado al
  * borde derecho, y alineado al inicio el menú se sale de la pantalla.
+ *
+ * ACÁ TAMBIÉN SE CAMBIA DE PROYECTO, y va primero de todo. Cambiar de proyecto
+ * no es navegar: cambia el menú entero —el riel de un cliente SON sus paquetes—
+ * y con él lo que se puede hacer. Eso es un switch de contexto, de la misma
+ * familia que quién sos y cómo se ve la app, no una entrada más del sidebar.
+ * Tuvo un disparador propio arriba del riel y se movió acá: el riel es lo que
+ * el switch CAMBIA, y un control que se reemplaza a sí mismo al usarlo se lee
+ * como que algo se rompió.
  */
 
 const TEMAS: { valor: Tema; icono: string; etiqueta: string }[] = [
@@ -47,6 +56,7 @@ const ACCIONES: { icono: string; etiqueta: string; atajo?: string }[] = [
 
 export function UserMenu(): React.ReactElement {
   const { user, logout } = useAuth();
+  const { projectId, proyectos, elegir } = useActiveProject();
   const tema = useTheme();
 
   const nombre = user?.username ?? '—';
@@ -74,6 +84,37 @@ export function UserMenu(): React.ReactElement {
             <span className="sw-user__nombre">{nombre}</span>
             <span className="sw-user__perfil">{perfil}</span>
           </div>
+
+          {/* EL SWITCH DE PROYECTO. Se dibuja con UNO SOLO también: entonces no
+              hay nada que cambiar, pero sigue siendo la única parte de la app
+              que dice en qué proyecto se está parado. Sin ninguno —el operador
+              recién entrado, o un cliente sin proyectos— no se dibuja: una
+              sección vacía no informa nada. */}
+          {proyectos.length > 0 && (
+            <>
+              <DropdownMenu.Separator asChild>
+                <hr />
+              </DropdownMenu.Separator>
+
+              <div className="sw-user__rotulo" role="presentation">
+                Proyecto
+              </div>
+
+              <DropdownMenu.RadioGroup value={projectId ?? ''} onValueChange={elegir}>
+                {proyectos.map((p) => (
+                  <DropdownMenu.RadioItem key={p.id} value={p.id} asChild>
+                    <button type="button">
+                      <Icon name="cubo" />
+                      <span>{p.name}</span>
+                      <DropdownMenu.ItemIndicator data-indicator>
+                        <Icon name="check" />
+                      </DropdownMenu.ItemIndicator>
+                    </button>
+                  </DropdownMenu.RadioItem>
+                ))}
+              </DropdownMenu.RadioGroup>
+            </>
+          )}
 
           <DropdownMenu.Separator asChild>
             <hr />

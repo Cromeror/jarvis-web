@@ -4,8 +4,8 @@ import type { CatalogModule } from '../lib/catalog-api.js';
 /**
  * Lo que un módulo construido recibe para dibujar su área de trabajo.
  *
- * Le llega el módulo ENTERO —con sus utilidades ya resueltas— y el proyecto,
- * que es lo que necesita para ejecutar: una utilidad se corre contra el
+ * Le llega el módulo ENTERO —con sus herramientas ya resueltas— y el proyecto,
+ * que es lo que necesita para ejecutar: una herramienta se corre contra el
  * proyecto que la tiene asignada, no en abstracto.
  */
 export interface ModuleViewProps {

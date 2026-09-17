@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { runUtility } from '../../lib/catalog-api.js';
-import type { CatalogUtility } from '../../lib/catalog-api.js';
+import { runModuleTool } from '../../lib/catalog-api.js';
+import type { CatalogModuleTool } from '../../lib/catalog-api.js';
 import type { ModuleViewProps } from '../registry.js';
 import { StatusBadge } from '../../components/ui/atoms/StatusBadge.js';
 
@@ -24,7 +24,7 @@ const LIBRO_EJEMPLO = `[
  * Es el EJEMPLO que valida la estructura de punta a punta: el módulo se declara
  * en el código (`BUILT_MODULES`), el sync lo trae a la base, el superadmin lo
  * mete en un paquete y se lo asigna a un proyecto, el sidebar lo ancla, y acá se
- * resuelve y se ejecuta su utilidad contra la tool real.
+ * resuelve y se ejecuta su herramienta contra la tool real.
  *
  * Deliberadamente feo y directo: dos textareas con JSON. Lo que se prueba es la
  * cadena, no la UX de una conciliación de verdad — cuando haya un módulo real,
@@ -37,19 +37,19 @@ export function View({ projectId, module }: ModuleViewProps): React.ReactElement
   const [error, setError] = useState<string | null>(null);
   const [corriendo, setCorriendo] = useState<string | null>(null);
 
-  // La utilidad se busca por su `key` del código y no por el nombre visible: el
+  // La herramienta se busca por su `key` del código y no por el nombre visible: el
   // nombre lo puede cambiar el superadmin desde la pantalla de catálogo, y el
   // módulo dejaría de encontrar lo que ejecuta.
-  const conciliar = module.utilities.find((u) => u.key === 'demo-conciliar-movimientos') ?? null;
-  const exportar = module.utilities.find((u) => u.key === 'demo-exportar-csv') ?? null;
+  const conciliar = module.module_tools.find((u) => u.key === 'demo-conciliar-movimientos') ?? null;
+  const exportar = module.module_tools.find((u) => u.key === 'demo-exportar-csv') ?? null;
 
-  async function ejecutar(utilidad: CatalogUtility, input: Record<string, unknown>): Promise<void> {
-    setCorriendo(utilidad.id);
+  async function ejecutar(herramienta: CatalogModuleTool, input: Record<string, unknown>): Promise<void> {
+    setCorriendo(herramienta.id);
     setError(null);
     try {
-      setSalida(await runUtility(projectId, utilidad.id, input));
+      setSalida(await runModuleTool(projectId, herramienta.id, input));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo ejecutar la utilidad');
+      setError(err instanceof Error ? err.message : 'No se pudo ejecutar la herramienta');
       setSalida(null);
     } finally {
       setCorriendo(null);
@@ -97,8 +97,8 @@ export function View({ projectId, module }: ModuleViewProps): React.ReactElement
 
         <button
           type="button"
-          // La utilidad ABIERTA: no sabe nada de conciliación, exporta lo que
-          // haya a la vista. Es la mitad del ejemplo que prueba que una utilidad
+          // La herramienta ABIERTA: no sabe nada de conciliación, exporta lo que
+          // haya a la vista. Es la mitad del ejemplo que prueba que una herramienta
           // sirve en cualquier módulo que acepte abiertas.
           disabled={!exportar || corriendo !== null || salida === null}
           onClick={() => {
@@ -110,7 +110,7 @@ export function View({ projectId, module }: ModuleViewProps): React.ReactElement
           Exportar a CSV
         </button>
 
-        {!conciliar && <StatusBadge label="la utilidad de conciliar no está en este módulo" tone="warning" />}
+        {!conciliar && <StatusBadge label="la herramienta de conciliar no está en este módulo" tone="warning" />}
       </div>
 
       {error && (

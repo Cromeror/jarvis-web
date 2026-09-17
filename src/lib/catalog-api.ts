@@ -1,13 +1,21 @@
 /**
  * Cliente de `api/catalog` — paquetes, módulos y utilidades.
  *
+ * ACÁ SE SIGUE DICIENDO «moduleTool», Y ES A PROPÓSITO: es el contrato con la API
+ * (`CatalogModuleTool`, `runModuleTool`, `/api/catalog/module-tools`), que vive en el
+ * otro repo. De este archivo para adentro de la app el nombre es HERRAMIENTA
+ * —es lo que el usuario lee y donde viven, la caja de herramientas de la
+ * columna derecha—, y la traducción ocurre en un solo lugar:
+ * `superficies-del-riel.ts`. Renombrar el tipo acá sin renombrar el endpoint
+ * dejaría dos nombres para lo mismo sin una línea que diga cuál es cuál.
+ *
  * Dos superficies con audiencias distintas: todo lo de configuración es del
  * superadmin, y `fetchNavigation` la pide cualquier usuario para dibujar su
  * menú. Están en el mismo archivo porque son el mismo modelo, pero no se
  * mezclan: la de navegación devuelve SÓLO lo asignado al proyecto que se pasa.
  */
 
-export interface CatalogUtility {
+export interface CatalogModuleTool {
   id: string;
   slug: string;
   name: string;
@@ -30,7 +38,7 @@ export interface CatalogModule {
   slug: string;
   name: string;
   description: string | null;
-  utilities: CatalogUtility[];
+  module_tools: CatalogModuleTool[];
   key: string | null;
   origin: 'code' | 'manual';
   status: 'active' | 'missing';
@@ -100,7 +108,7 @@ export interface CatalogItemInput {
   description?: string | null;
 }
 
-export interface CatalogUtilityInput extends CatalogItemInput {
+export interface CatalogModuleToolInput extends CatalogItemInput {
   tool_name?: string | null;
 }
 
@@ -141,24 +149,24 @@ export async function deleteModule(id: string): Promise<void> {
   await send('DELETE', `/api/catalog/modules/${encodeURIComponent(id)}`);
 }
 
-export async function setModuleUtilities(id: string, ids: string[]): Promise<CatalogModule> {
-  return send('PUT', `/api/catalog/modules/${encodeURIComponent(id)}/utilities`, { ids });
+export async function setModuleTools(id: string, ids: string[]): Promise<CatalogModule> {
+  return send('PUT', `/api/catalog/modules/${encodeURIComponent(id)}/module-tools`, { ids });
 }
 
-export async function listUtilities(): Promise<CatalogUtility[]> {
-  return handle<CatalogUtility[]>(await fetch('/api/catalog/utilities'));
+export async function listModuleTools(): Promise<CatalogModuleTool[]> {
+  return handle<CatalogModuleTool[]>(await fetch('/api/catalog/module-tools'));
 }
 
-export async function createUtility(input: CatalogUtilityInput): Promise<CatalogUtility> {
-  return send('POST', '/api/catalog/utilities', input);
+export async function createModuleTool(input: CatalogModuleToolInput): Promise<CatalogModuleTool> {
+  return send('POST', '/api/catalog/module-tools', input);
 }
 
-export async function updateUtility(id: string, input: Partial<CatalogUtilityInput>): Promise<CatalogUtility> {
-  return send('PATCH', `/api/catalog/utilities/${encodeURIComponent(id)}`, input);
+export async function updateModuleTool(id: string, input: Partial<CatalogModuleToolInput>): Promise<CatalogModuleTool> {
+  return send('PATCH', `/api/catalog/module-tools/${encodeURIComponent(id)}`, input);
 }
 
-export async function deleteUtility(id: string): Promise<void> {
-  await send('DELETE', `/api/catalog/utilities/${encodeURIComponent(id)}`);
+export async function deleteModuleTool(id: string): Promise<void> {
+  await send('DELETE', `/api/catalog/module-tools/${encodeURIComponent(id)}`);
 }
 
 /** Las tools que se pueden asociar a una utilidad — la misma fuente que valida al guardar. */
@@ -179,7 +187,7 @@ export async function setProjectPackages(projectId: string, ids: string[]): Prom
 /**
  * Si una utilidad puede colgarse de un módulo.
  *
- * Misma regla que el backend (`isUtilityCompatible` en `@jarvis/core`), acá para
+ * Misma regla que el backend (`isModuleToolCompatible` en `@jarvis/core`), acá para
  * que la pantalla ofrezca sólo lo compatible en vez de dejar elegir algo que el
  * servidor va a rechazar. El filtro es comodidad; la regla la aplica el backend.
  *
@@ -187,21 +195,21 @@ export async function setProjectPackages(projectId: string, ids: string[]): Prom
  * entra en cualquier módulo: si no, la pantalla escondería composiciones que ya
  * existen.
  */
-export function esCompatible(utility: CatalogUtility, module: CatalogModule): boolean {
-  if (utility.compatible_with === null) return true;
-  if (utility.compatible_with === '*') return module.accepts === 'any';
-  return module.key !== null && utility.compatible_with.includes(module.key);
+export function esCompatible(moduleTool: CatalogModuleTool, module: CatalogModule): boolean {
+  if (moduleTool.compatible_with === null) return true;
+  if (moduleTool.compatible_with === '*') return module.accepts === 'any';
+  return module.key !== null && moduleTool.compatible_with.includes(module.key);
 }
 
 /** Ejecuta una utilidad del menú del proyecto y devuelve lo que la tool respondió. */
-export async function runUtility(
+export async function runModuleTool(
   projectId: string,
-  utilityId: string,
+  moduleToolId: string,
   input: Record<string, unknown>,
 ): Promise<unknown> {
   const body = await send<{ output: unknown }>(
     'POST',
-    `/api/catalog/projects/${encodeURIComponent(projectId)}/utilities/${encodeURIComponent(utilityId)}/run`,
+    `/api/catalog/projects/${encodeURIComponent(projectId)}/moduleTools/${encodeURIComponent(moduleToolId)}/run`,
     { input },
   );
   return body.output;

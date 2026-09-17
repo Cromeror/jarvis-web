@@ -15,12 +15,16 @@ import { SideColumn } from './SideColumn.js';
  *   .sw-side                       el marco de todo
  *     .sw-side__rail               nivel 1 — elige superficie
  *     .sw-side__panel              nivel 2 — lista de objetos
- *     .sw-side__detail             nivel 3 — el detalle
  *     .sw-pop                      el popover de filtros, FUERA del panel
  *     .sw-side__canvas             el área de trabajo
  *       .sw-topbar                 la barra superior
  *       .sw-container              lo que se trabaja + la columna derecha
  *       .sw-dock-slot
+ *
+ * `.sw-side__detail` (el nivel 3 del template) NO se dibuja: sus dos inquilinos
+ * se fueron —el proyecto pasó a ser el ámbito y las herramientas del módulo, a la
+ * caja de herramientas de la columna derecha—, y un tercer nivel que nunca abre
+ * es peor que dos que sí. El CSS queda por si vuelve a haber qué poner ahí.
  *
  * `.sw-pop` vive fuera del panel a propósito: el panel recorta su contenido, y
  * un popover adentro se cortaría contra su borde.
