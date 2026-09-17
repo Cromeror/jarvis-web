@@ -83,10 +83,11 @@ export function UserMenu(): React.ReactElement {
               que sincronizar aria-checked a mano, como sí había que hacer con el
               JS de Basecoat. */}
           <DropdownMenu.RadioGroup value={tema.choice} onValueChange={(v) => tema.set(v as Tema)}>
+            {/* asChild + <button>: en el template cada ítem ES un botón, y el CSS
+                de Basecoat cuelga de esa anatomía. Radix renderiza un <div> por
+                defecto, que no recibe las mismas reglas. El comentario va FUERA
+                del map: el cuerpo de la flecha devuelve UNA expresión. */}
             {TEMAS.map((t) => (
-              {/* asChild + <button>: en el template cada ítem ES un botón, y el
-                  CSS de Basecoat cuelga de eso. Radix renderiza un <div> por
-                  defecto, que no recibe las mismas reglas. */}
               <DropdownMenu.RadioItem key={t.valor} value={t.valor} asChild>
                 <button type="button">
                   <Icon name={t.icono} />
