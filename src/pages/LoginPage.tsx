@@ -62,6 +62,7 @@ export function LoginPage(): React.ReactElement {
   const [errClave, setErrClave] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [fase, setFase] = useState<'zoom' | undefined>(undefined);
 
   const [quieto] = useState(prefiereQuieto);
   const [ahorro] = useState(ahorraDatos);
@@ -151,6 +152,59 @@ export function LoginPage(): React.ReactElement {
     return !eu && !ec;
   }
 
+  /* ==================================================================
+     LA ENTRADA — lo que pasa al apretar «Entrar», en DOS TIEMPOS:
+
+     1 · EXPLOTA (--sw-d-macro): todo hace zoom hacia la cámara, cada capa a su
+         profundidad —fondo 1.25, halo 1.6, malla 2.4 y la caja 4— y la caja CON
+         lo que tiene adentro. Lo hace el CSS del template a partir de
+         `data-fase`; acá sólo se estampa el atributo.
+     2 · LLEGA LA APP con el zoom inverso: aparece desde un poco más lejos
+         (`shell/llegada.css`).
+
+     Con movimiento reducido no hay explosión: se cambia directo.
+
+     DIVERGE DEL TEMPLATE EN CÓMO VIAJA LA SEÑAL, y no por gusto: allá son dos
+     páginas y la segunda mitad se activa leyendo `sessionStorage` en el <head>
+     antes de la primera pintura. Acá es una SPA — no hay recarga—, así que el
+     atributo se estampa directo. Un sessionStorage que nadie consume al recargar
+     dejaría la app animando cada vez que alguien aprieta F5.
+     ================================================================== */
+  const ms = (n: string): number =>
+    parseFloat(getComputedStyle(document.documentElement).getPropertyValue(n)) || 0;
+  const esperar = (t: number): Promise<void> => new Promise((r) => setTimeout(r, t));
+
+  async function explotar(): Promise<void> {
+    if (quieto) return;
+    setFase('zoom');
+    await esperar(ms('--sw-d-macro'));
+  }
+
+  function llegar(modo: 'zoom' | 'quieta'): void {
+    const raiz = document.documentElement;
+    raiz.dataset.llegada = modo;
+    /* SE SACA AL TERMINAR, y no es cosmético: el keyframe declara sólo `from`,
+       así que al final el body vuelve a no tener transform. Si el atributo
+       quedara puesto y algo lo reanimara, un transform vivo en el <body> lo
+       convierte en el contenedor de todo lo `position: fixed` de la app.
+
+       El listener va en el body y no en un nodo de React porque esta pantalla
+       se desmonta en el medio: la animación la corre el body, que sobrevive. */
+    const alTerminar = (ev: AnimationEvent): void => {
+      if (ev.target !== document.body) return;
+      delete raiz.dataset.llegada;
+      document.body.removeEventListener('animationend', alTerminar);
+    };
+    document.body.addEventListener('animationend', alTerminar);
+    /* Red de seguridad: si la animación no llega a correr —pestaña oculta, el
+       usuario cambió a movimiento reducido en el medio—, el atributo no se
+       queda pegado para siempre. */
+    setTimeout(() => {
+      delete raiz.dataset.llegada;
+      document.body.removeEventListener('animationend', alTerminar);
+    }, ms('--sw-d-macro') + 400);
+  }
+
   async function handleSubmit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
     setError(null);
@@ -158,17 +212,26 @@ export function LoginPage(): React.ReactElement {
     setSubmitting(true);
     try {
       await login(username, password);
+      /* La explosión va ANTES de avisar y de navegar: notificar primero podría
+         disparar un re-render que se lleve la pantalla a mitad del zoom. */
+      await explotar();
+      llegar(quieto ? 'quieta' : 'zoom');
       notifyAuthChanged();
       navigate('/', { replace: true });
     } catch (err) {
+      setFase(undefined);
       setError(err instanceof Error ? err.message : 'Error al iniciar sesión');
-    } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <main className="sw-acceso" ref={hostRef} data-fondo={hayVideo ? 'video' : undefined}>
+    <main
+      className="sw-acceso"
+      ref={hostRef}
+      data-fondo={hayVideo ? 'video' : undefined}
+      data-fase={fase}
+    >
       {/* EL FONDO EN MOVIMIENTO — un video que no se mira: sólo da movimiento
           detrás de la malla, bajo un velo. Si no carga se va entero y vuelven
           los orbes, que es la pantalla de antes. */}

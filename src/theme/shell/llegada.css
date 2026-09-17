@@ -1,0 +1,31 @@
+/* ============================================================================
+   SpaceMyWork — La llegada
+   ----------------------------------------------------------------------------
+   La app aparece con el zoom inverso de la explosión de la pantalla de entrar:
+   allá todo voló hacia la cámara, acá lo nuevo llega desde un poco más lejos.
+
+   LO ACTIVA EL <head> DE index.html antes de la primera pintura, y sólo si se
+   viene de esa explosión (sessionStorage `sw.llegada`, que se consume al leerlo:
+   recargar la app no lo repite). Abrir index.html directo no anima nada.
+
+   UNA SOLA VEZ Y CON `from`: sin estado final declarado, al terminar el body
+   vuelve a no tener transform —un transform que se quedara convertiría al body
+   en el contenedor de todo lo `position: fixed` de la app—.
+   ============================================================================ */
+
+@keyframes sw-llegada {
+  from { opacity: 0; transform: scale(var(--sw-acceso-zoom-llega)); }
+}
+@keyframes sw-llegada-quieta {
+  from { opacity: 0; }
+}
+
+:root[data-llegada="zoom"] body {
+  animation: sw-llegada var(--sw-d-macro) var(--sw-ease-out);
+}
+:root[data-llegada="quieta"] body {
+  animation: sw-llegada-quieta var(--sw-d-micro) linear;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-llegada] body { animation: sw-llegada-quieta var(--sw-d-micro) linear; }
+}
