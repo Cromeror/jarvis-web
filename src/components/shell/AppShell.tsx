@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Icon } from '../Icon.js';
 import { Sidebar } from './Sidebar.js';
 import { Topbar } from './Topbar.js';
 import { SideColumn } from './SideColumn.js';
@@ -52,6 +54,22 @@ export function AppShell({
      la barra superior: son dos piezas separadas en el DOM mirando el mismo dato. */
   const [columnaAbierta, setColumnaAbierta] = useState(true);
 
+  /* EL CHAT TIENE DOS UBICACIONES y el usuario elige: inquilino de la columna
+     —como arranca— o tarjeta que flota sobre el área de trabajo.
+
+     El nodo SE MUDA DE PADRE, que es lo que hace el template. Acá va por portal
+     y no re-renderizando en dos lugares: con un portal React conserva el mismo
+     árbol, así que la conversación, el scroll y lo escrito a medias sobreviven
+     al viaje. Remontarlo los perdería en cada clic. */
+  const [chatFuera, setChatFuera] = useState(false);
+  const anclaRef = useRef<HTMLDivElement>(null);
+  const flotaRef = useRef<HTMLElement>(null);
+  /* Los refs no existen en el primer render: hasta que el shell esté pintado no
+     hay dónde portalar. */
+  const [pintado, setPintado] = useState(false);
+  useEffect(() => setPintado(true), []);
+  const destino = chatFuera ? flotaRef.current : anclaRef.current;
+
   return (
     <Sidebar>
       <main className="sw-side__canvas">
@@ -72,14 +90,56 @@ export function AppShell({
           </div>
           {/* El chat tiene DOS ubicaciones y el usuario elige: inquilino de la
               columna, o tarjeta que flota sobre el área de trabajo. */}
-          <aside className="sw-flota" hidden />
+          <aside className="sw-flota" ref={flotaRef} aria-label="Conversación" hidden={!chatFuera}>
+            {/* La barra de la tarjeta hace lo que adentro hace el conmutador:
+                decir qué es esto, y ofrecer la puerta de vuelta. */}
+            <header className="sw-flota__barra">
+              <Icon name="message" />
+              <span className="sw-flota__t">Conversación</span>
+              <button
+                className="sw-flota__btn"
+                type="button"
+                aria-label="Volver a la columna"
+                title="Volver a la columna"
+                onClick={() => setChatFuera(false)}
+              >
+                <Icon name="entrar" />
+              </button>
+            </header>
+          </aside>
           <SideColumn
-            chat={chat}
+            chatHostRef={anclaRef}
+            chatAnclado={!chatFuera}
             herramientas={herramientas}
             riel={!columnaAbierta}
             onAbrir={() => setColumnaAbierta(true)}
           />
         </div>
+
+        {/* EL BOTÓN DE SACAR VIVE ADENTRO DEL CHAT, no en la fila del
+            conmutador: al lado de las pestañas se leía como una tercera — dos
+            controles del mismo tamaño en la misma fila se leen como una serie,
+            aunque uno elija vista y el otro ejecute una acción. Y como el nodo
+            se muda de padre, el botón viaja con él. */}
+        {pintado && destino
+          ? createPortal(
+              <>
+                {chat}
+                {!chatFuera && (
+                  <button
+                    className="sw-chat__sacar"
+                    type="button"
+                    aria-label="Sacar la conversación de la caja"
+                    title="Sacar la conversación de la caja"
+                    onClick={() => setChatFuera(true)}
+                  >
+                    <Icon name="salir" />
+                  </button>
+                )}
+              </>,
+              destino,
+            )
+          : null}
 
         <div className="sw-dock-slot" />
       </main>

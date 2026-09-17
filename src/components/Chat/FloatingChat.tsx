@@ -1,12 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { useLocation } from 'react-router-dom';
 import { getChatMessages, listChatSessions, sendChatMessage, startChatSession, stopChatMessage } from '../../lib/chat-api.js';
 import type { ChatMessage } from '../../lib/chat-api.js';
 import { useChatStream } from '../../hooks/useChatStream.js';
 import { MessageList } from '../ui/molecules/MessageList.js';
-import { useWorkspaceAnchor } from '../layout/workspace-anchor.js';
 import { useActiveProjectId } from '../../hooks/useActiveProject.js';
+import { Icon } from '../Icon.js';
 import { ExecutorLoginPrompt } from './ExecutorLoginPrompt.js';
 
 
@@ -30,12 +28,8 @@ import { ExecutorLoginPrompt } from './ExecutorLoginPrompt.js';
  * mirando.
  */
 export function FloatingChat(): React.ReactElement | null {
-  const { pathname } = useLocation();
-  const anchor = useWorkspaceAnchor();
   const projectId = useActiveProjectId();
-  const enChat = pathname.startsWith('/chat');
 
-  const [abierto, setAbierto] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [mensajes, setMensajes] = useState<ChatMessage[]>([]);
   const [texto, setTexto] = useState('');
@@ -58,7 +52,7 @@ export function FloatingChat(): React.ReactElement | null {
     }
   }, [sessionId]);
 
-  const { active, liveText, pending } = useChatStream(abierto ? sessionId : null, {
+  const { active, liveText, pending } = useChatStream(sessionId, {
     onHistoryChanged: () => void refrescarHistorial(),
     onError: (message, step) => {
       setError(message);
@@ -70,7 +64,7 @@ export function FloatingChat(): React.ReactElement | null {
   // las pantallas y no puede costar una llamada por navegación a quien nunca lo
   // usa.
   useEffect(() => {
-    if (!abierto || !projectId || sessionId) return;
+    if (!projectId || sessionId) return;
     let cancelado = false;
     setCargando(true);
     void (async () => {
@@ -91,7 +85,7 @@ export function FloatingChat(): React.ReactElement | null {
     return () => {
       cancelado = true;
     };
-  }, [abierto, projectId, sessionId]);
+  }, [projectId, sessionId]);
 
   useEffect(() => {
     if (sessionId) void refrescarHistorial();
@@ -120,93 +114,99 @@ export function FloatingChat(): React.ReactElement | null {
     }
   }
 
-  if (enChat) return null;
+  /* EL HILO ESTÁ SIEMPRE. Desde que vive en la columna lateral es un panel
+     persistente, no un popover: por eso no hay botón de cerrar — cerrarlo
+     dejaría la columna vacía sin nada que hacer con el hueco.
 
-  const contenido = !abierto ? (
-    <button
-      type="button"
-      onClick={() => setAbierto(true)}
-      title={projectId ? `Preguntarle a Jarvis sobre ${projectId}` : 'Chat de Jarvis'}
-      className="absolute bottom-4 right-4 z-30 flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-3 text-sm font-medium text-white shadow-lg transition-colors hover:bg-indigo-700"
-    >
-      <i className="pi pi-comments text-base" />
-      Jarvis
-    </button>
-  ) : (
-    <div className="absolute bottom-4 right-4 z-30 flex h-[min(560px,calc(100%-2rem))] w-[380px] max-w-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[var(--app-bg)] shadow-2xl">
-      <header className="flex items-center justify-between gap-2 border-b border-white/10 px-3 py-2">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-white">Jarvis</p>
-          <p className="truncate text-[11px] text-slate-400">
-            {projectId ?? 'sin proyecto'}
-            {active ? ' · trabajando…' : ''}
-          </p>
-        </div>
-        <div className="flex items-center gap-1">
-          {/* La misma conversación, en la pantalla completa: mismo historial,
-              con el resto de sus controles (adjuntos, selector de sesión). */}
-          {projectId && (
-            <a
-              href={`/chat/${projectId}${sessionId ? `/${sessionId}` : ''}`}
-              title="Abrir la conversación completa"
-              className="rounded-lg px-2 py-1 text-xs text-slate-400 hover:bg-white/10 hover:text-white"
-            >
-              <i className="pi pi-external-link" />
-            </a>
+     Ya no se esconde en /chat. Esa excepción existía cuando el chat flotaba
+     encima del trabajo; anclado en la columna es el mismo panel que en el resto
+     de la app, y esconderlo dejaría el hueco que muestra el adjunto. */
+
+  const sinProyecto = !projectId;
+  const vacio = mensajes.length === 0 && !cargando;
+
+  const cuerpo = (
+    <>
+      {/* Es un contenedor scrolleable, así que es foco de teclado por derecho
+          propio y tiene su anillo en chat.css. */}
+      <div
+        className={`sw-chat__thread${vacio ? '' : ' is-empezado'}`}
+        tabIndex={0}
+        aria-label="Conversación"
+      >
+        <div className="sw-chat__msgs">
+          {sinProyecto ? null : cargando ? null : (
+            /* La MISMA lista que la pantalla completa. Lo que no se le pasa acá
+               —cola editable, apertura de planes— no es una versión recortada:
+               son controles que necesitan pantalla, y la lista los omite sola
+               cuando no recibe sus handlers. */
+            <MessageList
+              sessionId={sessionId}
+              messages={mensajes}
+              pending={active}
+              liveText={liveText}
+              onStop={active && sessionId ? () => void stopChatMessage(sessionId) : undefined}
+            />
           )}
-          <button
-            type="button"
-            onClick={() => setAbierto(false)}
-            title="Minimizar"
-            className="rounded-lg px-2 py-1 text-xs text-slate-400 hover:bg-white/10 hover:text-white"
-          >
-            <i className="pi pi-minus" />
-          </button>
         </div>
-      </header>
 
-      <div className="min-h-0 flex-1 overflow-hidden">
-        {!projectId ? (
-          <p className="p-3 text-xs text-slate-400">
-            Elegí un proyecto para conversar: entrá a un chat, un plan, un environment o un paquete.
-          </p>
-        ) : cargando ? (
-          <p className="p-3 text-xs text-slate-400">Abriendo la conversación…</p>
-        ) : (
-          // La MISMA lista que la pantalla completa. Lo que no se le pasa acá
-          // —cola editable, apertura de planes— no es una versión recortada del
-          // render: son controles que necesitan pantalla, y la lista los omite
-          // sola cuando no recibe sus handlers.
-          <MessageList
-            sessionId={sessionId}
-            messages={mensajes}
-            pending={active}
-            liveText={liveText}
-            onStop={active && sessionId ? () => void stopChatMessage(sessionId) : undefined}
-          />
+        {/* EL HILO VACÍO — el componente Empty de Basecoat, el mismo de shadcn:
+            quien recién llega no sabe qué es esto. Un ícono, qué es y qué hacer,
+            y las sugerencias ADENTRO en vez de sueltas entre el hilo y el
+            composer. Se va con el primer mensaje. */}
+        {vacio && (
+          <div className="sw-chat__vacio empty">
+            <header>
+              <span className="sw-chat__vacioIco">
+                <Icon name="mensajes" />
+              </span>
+              <h3>Empezá una conversación</h3>
+              <p>
+                {sinProyecto
+                  ? 'Elegí un proyecto para conversar: entrá a un chat, un plan, un environment o un paquete.'
+                  : 'Jarvis puede cambiar lo que tenés abierto, explicarte algo o armarlo con vos.'}
+              </p>
+            </header>
+            <section className="sw-chat__chips">
+              <button className="sw-chat__chip" type="button" onClick={() => setTexto('¿Qué puedo hacer acá?')}>
+                ¿Qué puedo hacer acá?
+              </button>
+              <button className="sw-chat__chip" type="button" onClick={() => setTexto('Mostrame un ejemplo')}>
+                Mostrame un ejemplo
+              </button>
+            </section>
+          </div>
         )}
       </div>
 
-      {/* El error primero, el arreglo abajo: primero se entiende qué pasó y
-          después qué se puede hacer. */}
-      {error && !sinSesionDelExecutor && <p className="px-3 pb-1 text-[11px] text-red-300">{error}</p>}
+      {error && !sinSesionDelExecutor && <p className="sw-chat__context">{error}</p>}
       {sinSesionDelExecutor && (
-        <div className="px-2 pb-2">
-          <ExecutorLoginPrompt
-            projectId={projectId}
-            onResuelto={() => {
-              setSinSesionDelExecutor(false);
-              setError(null);
-            }}
-          />
-        </div>
+        <ExecutorLoginPrompt
+          projectId={projectId}
+          onResuelto={() => {
+            setSinSesionDelExecutor(false);
+            setError(null);
+          }}
+        />
       )}
 
-      <div className="flex items-end gap-2 border-t border-white/10 p-2">
+      {/* EL COMPOSER. Las ranuras de arriba —integración, adjuntos, contexto—
+          se dibujan sólo si hay dato; hoy ninguna tiene, así que arranca en
+          campo y pie, que es como arranca el template.
+
+          LOS CONTROLES DEL PIE ESTÁN MOCKEADOS a propósito (pedido explícito):
+          varios no tienen contraparte todavía, y se ponen igual para que la
+          pantalla esté completa. Lo único vivo es el campo y enviar. */}
+      <div className="sw-comp">
+        <div className="sw-comp__integra" hidden />
+        <div className="sw-comp__adj" hidden />
+        <div className="sw-comp__ctx" hidden />
+
         <textarea
-          rows={2}
+          className="sw-comp__campo"
+          rows={1}
           value={texto}
-          disabled={!projectId || !sessionId}
+          disabled={sinProyecto || !sessionId}
           onChange={(e) => setTexto(e.target.value)}
           onKeyDown={(e) => {
             // Enter envía y Shift+Enter hace salto, como el composer grande.
@@ -215,28 +215,61 @@ export function FloatingChat(): React.ReactElement | null {
               void enviar();
             }
           }}
-          placeholder={projectId ? 'Escribile a Jarvis…' : 'Elegí un proyecto'}
-          className="min-h-[38px] flex-1 resize-none rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs text-white placeholder:text-slate-500 outline-none focus:border-indigo-400 disabled:opacity-50"
+          placeholder="Pedí un cambio, preguntá algo, o describí lo que querés hacer…"
+          aria-label="Pedí un cambio, preguntá algo, o describí lo que querés hacer"
         />
-        <button
-          type="button"
-          disabled={!texto.trim() || !sessionId}
-          onClick={() => void enviar()}
-          className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-        >
-          Enviar
-        </button>
+
+        <div className="sw-comp__pie">
+          <div className="sw-comp__lado">
+            <button className="sw-comp__mas" type="button" aria-label="Agregar" title="Agregar">
+              <Icon name="plus" />
+            </button>
+            <button className="sw-comp__pill" type="button">
+              <Icon name="wrench" />
+              <span>Herramientas</span>
+              <Icon name="chevron" />
+            </button>
+            <button className="sw-comp__pill" type="button">
+              <Icon name="message" />
+              <span>Normal</span>
+              <Icon name="chevron" />
+            </button>
+          </div>
+          <div className="sw-comp__lado">
+            <button className="sw-comp__modelo" type="button">
+              <span>Opus 5</span>
+              <Icon name="chevron" />
+            </button>
+            {/* UN CONTROL, DOS GLIFOS: mientras genera es detener y cuando
+                termina vuelve a ser la flecha. Enviar y detener no conviven. */}
+            <button
+              className="sw-comp__send"
+              type="button"
+              disabled={!active && (!texto.trim() || !sessionId)}
+              aria-label={active ? 'Detener' : 'Enviar'}
+              title={active ? 'Detener' : 'Enviar'}
+              onClick={() => {
+                if (active && sessionId) void stopChatMessage(sessionId);
+                else void enviar();
+              }}
+            >
+              <Icon name={active ? 'stop' : 'avanzar'} />
+            </button>
+          </div>
+        </div>
+
+        <p className="sw-comp__ayuda">
+          <span className="sw-chat__kbd">Shift + Enter</span> para una línea nueva
+        </p>
       </div>
+
       {pending.length > 0 && (
-        <p className="px-3 pb-2 text-[11px] text-slate-500">
+        <p className="sw-comp__ayuda">
           {pending.length} {pending.length === 1 ? 'mensaje en cola' : 'mensajes en cola'}
         </p>
       )}
-    </div>
+    </>
   );
 
-  // Sin anchor todavía (primer render, antes de que el shell registre el suyo)
-  // no se dibuja: un fallback a `document.body` volvería al `fixed` que este
-  // componente dejó de usar, y se vería saltar de lugar.
-  return anchor ? createPortal(contenido, anchor) : null;
+  return cuerpo;
 }

@@ -1,0 +1,1343 @@
+/* ============================================================================
+   SpaceMyWork — Chat
+   ----------------------------------------------------------------------------
+   No es una caja de módulo: es del shell y nunca se colapsa. Es el canal por
+   el que pasa casi todo el trabajo del usuario — pedidos, guía, cambios.
+
+   VIVE EN LA COLUMNA LATERAL (decisión 43). Pasó por tres formas y la
+   tercera es la que quedó, así que vale anotar por qué se abandonaron las
+   otras dos: fila propia abajo de todo (le comía alto al lienzo en todo el
+   ancho), y tarjeta flotante sobre la superficie (el hilo tapaba justo la
+   parte del documento sobre la que se estaba conversando — medido en
+   design/conversar-y-ver.html: 730px visibles de 1166). Ahora es un
+   inquilino de la columna: llena su alto, el hilo scrollea y el composer
+   queda fijo al pie.
+
+   El hilo YA NO se despliega ni se cierra: está siempre. Es una columna
+   persistente, no un popover — abrirlo y cerrarlo era la mecánica de la
+   tarjeta flotante, y arrastrarla acá dejaría la columna vacía sin motivo.
+   ============================================================================ */
+
+.sw-chat {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  /* El composer no puede quedar pegado al hilo: sin este hueco la caja de
+     escribir se lee como el ultimo mensaje y pisa visualmente al que de
+     verdad lo es. */
+  gap: var(--sw-s-2);
+  padding: var(--sw-s-3);
+  /* Ancla para la flecha de la esquina. */
+  position: relative;
+  /* VIDRIO. Sigue a la columna, no al shell: los dos inquilinos del bloque
+     (decisión 43) comparten su superficie — pero ahora la comparten a
+     través del vidrio, no copiando su color.
+
+     DESVIACIÓN DECLARADA A LA REGLA 3 del repo, que reserva la elevación
+     para lo que flota sobre el contenido. Esto no flota: está apoyado en
+     la columna. Lo que hace el blur acá no es elevar, es SEPARAR — el
+     chat y el conmutador comparten superficie y hasta ahora no había nada
+     que dijera dónde empieza uno. No lleva sombra, que es lo que la regla
+     3 realmente protege; lleva un cambio de material.
+
+     El 16% que deja pasar cae siempre dentro de la escalera (ver
+     --sw-atmosfera en tokens.css), así que el texto del hilo se mueve como
+     mucho un escalón. Con una foto de fondo eso deja de ser cierto. */
+  background: var(--sw-vidrio);
+  backdrop-filter: blur(var(--sw-vidrio-blur));
+}
+
+/* EL HILO ES EL UNICO QUE CEDE. Todo lo demas que cuelga del chat es rigido.
+
+   El bug que arregla: el composer venia con el `flex: 0 1 auto` por defecto,
+   o sea que PODIA encogerse. Con la tarjeta flotante llena de mensajes el
+   hilo se quedaba con su alto y el que cedia era el composer — medido, su
+   contenido pedia 68px dentro de una caja de 54. Y como .sw-comp lleva
+   `overflow: hidden`, no desbordaba: RECORTABA. La fila de controles
+   (+ / Herramientas / Normal / Opus 5 / enviar) quedaba cortada contra el
+   borde de abajo, sin ningun sintoma mas que verlo.
+
+   Va por exclusion y no listando hermanos: cualquier cosa que se agregue
+   al chat mañana nace rigida, y el hilo sigue siendo el que absorbe. Que es
+   lo correcto — es el unico que scrollea. */
+.sw-chat > :not(.sw-chat__thread) { flex: 0 0 auto; }
+
+/* Los dos casos en que el vidrio se apaga y vuelve el color pleno.
+
+   El primero es soporte: sin backdrop-filter, un fondo al 84% sobre la
+   atmósfera NO es «el efecto un poco peor», es el texto sobre gradientes
+   crudos. Degradar acá es volver al color, no dejar la transparencia.
+
+   El segundo es una preferencia del sistema que el usuario ya declaró, del
+   mismo orden que prefers-reduced-motion: hay gente a la que la
+   transparencia le dificulta leer. */
+@supports not (backdrop-filter: blur(1px)) {
+  .sw-chat, .sw-tools, .sw-side-col__switch { background: var(--sw-block-chrome); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .sw-chat, .sw-tools, .sw-side-col__switch { background: var(--sw-block-chrome); backdrop-filter: none; }
+}
+
+/* ---------------------------------------------------------------
+   HILO — llena la columna y scrollea
+   --------------------------------------------------------------- */
+
+.sw-chat__thread {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* Sin fondo, sin borde y sin sombra: ya no flota sobre nada, está
+     apoyado en --sw-surface como el resto de la columna. La regla 3
+     reserva la sombra para lo que flota sobre el contenido, y esto
+     dejó de hacerlo. */
+  padding: var(--sw-s-2) var(--sw-s-1);
+  animation: sw-thread-in var(--sw-d-normal) var(--sw-ease-out);
+}
+
+/* Regla 4 de §11: un contenedor scrolleable es foco de teclado y necesita
+   su propia línea — sin esto se puede scrollear con el teclado y no se ve
+   dónde está parado.
+
+   El ancho y el desplazamiento ya no se declaran acá: los pone la regla
+   global de base.css, que es una línea de 1px dibujada encima del canto. Lo
+   único propio es el radio, porque el hilo redondea más que el --sw-r-sm que
+   la regla global asume y sin esto la línea le cortaba las esquinas. */
+.sw-chat__thread:focus-visible {
+  border-radius: var(--sw-r-md);
+}
+
+.sw-chat__thread[hidden] { display: none; }
+
+/* Vestigio de la tarjeta flotante: no hay nada que cerrar. */
+.sw-chat__close { display: none; }
+
+@keyframes sw-thread-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* La medida de lectura (74ch) y el centrado con márgenes automáticos eran
+   de la tarjeta flotante, que era más ancha que el texto. La columna mide
+   460px —menos que 74ch— así que el tope no limitaba nada y el
+   `margin:0 auto` sí hacía daño: en un contenedor flex en columna, un
+   margen automático en el eje cruzado anula el estirado, y la barra
+   quedaba encogida al contenido y centrada en el medio de la nada. */
+/* EL CARRIL DEL HILO vive en el padding de la izquierda: los nodos y la
+   linea se dibujan ahi, fuera del texto, asi que ninguna medida del cuerpo
+   del mensaje cambia por tenerlos. */
+.sw-chat__msgs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sw-s-6);
+  padding-left: var(--sw-hilo-w);
+}
+
+.sw-msg { display: flex; flex-direction: column; gap: var(--sw-s-2); }
+
+.sw-msg { position: relative; }
+
+/* EL TRAMO DE LINEA. Arranca abajo del nodo y baja hasta pasar el hueco que
+   separa este mensaje del siguiente, donde lo espera el nodo de aquel: asi
+   el hilo se lee continuo aunque cada mensaje dibuje solo su pedazo.
+
+   El ultimo no dibuja: una linea que sale del ultimo nodo y no llega a
+   ninguna parte promete un mensaje que no existe. */
+.sw-msg::after {
+  content: "";
+  position: absolute;
+  /* CENTRADA EN EL NODO, no al costado. El nodo arranca en -24 y mide 7, asi
+     que su centro esta en -20,5; la linea mide 1, asi que su borde izquierdo
+     va en -21. La formula lo dice en terminos de los tokens para que siga
+     valiendo si cambia el diametro o el ancho del carril:
+
+       -carril + (diametro - grosor) / 2
+
+     Antes estaba en -(carril + diametro) / 2 = -15,5, o sea 1,5px a la
+     DERECHA del borde derecho del nodo: la linea pasaba por al lado en vez de
+     atravesarlo. */
+  left: calc(var(--sw-hilo-w) * -1 + (var(--sw-nodo-d) - var(--sw-border)) / 2);
+  top: var(--sw-nodo-d);
+  bottom: calc(var(--sw-s-6) * -1);
+  width: var(--sw-border);
+  background: var(--sw-nido);
+}
+.sw-msg:last-child::after { display: none; }
+
+/* LA LINEA DEL NOMBRE, en caja normal.
+
+   Venia en versalitas con 0,12em de tracking — el registro de etiqueta de
+   formulario, no el de alguien hablando. Un nombre propio en mayusculas
+   deja de leerse como nombre y pasa a leerse como categoria; y el tracking
+   que las versalitas necesitan para respirar, en caja normal solo separa.
+   Sube de 10 a 11px porque sin mayusculas el mismo cuerpo se ve mas chico. */
+.sw-msg__who {
+  position: relative;
+  /* POR ENCIMA DE LA LINEA. El tramo lo dibuja .sw-msg::after, que en orden
+     de DOM viene DESPUES de esta fila, asi que sin esto se pinta arriba del
+     nodo: en el anillo del usuario la linea se veia cruzandolo por el medio.
+     El nodo tiene que leerse como una parada en el hilo, no como algo que la
+     linea perfora. */
+  z-index: 1;
+  display: flex; align-items: center; gap: var(--sw-s-2);
+  font-size: var(--sw-t-caption);
+  letter-spacing: normal;
+  font-weight: var(--sw-w-medium);
+  color: var(--sw-muted);
+}
+
+/* EL NODO, colgado de la linea del nombre y no del mensaje: asi queda
+   centrado con el nombre sin que nadie calcule a que altura empieza. */
+.sw-msg__who::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--sw-hilo-w) * -1);
+  top: 50%;
+  translate: 0 -50%;
+  width: var(--sw-nodo-d); height: var(--sw-nodo-d);
+  border-radius: var(--sw-r-pill);
+  border: var(--sw-border) solid var(--sw-nido);
+  background: var(--sw-block-chrome);
+}
+
+/* LOS DOS NOMBRES VAN A LA IZQUIERDA, alineados con su nodo.
+
+   El del usuario estuvo un rato cruzado a la derecha, para marcar donde
+   terminaba un mensaje y empezaba el otro. Con el hilo puesto esa razon se
+   cayo: la separacion ya la hacen los nodos y el tramo de linea entre ellos,
+   que es un corte mas claro y ademas dice de quien es cada turno.
+
+   Y cruzarlo tenia un costo propio: el nombre quedaba lejos de su nodo, o sea
+   que la marca y la etiqueta de la misma cosa miraban a lados opuestos. Con
+   los dos a la izquierda, cada nombre esta al lado del punto que le
+   corresponde.
+
+   Se fue con esto la reserva de carril que le hacia lugar a la flecha de
+   sacar el chat: esa colision existia solo porque el nombre aterrizaba en la
+   esquina superior derecha, que es justo donde flota el boton. */
+
+/* El del asistente queda RELLENO y el del usuario ANILLO: quien habla se
+   distingue por forma y no solo por color (1.4.1). */
+.sw-msg--ai .sw-msg__who::before { background: var(--sw-accent-text); border-color: var(--sw-accent-text); }
+
+/* EL NOMBRE SE ESTIRA, y por eso el pin termina en la otra punta. Es flex y
+   no un margen automatico: adentro de .sw-side todo margen se resetea a cero
+   (el `.sw-side *` de sidebar.css) y un margin-left:auto aca se apagaria sin
+   avisar. Ya me paso antes en este mismo layout. */
+.sw-msg__nombre {
+  flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* La onda del asistente, al mismo cuerpo que el texto que acompania. */
+.sw-msg__who > svg { --sw-ico: var(--sw-ico-sm); flex: 0 0 auto; }
+
+/* EL AVATAR es la primitiva de Basecoat, acotada al alto de esta fila: la
+   version del topbar es una cara identificable a distancia y aca es una
+   inicial al lado de un nombre de 11px. Mismo componente, otro tamanio. */
+.sw-msg__av {
+  width: var(--sw-comp-h); height: var(--sw-comp-h);
+  flex: 0 0 auto;
+  border-radius: var(--sw-r-pill);
+  align-items: center; justify-content: center;
+  background: var(--sw-raised-2);
+  color: var(--sw-text-2);
+}
+.sw-msg__av > span { font-size: var(--sw-t-overline); font-weight: var(--sw-w-medium); }
+
+/* --sw-accent-text y no --sw-accent-lit: aquel es un paso de hover que en
+   los otros dos usos es FONDO, y como tinta de 10px daba 4,51:1 — pasaba
+   por 0,01. Ver el token en tokens.css. */
+.sw-msg--ai .sw-msg__who { color: var(--sw-accent-text); }
+/* El avatar de IA iba relleno con el set anterior. `sparkles` de Lucide son
+   un path cerrado mas dos lineas y un circulo: rellenarlo borra las lineas.
+   Lucide es de trazo — se respeta y queda como el resto. */
+
+.sw-msg__body { font-size: var(--sw-t-body); line-height: 1.65; color: var(--sw-text-2); }
+.sw-msg__body strong { color: var(--sw-text); font-weight: var(--sw-w-semibold); }
+.sw-msg__body p { margin: 0 0 var(--sw-s-2); }
+.sw-msg__body p:last-child { margin-bottom: 0; }
+/* CODIGO EN LINEA, no en bloque. La pastilla —fondo, filete y radio— es para
+   un `code` metido en medio de una frase: lo despega de la prosa que lo
+   rodea. Adentro de un <pre> no hay prosa alrededor, y la pastilla se
+   repetia LINEA POR LINEA, dejando cada renglon del bloque con su propia
+   cajita.
+
+   El `:not(pre) >` lo dice literal: pastilla solo cuando el padre no es un
+   bloque de codigo. */
+.sw-msg__body :not(pre) > code {
+  font-family: var(--sw-font-mono);
+  font-size: .9em;
+  color: var(--sw-text);
+  background: var(--sw-raised);
+  border: var(--sw-border) solid var(--sw-line);
+  border-radius: var(--sw-r-sm);
+  padding: 1px 5px;
+}
+
+/* Lo que la IA hizo o propone hacer sobre la superficie */
+.sw-msg__act {
+  display: flex; align-items: center; gap: var(--sw-s-2);
+  padding: var(--sw-s-2) var(--sw-s-3);
+  background: var(--sw-raised);
+  border: var(--sw-border) solid var(--sw-line);
+  border-left: 2px solid var(--sw-accent);
+  border-radius: 0 var(--sw-r-md) var(--sw-r-md) 0;
+  font-size: var(--sw-t-body-sm);
+  color: var(--sw-text-2);
+}
+.sw-msg__act svg { --sw-ico: var(--sw-ico-sm); flex: 0 0 auto; }
+
+.sw-msg__tools { display: flex; gap: var(--sw-s-1); }
+/* SOLO ICONO. Las palabras se fueron al globo y al nombre accesible.
+
+   Cuatro etiquetas de texto debajo de CADA respuesta pesaban casi tanto
+   como la respuesta: la fila competia con lo que el usuario vino a leer.
+   Con iconos ocupa un cuarto y sigue estando.
+
+   El precio esta asumido: un icono se reconoce peor que una palabra la
+   primera vez. Se paga porque son cuatro acciones que se repiten en cada
+   turno del hilo — el costo de aprenderlas se paga una vez y el de leerlas
+   se pagaba siempre. */
+.sw-msg__tool {
+  display: grid; place-items: center;
+  width: var(--sw-comp-h); height: var(--sw-comp-h);
+  padding: 0;
+  border: 0; border-radius: var(--sw-r-pill);
+  background: none;
+  color: var(--sw-muted);
+  cursor: pointer;
+  transition: color var(--sw-d-micro) var(--sw-ease-out),
+              background var(--sw-d-micro) var(--sw-ease-out);
+}
+.sw-msg__tool:hover { color: var(--sw-text); background: var(--sw-hover); }
+.sw-msg__tool svg { --sw-ico: var(--sw-ico-sm); }
+
+/* ---------------------------------------------------------------
+   EL HILO VACIO — el Empty de Basecoat (`.empty`), el mismo de shadcn
+   (pedido del dueño): quien recién llega no sabe qué es esto.
+
+   CENTRADO EN EL HILO y en un gris que no compite: el título en la tinta
+   secundaria y la bajada en la de los rótulos —chat.cjs mide las dos contra
+   lo que tienen detrás—. Sin el borde punteado de la librería: el hilo ya
+   tiene su canto. Y sin márgenes, que `.sw-side *` pone en 0: las distancias
+   son `gap`.
+
+   LAS SUGERENCIAS VAN ADENTRO, en fila y centradas —la librería apila lo que
+   va en su <section>—. Estuvieron sueltas entre el hilo y el composer.
+
+   CON EL HILO EMPEZADO SE VA ENTERO. Las sugerencias son puertas de entrada:
+   «¿Qué puedo hacer acá?» después de haber preguntado algo no sugiere,
+   estorba — y encima son del MÓDULO, no de la conversación. Esto es lo
+   contrario del punto 7 del brief y es a propósito: el punto 7 protege la
+   chrome, y esto no es chrome, es contenido de arranque.
+
+   (Historia: el bloque de las sugerencias estuvo SIN ABRIR —un cierre de
+   comentario suelto, que en CSS hace descartar la regla siguiente— y
+   .sw-chat__chips no existió durante un tiempo. Verificado con CDP.)
+   --------------------------------------------------------------- */
+.sw-chat__vacio.empty {
+  min-block-size: 100%;
+  gap: var(--sw-s-4);
+  padding: var(--sw-s-6) var(--sw-s-4);
+  border: 0;
+}
+.sw-chat.is-empezado .sw-chat__vacio { display: none; }
+.sw-chat__vacio > header { gap: var(--sw-s-2); }
+/* EL ICONO SIN CAJA, AL DOBLE Y CON TRAZO FINO (pedido del dueño): la librería
+   lo mete en un cuadrado relleno de 40px con un glifo de 24; acá va suelto, a
+   48, y con el trazo a la mitad —a ese tamaño el de siempre se lee grueso—. */
+.sw-chat__vacio figure {
+  position: relative;
+  display: grid;
+  place-items: center;
+  inline-size: auto;
+  block-size: auto;
+  margin: 0;
+  background: none;
+  border: 0;
+  color: var(--sw-muted);
+  /* EL CAMPO DE PUNTOS ES EL DE LOS VACÍOS DE SECCIÓN, MÁS CHICO. Las posiciones
+     van en porcentaje (tokens.css), así que el racimo se reencuadra solo con
+     estas dos medidas; los 200px de una superficie entera acá se comerían el
+     lugar de los chips, que son lo que hay que tocar. */
+  --sw-vacio-w: 120px;
+  --sw-vacio-h: 120px;
+  /* El disco que despeja los puntos detrás del glifo tiene que ser del color de
+     LO QUE HAY DETRÁS, y la columna no es el lienzo: es --sw-raised
+     (chrome.css). Con el valor de fábrica quedaba un círculo más oscuro. */
+  --sw-vacio-claro: var(--sw-raised);
+}
+/* Los dos en la misma celda de la grilla: el campo atrás, el ícono encima y
+   centrado — el mismo apilado que en `.sw-empty-canvas__icono`. */
+.sw-chat__vacio figure > * { grid-area: 1 / 1; }
+.sw-chat__vacioIco {
+  display: grid;
+  place-items: center;
+  inline-size: var(--sw-vacio-w);
+  block-size: var(--sw-vacio-h);
+  background: radial-gradient(circle, var(--sw-vacio-claro) 0,
+                                      var(--sw-vacio-claro) 16%, transparent 34%);
+}
+.sw-chat__vacio figure svg {
+  --sw-ico: var(--sw-ico-3xl);
+  inline-size: var(--sw-ico);
+  block-size: var(--sw-ico);
+  stroke-width: var(--sw-ico-stroke-fino);
+}
+.sw-chat__vacio h3 {
+  margin: 0;
+  font-size: var(--sw-t-h2);
+  line-height: var(--sw-lh-h2);
+  font-weight: var(--sw-w-medium);
+  letter-spacing: normal;
+  color: var(--sw-text-2);
+}
+.sw-chat__vacio > header > p {
+  margin: 0;
+  font-size: var(--sw-t-body-sm);
+  line-height: var(--sw-lh-body);
+  color: var(--sw-muted);
+}
+.sw-chat__vacio > .sw-chat__chips {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sw-s-2);
+}
+
+.sw-chat__chip {
+  padding: var(--sw-s-1) var(--sw-s-3);
+  font-size: var(--sw-t-caption);
+  color: var(--sw-text-2);
+  background: var(--sw-raised);
+  border: var(--sw-border) solid var(--sw-line);
+  border-radius: var(--sw-r-pill);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--sw-d-micro) var(--sw-ease-out),
+              border-color var(--sw-d-micro) var(--sw-ease-out);
+}
+.sw-chat__chip:hover { color: var(--sw-text); border-color: var(--sw-accent); }
+
+/* ---------------------------------------------------------------
+   BARRA — siempre visible
+   --------------------------------------------------------------- */
+
+.sw-chat__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-s-2);
+  padding: var(--sw-s-1) var(--sw-s-1) var(--sw-s-1) var(--sw-s-3);
+  background: var(--sw-raised);
+  border: var(--sw-border) solid var(--sw-line);
+  border-radius: var(--sw-r-pill);
+  transition: border-color var(--sw-d-micro) var(--sw-ease-out);
+}
+.sw-chat__bar:focus-within { border-color: var(--sw-accent); }
+
+/* Sobre qué está operando el chat. Es la pieza que conecta el canal
+   con el módulo activo: la caja es la misma, el contexto cambia. */
+.sw-chat__context {
+  /* Fila propia arriba de la barra (ver chat.js): en la columna de 460px,
+     compitiendo por la misma línea con el input, «el flujo «Reactivar
+     inactivos»» se recortaba a «el flujo «React» — un texto cortado a la
+     mitad de una palabra informa peor que no estar. Arriba entra entero, y
+     el alto es justo lo que sobra. */
+  display: inline-flex; align-items: center; gap: var(--sw-s-1);
+  align-self: flex-start;
+  max-width: 100%;
+  margin-bottom: var(--sw-s-2);
+  padding: 3px var(--sw-s-2);
+  font-size: var(--sw-t-caption);
+  color: var(--sw-text-2);
+  background: var(--sw-hover);
+  border-radius: var(--sw-r-pill);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sw-chat__context svg { --sw-ico: var(--sw-ico-xs); flex: 0 0 auto; }
+
+.sw-chat__bar input {
+  flex: 1 1 auto; min-width: 0;
+  border: 0; background: none; outline: none;
+  font-size: var(--sw-t-body);
+  color: var(--sw-text);
+  padding: var(--sw-s-1) 0;
+}
+.sw-chat__bar input::placeholder { color: var(--sw-muted); }
+
+.sw-chat__kbd {
+  flex: 0 0 auto;
+  font-family: var(--sw-font-mono);
+  font-size: var(--sw-t-overline);
+  color: var(--sw-faint);
+}
+
+.sw-chat__send {
+  flex: 0 0 auto;
+  display: grid; place-items: center;
+  width: 30px; height: 30px;
+  padding: 0; border: 0;
+  border-radius: var(--sw-r-pill);
+  background: var(--sw-accent);
+  /* la tinta sobre el acento sale del token, no de un blanco literal: el
+     acento oscuro es claro, y #fff encima daba 3,13:1 para un glifo de 15px
+     (decision 38, regla 1). Con el token da 5,47:1. */
+  color: var(--sw-on-accent);
+  cursor: pointer;
+  transition: background var(--sw-d-micro) var(--sw-ease-out);
+}
+.sw-chat__send:hover { background: var(--sw-accent-lit); }
+.sw-chat__send svg { --sw-ico: var(--sw-ico-md); }
+
+
+/* En pantallas chicas el chat sigue estando: es lo último que se saca. */
+@media (max-width: 767px) {
+  .sw-chat { padding: var(--sw-s-2); }
+  .sw-chat__context { display: none; }
+}
+
+/* ==========================================================================
+   EL COMPOSER — la caja de escribir del chat.
+
+   Anatomía tomada de capturas/referencias/componentes/chat-4, que viene
+   anotada, y completada con chat-1, -2, -3 y -5:
+
+     .sw-comp__estado    ícono de fase · qué hace · en qué estado
+     .sw-comp__integra   una app que hay que conectar
+     .sw-comp__adj       archivos sumados, cada uno con su ✕
+     .sw-comp__ctx       a qué apunta el prompt (vacío hasta que se suma)
+     .sw-comp__campo     el texto
+     .sw-comp__pie       preparar (izquierda) · mandar (derecha)
+
+   LAS RANURAS DE ARRIBA SON PARTE DE LA MISMA CAJA, no cajas apiladas: van
+   sobre un escalón más bajo y sin borde propio, así que el composer se lee
+   como UNA pieza con zonas y no como cinco tarjetas. Es lo que hace la
+   referencia y es lo que evita que la columna se llene de bordes.
+   ========================================================================== */
+
+.sw-comp {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  /* El campo respira contra el marco: sin esto la caja blanca toca el borde
+     del composer y los dos radios se pisan. */
+  padding: var(--sw-s-2) var(--sw-s-2) 0;
+  gap: var(--sw-s-2);
+  background: var(--sw-raised);
+  border: var(--sw-border) solid var(--sw-line);
+  border-radius: var(--sw-r-lg);
+  overflow: hidden;
+}
+.sw-comp:focus-within { border-color: var(--sw-accent); }
+
+/* ---- las ranuras de arriba ---- */
+.sw-comp__estado,
+.sw-comp__integra,
+.sw-comp__adj,
+.sw-comp__ctx {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-s-2);
+  min-width: 0;
+  padding: var(--sw-s-2) var(--sw-s-3);
+  font-size: var(--sw-t-caption);
+}
+/* Un escalón por debajo del campo: la ranura es contexto, el campo es
+   donde se escribe. La costura entre las dos la pone el borde de abajo. */
+/* Las ranuras ya no son franjas de borde a borde: con el composer
+   acolchado son cajitas redondeadas adentro, como el campo. */
+.sw-comp__estado,
+.sw-comp__integra {
+  background: var(--sw-surface-2);
+  border-radius: var(--sw-r-md);
+}
+
+/* ---- estado del asistente ---- */
+.sw-comp__fase { display: flex; align-items: center; gap: var(--sw-s-1); color: var(--sw-text-2); min-width: 0; }
+.sw-comp__fase span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* El ícono de fase LATE, porque la fase es algo que está pasando ahora
+   mismo (decisión 21). Sólo opacity — regla 7. */
+.sw-comp__fase svg { --sw-ico: var(--sw-ico-sm); color: var(--sw-attention); animation: sw-comp-late 1.6s var(--sw-ease-inout) infinite alternate; }
+@keyframes sw-comp-late { from { opacity: .45; } to { opacity: 1; } }
+/* El estado va a la derecha. Se empuja con flex y no con margin: sidebar.css
+   borra los márgenes de todo lo que vive adentro del shell. */
+.sw-comp__st { display: flex; align-items: center; gap: var(--sw-s-1); flex: 1 1 auto; justify-content: flex-end; color: var(--sw-muted); white-space: nowrap; }
+.sw-comp__st svg { --sw-ico: var(--sw-ico-sm); }
+
+/* ---- integración ---- */
+.sw-comp__integra svg { --sw-ico: var(--sw-ico-sm); color: var(--sw-muted); flex: 0 0 auto; }
+.sw-comp__itxt { flex: 1 1 auto; min-width: 0; color: var(--sw-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sw-comp__integra .btn { flex: 0 0 auto; }
+
+/* ---- adjuntos y contexto ---- */
+.sw-comp__adj, .sw-comp__ctx { flex-wrap: wrap; gap: var(--sw-s-1); padding: 0; }
+.sw-comp__adjunto,
+.sw-comp__cchip {
+  display: inline-flex; align-items: center; gap: var(--sw-s-1);
+  max-width: 100%; min-width: 0;
+  padding: 3px var(--sw-s-2);
+  border: var(--sw-border) solid var(--sw-line);
+  border-radius: var(--sw-r-pill);
+  background: var(--sw-raised-2);
+  color: var(--sw-text-2);
+}
+.sw-comp__adjunto svg, .sw-comp__cchip svg { --sw-ico: var(--sw-ico-sm); color: var(--sw-muted); flex: 0 0 auto; }
+.sw-comp__an, .sw-comp__cchip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.sw-comp__quitar {
+  display: grid; place-items: center;
+  width: 18px; height: 18px; padding: 0; flex: 0 0 auto;
+  border: 0; border-radius: var(--sw-r-pill);
+  background: none; color: var(--sw-muted); cursor: pointer;
+}
+.sw-comp__quitar:hover { color: var(--sw-text); background: var(--sw-hover); }
+.sw-comp__quitar svg { --sw-ico: var(--sw-ico-xs); }
+
+/* ---- el campo ---- */
+/* LA ZONA DE ESCRITURA SE VE. Antes era transparente sobre el composer y
+   no había forma de saber dónde empezaba lo editable: el campo, las ranuras
+   y el pie eran la misma superficie.
+
+   Va un escalón POR ENCIMA del composer —--sw-raised-2, el más alto de la
+   escalera—, que en claro es casi blanco y en oscuro es el paso más claro
+   del tema. No es "blanco" literal: es «el escalón de arriba», y por eso
+   funciona en los dos temas sin declarar nada aparte.
+
+   El radio es el interior: el composer ya redondea por fuera, y dos radios
+   iguales concéntricos se leen como un borde grueso. */
+.sw-comp__campo {
+  width: 100%; min-width: 0;
+  padding: var(--sw-s-3);
+  border: 0; resize: none;
+  background: var(--sw-raised-2);
+  border-radius: var(--sw-r-md);
+  color: var(--sw-text);
+  font: inherit; font-size: var(--sw-t-body);
+  line-height: var(--sw-lh-body);
+  outline: none;
+  /* El alto lo maneja chat.js segun el contenido, con tope; de ahi
+     scrollea. */
+  max-height: 160px; overflow-y: auto;
+}
+/* MAS CHICO Y MAS GRIS QUE LO QUE SE ESCRIBE. Es una pista, no contenido:
+   el texto del usuario se queda en --sw-t-body (13) y esto baja a 11, que es
+   el mismo cuerpo que las pastillas del pie — la fila de abajo y la pista de
+   arriba son las dos cosas secundarias del composer y ahora pesan igual.
+
+   Paso por 12 primero y no alcanzaba: con una frase larga como esta, un
+   escalon solo no la saca del primer plano.
+
+   Achicar SOLO el placeholder y no el campo es deliberado — lo que uno
+   escribe y relee importa mas que la pista que lo invita a escribir, asi
+   que no se paga con legibilidad del mensaje. */
+.sw-comp__campo::placeholder {
+  color: var(--sw-placeholder);
+  font-size: var(--sw-t-caption);
+}
+
+/* ---- el pie ---- */
+.sw-comp__pie {
+  display: flex; align-items: center;
+  /* El hueco ENTRE GRUPOS es el doble que el hueco entre controles del
+     mismo grupo. Es lo que separa «preparar» de «mandar» sin una linea:
+     con un solo gap los seis controles se leen como una lista. */
+  gap: var(--sw-s-4);
+  padding: 0 var(--sw-s-1) var(--sw-s-2);
+  min-width: 0;
+}
+.sw-comp__lado { display: flex; align-items: center; gap: var(--sw-s-2); min-width: 0; }
+.sw-comp__lado:last-child { flex: 1 1 auto; justify-content: flex-end; }
+
+.sw-comp__ic {
+  display: grid; place-items: center;
+  width: var(--sw-comp-h); height: var(--sw-comp-h); flex: 0 0 auto;
+  padding: 0; border: 0; border-radius: var(--sw-r-pill);
+  background: none; color: var(--sw-text-2); cursor: pointer;
+  transition: color var(--sw-d-micro) var(--sw-ease-out),
+              background var(--sw-d-micro) var(--sw-ease-out);
+}
+.sw-comp__ic:hover { color: var(--sw-text); background: var(--sw-hover); }
+.sw-comp__ic svg { --sw-ico: var(--sw-ico-xs); }
+/* El [+] lleva filete: es el que abre el menú de adjuntar y en la
+   referencia es el único de la fila con caja propia. */
+/* Sin filete en reposo. Seis controles con caja propia en una fila de
+   540px se leen como una barra de herramientas de los 90: la caja aparece
+   al pasar por encima, que es cuando hace falta saber donde termina el
+   control. */
+.sw-comp__mas { border: 0; }
+
+.sw-comp__pill {
+  display: inline-flex; align-items: center; gap: var(--sw-s-1);
+  height: var(--sw-comp-h); min-width: 0; flex: 0 1 auto;
+  /* Que ABRACE al texto. Con 8px de lado el hover pintaba una capsula muy
+     por fuera de la palabra y se leia forzada: la caja del hover tiene que
+     ser la palabra, no un rectangulo alrededor. */
+  padding-inline: var(--sw-s-1);
+  border: var(--sw-border) solid transparent;
+  border-radius: var(--sw-r-pill);
+  background: none; color: var(--sw-text-2);
+  font: inherit; font-size: var(--sw-t-caption); font-weight: var(--sw-w-medium);
+  white-space: nowrap; cursor: pointer;
+  transition: color var(--sw-d-micro) var(--sw-ease-out),
+              background var(--sw-d-micro) var(--sw-ease-out);
+}
+/* EL HOVER NO LLEVA BORDE. Fondo Y borde juntos son dos señales para un
+   solo estado, y en un control de 20px el borde ademas cierra la capsula
+   contra el texto — de ahi que se viera forzado. El borde transparente
+   sigue declarado para que abrir el menu no corra el layout 1px. */
+.sw-comp__pill:hover { color: var(--sw-text); background: var(--sw-hover); }
+.sw-comp__pill[aria-expanded="true"] { color: var(--sw-text); border-color: var(--sw-line-strong); }
+.sw-comp__pill svg { --sw-ico: var(--sw-ico-xs); flex: 0 0 auto; }
+/* La flecha va MAS GRANDE que el icono de cabeza, porque su trazo ocupa la
+   mitad del viewBox — ver --sw-ico-flecha en tokens.css. */
+/* La flecha del desplegable es el ÚLTIMO svg de la pastilla y va más
+   apagada: no es parte de la etiqueta, dice que hay más. */
+.sw-comp__pill svg:last-child { --sw-ico: var(--sw-ico-flecha); color: var(--sw-faint); }
+/* El modelo va sin caja: es un dato, no una acción (chat-2). */
+.sw-comp__modelo { border-color: transparent; }
+.sw-comp__modelo:hover { border-color: transparent; }
+
+/* El botón de mandar: el único relleno del composer. Un CTA por pantalla
+   (regla 2) — y acá el composer es la pantalla. */
+.sw-comp__send {
+  display: grid; place-items: center;
+  width: var(--sw-comp-h); height: var(--sw-comp-h); flex: 0 0 auto;
+  padding: 0; border: 0; border-radius: var(--sw-r-pill);
+  background: var(--sw-accent-solid); color: var(--sw-on-fill);
+  cursor: pointer;
+  transition: background var(--sw-d-micro) var(--sw-ease-out);
+}
+.sw-comp__send:hover { background: var(--sw-accent-solid-lit); }
+.sw-comp__send svg { --sw-ico: var(--sw-ico-xs); }
+
+/* LA PISTA DEL ATAJO, en el escalon mas chico de la escala.
+
+   Estaba en --sw-t-caption (11), el mismo cuerpo que las pastillas del pie y
+   que el placeholder — o sea que competia de igual a igual con controles que
+   si hay que ver. Baja a --sw-t-overline (10), que es el ultimo escalon: por
+   debajo habria que inventar un tamanio, y un literal aca seria la regla 1
+   rota para ahorrar 1px.
+
+   EL COLOR SUBE EN VEZ DE BAJAR, y hace falta explicarlo porque parece lo
+   contrario de lo pedido. Estaba en --sw-faint, y medido contra el pixel
+   REAL del composer —no contra el color declarado, que lleva alfa y da un
+   numero optimista— daba 3,25:1 en claro y 3,93:1 en oscuro. Las dos por
+   debajo del piso de 4,5:1 que pide un texto. Venia fallando de antes.
+
+   Y no es un texto cualquiera: es la pista de un ATAJO DE TECLADO. Dejarla
+   por debajo del piso es esconderle justo a quien navega por teclado la
+   unica linea escrita para el.
+
+   Y ESTA SIEMPRE A LA VISTA (pedido del dueño). Se probó que no existiera en
+   reposo y apareciera al entrar al campo, con el lugar reservado: medido, nada
+   se movía, pero verla aparecer de golpe se leía como un salto del chat.
+   Quieta en todos los estados no se nota. */
+.sw-comp__ayuda {
+  margin: 0; padding: var(--sw-s-1) var(--sw-s-1) 0;
+  font-size: var(--sw-t-overline); color: var(--sw-muted);
+}
+
+/* ---------------------------------------------------------------
+   EL PESO DEL MEDIO — lo que existe pero todavía no se puede usar.
+
+   Sale de chat-1: ahí los controles no disponibles van PUNTEADOS, no
+   desaparecen. Ocultar cambiaría la forma de la barra según el estado
+   —lo que el punto 7 del brief prohíbe— y además informa menos: ver que
+   «Dictar» existe y hoy no anda dice más que no verlo.
+
+   Tres pesos en total, y esta es la escala completa:
+
+     primario    relleno de acento      la acción de la pantalla
+     disponible  sin caja, caja al hover
+     pendiente   punteado y apagado     ← esto
+
+   Va con aria-disabled y no con el atributo «disabled»: así sigue
+   recibiendo foco y un lector de pantalla lo anuncia como deshabilitado
+   en vez de saltearlo.
+   --------------------------------------------------------------- */
+.sw-comp__ic--pend {
+  border: var(--sw-border) dashed var(--sw-line-strong);
+  color: var(--sw-faint);
+  cursor: default;
+}
+.sw-comp__ic--pend:hover { color: var(--sw-faint); background: none; }
+
+/* ---------------------------------------------------------------
+   EL AVISO DE CONEXIÓN — dos estados y dos tiempos.
+
+   No existe en reposo: aparece al conectar y se queda para decir que quedó
+   conectado. Que esté visible ES la información.
+
+     conectando   late, y el punto también     algo está pasando AHORA
+     conectado    quieto, con «Desconectar»    un hecho, no un proceso
+
+   El latido va con --sw-attention, que en este sistema significa
+   exactamente eso (decisión 21), y sólo anima opacity (regla 7).
+   --------------------------------------------------------------- */
+.sw-comp__integra[data-fase="conectando"] .sw-comp__itxt { color: var(--sw-text-2); }
+.sw-comp__integra[data-fase="conectando"] svg:first-child { animation: sw-comp-late 1.1s var(--sw-ease-inout) infinite alternate; }
+
+/* El punto que late mientras conecta. Es el mismo lenguaje que el globo de
+   avisos del topbar, pero acá no lleva cifra: no cuenta nada, avisa. */
+.sw-comp__punto {
+  width: var(--sw-s-2); height: var(--sw-s-2); flex: 0 0 auto;
+  border-radius: var(--sw-r-pill);
+  background: var(--sw-attention);
+  animation: sw-comp-late 1.1s var(--sw-ease-inout) infinite alternate;
+}
+
+/* Conectado: el ícono de la app a color pleno y una salida discreta. */
+.sw-comp__integra[data-fase="conectado"] .sw-comp__itxt { color: var(--sw-text); }
+.sw-comp__desc {
+  flex: 0 0 auto;
+  padding: 2px var(--sw-s-2);
+  border: 0; border-radius: var(--sw-r-pill);
+  background: none; color: var(--sw-muted);
+  font: inherit; font-size: var(--sw-t-caption);
+  cursor: pointer;
+}
+.sw-comp__desc:hover { color: var(--sw-text); background: var(--sw-hover); }
+
+/* ---------------------------------------------------------------
+   PENSANDO — la fila que reemplaza a la ranura de estado.
+
+   Vive en el HILO, donde va a aparecer la respuesta, y se va con ella. La
+   ranura que estaba en el composer ocupaba una fila fija para decir algo
+   que sólo a veces pasa; esto ocupa lugar únicamente mientras pasa.
+
+   Tres puntos que laten desfasados. Sólo opacity (regla 7), y con
+   prefers-reduced-motion el reset de base.css los deja quietos.
+   --------------------------------------------------------------- */
+/* ---------------------------------------------------------------
+   CAVILANDO — el indicador de que el asistente esta pensando
+
+   Reemplaza a los tres puntos. Los puntos decian «esperá» y nada mas; esto
+   dice lo mismo con algo de caracter, que es lo que hace Claude Code.
+
+   COMO FUNCIONA. Los cinco iconos estan APILADOS en la misma celda de grid
+   y cada uno corre el mismo ciclo con un quinto de retardo. La ventana
+   visible de cada uno dura un quinto del ciclo y los bordes se solapan un
+   poco, asi que el que se va y el que llega se cruzan: eso es lo que se lee
+   como una transformacion y no como un cambio de diapositiva.
+
+   No es morphing de paths de verdad — eso exige que todos los iconos tengan
+   la misma cantidad de puntos, que con un set de Lucide no pasa. El cruce
+   con escala da la misma lectura y cuesta dos propiedades.
+
+   SOLO opacity Y scale (regla 7).
+
+   EL CICLO ESTA ESCRITO PARA CINCO. Las ventanas del @keyframes (20% cada
+   una) y el divisor del retardo dependen de cuantos iconos hay en
+   C.chat.cavilando. Si cambia la cantidad, cambian los dos numeros.
+   --------------------------------------------------------------- */
+.sw-cavila {
+  display: inline-grid;
+  place-items: center;
+  width: var(--sw-ico-md); height: var(--sw-ico-md);
+  color: var(--sw-muted);
+}
+.sw-cavila svg {
+  grid-area: 1 / 1;
+  --sw-ico: var(--sw-ico-md);
+  opacity: 0;
+  animation: sw-cavila var(--sw-d-cavila) var(--sw-ease-inout) infinite;
+  /* Negativo: arrancan a mitad de camino. Con retardo positivo, el primer
+     ciclo empieza con la caja vacia y se ve un parpadeo al aparecer. */
+  animation-delay: calc(var(--sw-d-cavila) / -5 * var(--i));
+}
+@keyframes sw-cavila {
+  0%        { opacity: 0; scale: .55; }
+  5%        { opacity: 1; scale: 1; }
+  17%       { opacity: 1; scale: 1; }
+  22%       { opacity: 0; scale: .55; }
+  100%      { opacity: 0; scale: .55; }
+}
+
+/* CON MOTION REDUCIDO QUEDA UNO QUIETO. El reset de base.css lleva toda
+   animacion a 0,01ms y una sola iteracion: los cinco iconos terminarian en
+   su ultimo fotograma, que es opacity 0, y el indicador desapareceria por
+   completo. Apagar la animacion no alcanza — hay que elegir cual se ve. */
+@media (prefers-reduced-motion: reduce) {
+  .sw-cavila svg { animation: none; opacity: 0; }
+  .sw-cavila svg:first-child { opacity: 1; scale: 1; }
+}
+
+/* El botón en modo detener. Mismo relleno —sigue siendo la acción de la
+   caja— y sólo cambia el glifo: si además cambiara de color, el usuario
+   tendría que releer el botón en vez de reconocerlo. */
+.sw-comp__send[data-gen="true"] svg { --sw-ico: var(--sw-ico-xs); fill: currentColor; stroke: none; }
+
+/* ==========================================================================
+   LA TARJETA FLOTANTE — el chat cuando sale de la caja
+   --------------------------------------------------------------------------
+   Dos ubicaciones para la misma conversacion, y el usuario elige:
+
+     DENTRO   inquilino de la columna, se turna con Herramientas (decision 43)
+     FUERA    tarjeta sobre el lienzo, y la columna le queda entera a la caja
+
+   NO ES LA DISPOSICION C DEL BANCO. Aquella —el hilo flotando al lado— se
+   descarto por numero: tapaba el documento justo donde se conversaba, 730px
+   visibles de 1166. La diferencia es que C era la unica forma de ver el chat
+   y esto es un modo elegido, con lo acoplado como defecto. El numero de C
+   sigue siendo la advertencia de por que no es el estado inicial.
+
+   ES EL MISMO NODO DEL DOM, movido. No hay dos chats ni dos hilos: side-column.js
+   muda #chat de padre. Si fueran dos, habria que sincronizarlos, y dos
+   fuentes de verdad para una sola conversacion es un bug esperando.
+   ========================================================================== */
+
+/* CAE EN LA CELDA DEL LIENZO, no en la del bloque entero. .sw-container es
+   una grilla de dos columnas —lienzo y caja— y la tarjeta es un item mas,
+   puesto en la del lienzo. Primero la habia anclado al bloque completo y
+   aterrizaba ENCIMA de la caja de herramientas: justo lo contrario del
+   punto, que es tener las dos cosas a la vez.
+
+   Como item de grilla sigue sola el ancho de la caja: cuando la columna
+   pasa a riel, la celda del lienzo crece y la tarjeta se corre con ella.
+   Sin JS y sin repetir --sw-col-w en dos lados. */
+.sw-flota {
+  /* LA FILA 1 ES LA UNICA QUE HAY. Pedía la 2, que era la del contenido cuando
+     el bloque tenía la toolbar arriba; con la toolbar mudada al header quedó una
+     sola fila, y pedir una que no existe no falla: grid CREA una implícita de
+     `auto`, que acá medía los 528px de la tarjeta y le dejaba al bloque lo que
+     sobraba. Medido: la superficie pasaba de 787px a 227 al sacar el chat de la
+     caja, con la tabla de 1276 desbordando y sin un solo error de consola.
+
+     Se ve sólo al sacar el chat porque hasta entonces la tarjeta está `hidden`,
+     o sea fuera del grid: el bloque estaba roto y no se notaba. */
+  grid-row: 1;
+  grid-column: 1;
+  place-self: end end;
+  position: relative;
+  z-index: var(--sw-z-panels);
+  /* El respiro contra la esquina va con translate y NO con margin: adentro
+     de .sw-side todo margen se resetea a cero (el `.sw-side *` de sidebar.css)
+     y un margin-* aca se apagaria sin avisar.
+
+     EL EJE X ES EL QUE SE ARRASTRA. --sw-flota-x lo escribe side-column.js al
+     correr la tarjeta; su valor por defecto es el mismo respiro que el eje
+     Y, asi que sin tocar nada arranca en la esquina. El eje Y NO es una
+     variable a proposito: la tarjeta vive pegada al borde de abajo y no se
+     mueve de ahi (decision 49).
+
+     Sin transition: la regla 5 pide 0ms para manipulacion directa, y una
+     tarjeta que persigue al mouse con retardo se siente rota. */
+  translate: var(--sw-flota-x, calc(var(--sw-s-4) * -1)) calc(var(--sw-s-4) * -1);
+  width: var(--sw-flota-w);
+  height: var(--sw-flota-h);
+  /* Nunca mas alta que el bloque: en una ventana baja, una tarjeta de alto
+     fijo se sale por arriba y el composer queda fuera de la pantalla. */
+  max-height: calc(100% - var(--sw-s-4) * 2);
+  max-width:  calc(100% - var(--sw-s-4) * 2);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  /* EL BORDE SE RESUELVE CONTRA EL LIENZO, no contra la card.
+
+     Llevaba --sw-line y no se veia, y el motivo es el de siempre en este
+     sistema: --sw-line esta medido contra la CARD, y esta caja se apoya
+     sobre el lienzo. Medido, daba 1,101:1 contra #ebebeb — practicamente
+     nada, cuando las cajas grandes sostienen entre 1,26 y 1,34 contra su
+     propio suelo.
+
+     Va con --sw-line-strong, que es EL MISMO token que usa .sw-container,
+     o sea el bloque de trabajo. En oscuro eso da 2,046:1 contra el lienzo,
+     identico a lo que logra el bloque, porque ahi el lienzo ES el ink. En
+     claro da 1,583 —mas fuerte que el 1,340 del bloque— y la diferencia no
+     es un error: el lienzo claro (#ebebeb) es mas claro que el ink sobre el
+     que se apoya el bloque, asi que el mismo filete rinde mas. Se acepta:
+     esto ademas FLOTA, y algo que flota puede leerse un punto mas firme
+     que algo apoyado. */
+  border: var(--sw-border) solid var(--sw-line-strong);
+  border-radius: var(--sw-r-lg);
+  /* MISMO MATERIAL QUE LA COLUMNA: la atmosfera viaja con el chat. Sin esto
+     el vidrio de .sw-chat quedaria sobre un plano y el efecto desapareceria
+     al sacarlo — el mismo componente se veria de dos materiales distintos
+     segun donde este parado. */
+  background-color: var(--sw-block-chrome);
+  background-image: var(--sw-atmosfera);
+  background-repeat: no-repeat;
+  /* ACA SI VA SOMBRA, y es el unico caso del chat: la regla 3 la reserva
+     para lo que flota SOBRE el contenido, y esto es exactamente eso. Es la
+     misma razon por la que el chat acoplado NO la lleva. */
+  box-shadow: var(--sw-e-pop);
+
+  /* ---- MOTION ----
+
+     ORIGEN ABAJO A LA DERECHA, y es geometria, no gusto: la tarjeta esta
+     anclada con place-self:end end, asi que su esquina inferior derecha es
+     el unico punto que NO se mueve cuando cambia de tamanio. Al plegarse,
+     la pastilla queda con ese mismo borde derecho y esa misma linea de
+     abajo. Escalar desde ahi es escalar desde el punto fijo real.
+
+     SOLO opacity Y scale (regla 7). `translate` queda deliberadamente FUERA
+     de la lista: es donde vive el arrastre, y la regla 5 pide 0ms para
+     manipulacion directa. Si entrara acá, la tarjeta perseguiria al mouse
+     con 180ms de retardo y se sentiria rota. */
+  transform-origin: bottom right;
+  transition: opacity var(--sw-d-short) var(--sw-ease-out),
+              scale   var(--sw-d-short) var(--sw-ease-out);
+}
+
+/* El estado invisible. Lo escribe side-column.js antes y despues de cada cambio
+   de forma, asi el cambio en si ocurre con la tarjeta apagada y nunca se ve
+   el salto de 420x560 a pastilla.
+
+   SALIR ES MAS RAPIDO QUE ENTRAR. No es simetria rota: una salida que tarda
+   lo mismo que una entrada se siente lenta, porque el usuario ya decidio y
+   esta esperando. 110ms contra 180ms. */
+.sw-flota[data-anim="fuera"] {
+  opacity: 0;
+  scale: .94;
+  transition-duration: var(--sw-d-micro);
+  transition-timing-function: var(--sw-ease-inout);
+}
+.sw-flota[hidden] { display: none; }
+
+/* La barra de la tarjeta. Hace el trabajo que adentro hace el conmutador:
+   decir que es esto y ofrecer la salida. Y ademas es la MANIJA.
+
+   SIN FILETE ABAJO. Lo llevaba y sobraba: el filete separa dos materiales,
+   y aca arriba y abajo es la misma superficie de la misma tarjeta. Lo que
+   separa a la tarjeta de lo que hay atras es su borde y su sombra, que ya
+   estan (decision 19: una linea que no separa dos cosas es ruido).
+
+   `touch-action: none` es obligatorio para arrastrar con el dedo: sin eso
+   el navegador se queda el gesto para hacer scroll y el pointermove nunca
+   llega. */
+.sw-flota__barra {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--sw-s-2);
+  padding: var(--sw-s-1) var(--sw-s-1) var(--sw-s-1) var(--sw-s-3);
+  cursor: grab;
+  touch-action: none;
+}
+.sw-flota__barra:active { cursor: grabbing; }
+.sw-flota[data-arrastrando="true"] .sw-flota__barra { cursor: grabbing; }
+/* La manija es alcanzable por teclado: un control que solo responde al
+   arrastre no existe para quien no arrastra (WCAG 2.1.1 y 2.5.7). */
+/* El icono del rotulo, del mismo peso que el texto que acompania. */
+.sw-flota__barra > svg { --sw-ico: var(--sw-ico-sm); flex: 0 0 auto; color: var(--sw-muted); }
+.sw-flota__t {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--sw-t-caption);
+  font-weight: var(--sw-w-semibold);
+  color: var(--sw-text);
+}
+/* AL MISMO TAMANIO QUE LOS DEL COMPOSER. Estaban en 28px de cuando el resto
+   del chat andaba por 32; al bajar el composer a --sw-comp-h quedaron siendo
+   los unicos grandes, y encima son los que definen el alto de la pastilla
+   cuando la tarjeta se pliega. Un solo tamanio de control para todo el chat.
+
+   El icono NO baja a --sw-ico-xs como en el composer: aca el boton es solo
+   icono, sin palabra al lado que le de escala, asi que necesita llenar mas
+   su caja para leerse. Y varios de estos glifos —la flecha y el chevron—
+   dibujan su trazo metido adentro del viewBox (ver --sw-ico-flecha). */
+.sw-flota__btn {
+  flex: 0 0 auto;
+  display: grid; place-items: center;
+  width: var(--sw-comp-h); height: var(--sw-comp-h); padding: 0;
+  border: 0; border-radius: var(--sw-r-pill);
+  background: none; color: var(--sw-muted); cursor: pointer;
+}
+/* SIN FONDO, Y AL PASAR EL MOUSE SE RELLENAN DE ACENTO (pedido del dueño) —los
+   de la tarjeta y el de la esquina del hilo, que son la misma familia: sacar,
+   minimizar, volver—. Con la tinta calibrada contra ese paso: --sw-on-accent
+   va con --sw-accent, no con --sw-accent-solid (CLAUDE.md). Es estado —el
+   control que se está por apretar—, así que la regla 2 lo admite. */
+.sw-flota__btn,
+.sw-chat__sacar {
+  transition: color var(--sw-d-micro) var(--sw-ease-out), background-color var(--sw-d-micro) var(--sw-ease-out);
+}
+.sw-flota__btn:hover,
+.sw-chat__sacar:hover { color: var(--sw-on-accent); background: var(--sw-accent); }
+.sw-flota__btn svg { --sw-ico: var(--sw-ico-sm); }
+
+/* El chat adentro de la tarjeta llena lo que queda. */
+.sw-flota .sw-chat { flex: 1 1 auto; min-height: 0; }
+
+/* En pantallas donde la tarjeta taparia casi todo el lienzo, la columna es
+   la unica ubicacion sensata: una tarjeta de 420px sobre un bloque de 600
+   no libera lugar, lo tapa. El boton de sacar se esconde y side-column.js
+   devuelve el chat adentro. */
+
+/* ---------------------------------------------------------------
+   PUNTERO GRUESO — la excepcion de controles contiguos (regla 9)
+
+   La regla general es agrandar el AREA sensible y no el diseño, con
+   .sw-touch-target. Aca no sirve y la propia regla lo dice: el pie del
+   composer son seis controles pegados, y seis areas de 44px sobre
+   controles de 24 se pisan entre si — el dedo termina activando la vecina.
+   En controles contiguos se agranda el control.
+
+   Solo con puntero grueso: con mouse los 24px se quedan, que es el punto
+   de haberlos achicado.
+   --------------------------------------------------------------- */
+@media (pointer: coarse) {
+  .sw-comp__ic, .sw-comp__send {
+    width: var(--sw-comp-h-tactil); height: var(--sw-comp-h-tactil);
+  }
+  .sw-comp__pill { height: var(--sw-comp-h-tactil); padding-inline: var(--sw-s-3); }
+  .sw-msg__tool  { height: var(--sw-comp-h-tactil); padding-inline: var(--sw-s-2); }
+  /* Fijar ya no esta suelto: bajo a la fila de acciones y entra por la
+     regla de .sw-msg__tool, que ahora es cuadrada. */
+  .sw-msg__tool { width: var(--sw-comp-h-tactil); }
+  .sw-comp__ic svg, .sw-comp__send svg { --sw-ico: var(--sw-ico-sm); }
+  .sw-comp__pill svg { --sw-ico: var(--sw-ico-sm); }
+}
+
+/* ---------------------------------------------------------------
+   MINIMIZADA — la tarjeta se vuelve una pastilla sobre el lienzo
+
+   Tercer estado del chat, y el mas barato de todos: no ocupa lugar pero
+   sigue estando. La conversacion no se va —el chat es del shell (D8)— solo
+   se pliega a su propia barra.
+
+   Se queda donde estaba: mismo borde inferior, misma posicion horizontal,
+   y se sigue arrastrando igual. Minimizar no es mudarse.
+
+   SIN TRANSICION a proposito. Pasar de 420x560 a una pastilla es cambiar
+   ancho y alto, y la regla 7 no deja animar eso; con transform se
+   deformaria el texto. Un plegado instantaneo es honesto y no pide una
+   excepcion a la regla.
+   --------------------------------------------------------------- */
+.sw-flota[data-min="true"] {
+  width: auto;
+  height: auto;
+  /* Pastilla, como el resto de los controles del layout. */
+  border-radius: var(--sw-r-pill);
+}
+.sw-flota[data-min="true"] .sw-chat { display: none; }
+/* Con el radio de pastilla las esquinas se comen el contenido si arranca
+   pegado al borde: el texto necesita entrar un poco mas. */
+.sw-flota[data-min="true"] .sw-flota__barra { padding-inline: var(--sw-s-3) var(--sw-s-2); }
+.sw-flota[data-min="true"] .sw-flota__t { flex: 0 0 auto; }
+
+/* ---------------------------------------------------------------
+   DENTRO DE LA CAJA, LA SUPERFICIE ES DEL HILO
+
+   Afuera, el vidrio es de la tarjeta entera: la tarjeta ES un objeto que
+   flota sobre el lienzo, y tiene que leerse como uno solo.
+
+   Adentro no hay tal objeto. El chat es un inquilino de la columna, asi que
+   pintarlo entero le daba a la columna dos fondos apilados —el suyo y el
+   del inquilino— sin nada que justificara el segundo. Lo que si es un
+   objeto ahi es el HILO: una superficie de lectura con principio y fin.
+
+   Se elige por el PADRE y no por una clase de estado: `.sw-side-col__body >`
+   es «esta acoplado» y `.sw-flota >` es «esta afuera». Como side-column.js muda
+   el nodo de padre, el selector sigue al chat solo y no hay un flag que
+   pueda quedar desincronizado.
+   --------------------------------------------------------------- */
+.sw-side-col__body > .sw-chat {
+  background: none;
+  backdrop-filter: none;
+}
+/* DIBUJADO, NO PINTADO. Lleva borde y NO fondo: la columna ya tiene su
+   superficie y el hilo no necesita una segunda encima para existir — le
+   alcanza con que se vea donde empieza y donde termina. Un fondo ahi
+   apilaba dos materiales casi iguales y el unico efecto era ensuciar la
+   atmosfera de la columna.
+
+   Sin backdrop-filter tampoco: un blur sin tinte encima solo desenfoca lo
+   que hay atras, y lo que hay atras es la atmosfera de la columna.
+
+   EL FILETE VA CON --sw-line-strong Y NO CON --sw-block-seam, que seria el
+   candidato obvio. Medido contra el chrome de la columna: block-seam da
+   1,535:1 en claro pero 1,026:1 en oscuro, o sea que ahi el borde no existe
+   — ese valor es el filete del sistema resuelto contra la CARD, y esto se
+   apoya sobre el chrome ciruela, que es otra cosa. line-strong da 1,535 y
+   1,361: el mismo orden de relacion en los dos temas, que es lo que la
+   regla 15 pide trasladar. */
+.sw-side-col__body > .sw-chat > .sw-chat__thread {
+  background: none;
+  backdrop-filter: none;
+  border: var(--sw-border) solid var(--sw-line-strong);
+  border-radius: var(--sw-r-lg);
+  /* Como card necesita respirar por dentro: de canto, el texto quedaba
+     pegado a la curva. */
+  padding: var(--sw-s-3);
+}
+
+/* EL FONDO DEL CHAT VA SOLO EN EL HILO (pedido del dueño): la imagen elegida
+   en los ajustes, y sólo cuando hay una —shell/preferences.js marca el <html>
+   con data-fondo-chat—. Sin imagen, el hilo sigue dibujado y no pintado.
+
+   LA MEZCLA LE PONE PISO A LA FOTO: la imagen se compone con el chrome de
+   abajo, en claro quedándose con el canal más claro de los dos (`lighten`) y
+   en oscuro con el más oscuro (`darken`, --sw-fondo-mezcla). Así el fondo no
+   puede terminar nunca más oscuro que el chrome en claro, ni más claro en
+   oscuro, y el texto del hilo no pierde contraste con ninguna imagen: una del
+   tono contrario al tema casi no se ve, que es lo que tiene que pasar.
+
+   Esto reemplazó a un velo —una capa del chrome por encima— que hacía lo mismo
+   peor: bajaba la foto entera por igual, claros incluidos, y había que subirlo
+   tanto para salvar el texto que no quedaba foto.
+
+   ARRIBA VA UN VELO del chrome (--sw-fondo-velo, en oscuro al 60%) y LA
+   IMAGEN VIENE DESENFOCADA de fábrica —la de las ondas, recomprimida así, y la
+   que sube el usuario, al subirla—: una foto nítida detrás del texto compite
+   con lo que se escribe (pedido del dueño). El desenfoque no puede ser un
+   `filter` acá, que borronearía también los mensajes, ni una capa aparte
+   detrás, que se iría con el scroll del hilo.
+
+   Va para el hilo de la columna y el de la tarjeta flotante por igual. Se
+   declara después de la regla de arriba, que con la misma especificidad le
+   pone `background: none`. */
+:root[data-fondo-chat] .sw-chat__thread {
+  background-color: var(--sw-block-chrome);
+  background-image: linear-gradient(var(--sw-fondo-velo), var(--sw-fondo-velo)), var(--sw-fondo-img);
+  background-size: auto, cover;
+  background-position: 0 0, center;
+  background-repeat: no-repeat;
+  background-blend-mode: normal, var(--sw-fondo-mezcla);
+}
+
+/* LA FLECHA, EN LA ESQUINA DEL HILO. Se anda de .sw-chat y no del hilo
+   porque el hilo scrollea: adentro se iria de viaje con los mensajes.
+
+   Los numeros suman el padding del chat mas el del hilo, asi que el boton
+   queda alineado con la primera linea de texto y no flotando contra el
+   borde. */
+.sw-chat__sacar {
+  position: absolute;
+  top: calc(var(--sw-s-3) + var(--sw-s-2));
+  right: calc(var(--sw-s-3) + var(--sw-s-2));
+  z-index: 1;
+  display: grid; place-items: center;
+  width: var(--sw-comp-h); height: var(--sw-comp-h); padding: 0;
+  border: 0; border-radius: var(--sw-r-pill);
+  background: none; color: var(--sw-muted); cursor: pointer;
+}
+/* SIN CHAPA (pedido del dueño): como los botones de la tarjeta, sin fondo y con
+   relleno de acento al pasar el mouse (arriba, junto a .sw-flota__btn). Tuvo
+   una chapa de vidrio porque flota sobre el área de texto del hilo, y la
+   primera línea de un mensaje largo le puede pasar por debajo: es el precio
+   aceptado. */
+.sw-chat__sacar svg { --sw-ico: var(--sw-ico-sm); }
+/* Afuera no hay caja de la que sacarlo: la tarjeta trae sus propios
+   controles. */
+.sw-flota .sw-chat__sacar { display: none; }
+/* Y en una ventana angosta el modo flotante no existe (ver side-column.js). */
+@media (max-width: 900px) {
+  .sw-chat__sacar { display: none; }
+}
+
+/* Los dos apagados del vidrio alcanzan tambien al hilo. */
+
+/* ==========================================================================
+   BLOQUE DE CODIGO en el hilo
+   --------------------------------------------------------------------------
+   Una caja con barra y cuerpo. La barra dice el lenguaje y ofrece copiar; el
+   cuerpo es el codigo, que NO se envuelve: una linea de codigo partida al
+   medio deja de ser leible como codigo, asi que scrollea en horizontal
+   adentro de su propia caja y nunca empuja el ancho del hilo.
+
+   SIN COLOREADO DE SINTAXIS, y es una decision, no un olvido: resaltar exige
+   un tokenizador por lenguaje, o sea una dependencia. El repo las acepta
+   vendorizadas y por decision escrita, asi que eso se decide aparte. Mientras
+   tanto el bloque se lee por forma —monoespaciada, caja propia, sangria— que
+   es lo que separa codigo de prosa.
+   ========================================================================== */
+.sw-codigo {
+  /* Adentro de .sw-side todo margen se resetea, asi que la separacion con el
+     parrafo de arriba la pone el gap del mensaje, no un margin. */
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: var(--sw-border) solid var(--sw-line-strong);
+  border-radius: var(--sw-r-md);
+  background: var(--sw-raised-2);
+  overflow: hidden;
+}
+.sw-codigo__barra {
+  display: flex; align-items: center; gap: var(--sw-s-2);
+  padding: var(--sw-s-1) var(--sw-s-1) var(--sw-s-1) var(--sw-s-3);
+  border-bottom: var(--sw-border) solid var(--sw-line);
+}
+.sw-codigo__leng {
+  flex: 1 1 auto; min-width: 0;
+  font-family: var(--sw-font-mono);
+  font-size: var(--sw-t-overline);
+  color: var(--sw-muted);
+}
+.sw-codigo__copiar {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; gap: var(--sw-s-1);
+  height: var(--sw-comp-h); padding: 0 var(--sw-s-2);
+  border: 0; border-radius: var(--sw-r-pill);
+  background: none; color: var(--sw-muted); cursor: pointer;
+  font: inherit; font-size: var(--sw-t-overline);
+  transition: color var(--sw-d-micro) var(--sw-ease-out),
+              background var(--sw-d-micro) var(--sw-ease-out);
+}
+.sw-codigo__copiar:hover { color: var(--sw-text); background: var(--sw-hover); }
+.sw-codigo__copiar svg { --sw-ico: var(--sw-ico-xs); }
+/* Confirmado: el boton mismo lo dice y se vuelve solo. */
+/* CONFIRMADO. Cambia la PALABRA y no solo el color: si el aviso fuera solo
+   cromatico, quien no distingue ese verde no se entera de nada (1.4.1). El
+   texto sale de content.js por el attr(), asi que no hay una cadena suelta
+   en el CSS. */
+.sw-codigo__copiar[data-hecho="true"] { color: var(--sw-success); }
+.sw-codigo__copiar[data-hecho="true"] span { visibility: hidden; }
+.sw-codigo__copiar[data-hecho="true"]::after {
+  content: attr(data-ok);
+  position: absolute;
+}
+.sw-codigo__copiar { position: relative; }
+
+.sw-codigo__cuerpo {
+  margin: 0;
+  padding: var(--sw-s-3);
+  overflow-x: auto;
+  font-family: var(--sw-font-mono);
+  font-size: var(--sw-t-body-sm);
+  line-height: 1.6;
+  color: var(--sw-text);
+  /* pre ya no envuelve, pero conviene decirlo: es la razon del scroll. */
+  white-space: pre;
+  tab-size: 2;
+}
+
+/* ===============================================================
+   EL CURSOR DE TECLEO
+
+   Vive sólo mientras la respuesta se escribe y marca dónde va la próxima
+   letra. Se mueve con el texto porque es un elemento de verdad insertado
+   después del nodo que se está escribiendo, no un `::after` del mensaje: el
+   pseudoelemento quedaría al final de TODO el cuerpo, incluidos los párrafos
+   que todavía no empezaron.
+
+   VA EN --sw-attention Y NO EN EL ACENTO, y por una vez el token lo dice
+   literal: «esto está pasando ahora mismo — un flujo corriendo, una respuesta
+   generándose» (decisión 21). Es el único uso legítimo, y cumple su condición
+   más estricta —«si algo está lima y no se está moviendo, está mal»— porque
+   este cursor no existe cuando no se está escribiendo.
+
+   NO PARPADEA. La convención viene del cursor quieto de una terminal, que
+   parpadea justamente porque no se mueve: el parpadeo es su única señal de
+   estar vivo. Éste se desplaza todo el tiempo, y las dos cosas juntas se leen
+   como un temblor.
+   =============================================================== */
+.sw-msg__cursor {
+  display: inline-block;
+  /* En `em` y no en píxeles: el cursor tiene que medir lo que mide una letra
+     del texto que está escribiendo, y ese texto cambia de tamaño entre el
+     cuerpo y el bloque de código. */
+  width: .5em;
+  height: 1.05em;
+  margin-left: .06em;
+  /* Apoyado en la línea de base del texto, no en la caja de línea: con
+     `baseline` el bloque flota por encima de las minúsculas. */
+  vertical-align: -.18em;
+  border-radius: 1px;
+  background: var(--sw-attention);
+}
+/* En el bloque de código hereda su tipografía, así que el `em` ya lo achica
+   solo; lo que no hereda es el interlineado suelto del <pre>. */
+.sw-codigo__cuerpo .sw-msg__cursor { vertical-align: -.14em; }

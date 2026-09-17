@@ -58,12 +58,9 @@ function ShellConAnchor(): React.ReactElement {
         </>
       }
       contentRef={contentRef}
+      chat={<FloatingChat />}
     >
       <Outlet />
-      {/* Va en el shell y no en cada página: el punto del chat flotante es estar
-          disponible sin importar dónde estés. Él decide no dibujarse en /chat,
-          que es donde sobra. */}
-      <FloatingChat />
     </AppShell>
   );
 }

@@ -24,12 +24,17 @@ const PESTANAS: { id: Inquilino; icono: string; label: string }[] = [
 ];
 
 export function SideColumn({
-  chat,
+  chatHostRef,
+  chatAnclado,
   herramientas,
   riel,
   onAbrir,
 }: {
-  chat?: React.ReactNode;
+  /** Dónde se cuelga el chat cuando está anclado. Lo llena un portal desde el
+      shell: el nodo se muda de padre entre acá y `.sw-flota`, y con un portal
+      React no lo remonta — la conversación no se pierde al desanclar. */
+  chatHostRef: React.Ref<HTMLDivElement>;
+  chatAnclado: boolean;
   herramientas?: React.ReactNode;
   /** Colapsada a riel. Son DOS estados, no tres: abierta y riel. */
   riel: boolean;
@@ -70,9 +75,12 @@ export function SideColumn({
       </div>
 
       <div className="sw-side-col__body">
-        <div className="sw-chat" hidden={activo !== 'chat'}>
-          {chat}
-        </div>
+        <div className="sw-chat" ref={chatHostRef} hidden={activo !== 'chat'} />
+        {/* Con el chat afuera no queda nada en esta pestaña: la columna lo dice
+            en vez de mostrar un hueco. */}
+        <p className="sw-side-col__vacio" hidden={activo !== 'chat' || chatAnclado}>
+          La conversación está flotando sobre el área de trabajo
+        </p>
         <div className="sw-inspector-slot" hidden={activo !== 'tools' || !herramientas}>
           {herramientas}
         </div>

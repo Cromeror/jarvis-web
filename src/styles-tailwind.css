@@ -53,6 +53,7 @@
 @import "./theme/shell/tele.css";
 @import "./theme/shell/llegada.css";
 @import "./theme/auth/login.css";
+@import "./theme/chat/chat.css";
 
 @import "./theme/basecoat-ext.css";
 
