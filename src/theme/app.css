@@ -33,24 +33,3 @@
   height: 100%;
   overflow: auto;
 }
-
-/* LA SUPERFICIE DEL MENÚ DE USUARIO — copiada del app.css de `prueba-react/`,
-   que es el puente que el propio template armó para React.
-
-   POR QUÉ HACE FALTA, y por qué no alcanza con las clases de Basecoat: el menú
-   de Radix se posiciona con Floating UI (un `transform` inline) y Basecoat
-   posiciona con `top`/`inset`, así que su `[data-popover]` pelearía — por eso el
-   Content NO lo lleva. Pero la superficie —fondo, borde, radio, sombra— viaja
-   justo con ese atributo, y sin ella el menú queda TRANSPARENTE: se ve el hilo
-   del chat a través de los ítems.
-
-   Ni un valor literal: todo sale de los tokens. */
-.sw-user__menu {
-  background: var(--sw-raised-2);
-  border: var(--sw-border) solid var(--sw-line);
-  border-radius: var(--sw-r-lg);
-  box-shadow: var(--sw-e-pop);
-  padding: var(--sw-s-1);
-  min-width: 232px;
-  z-index: var(--sw-z-popover);
-}

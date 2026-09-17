@@ -19,9 +19,15 @@ import { useTheme, type Tema } from '../../hooks/useTheme.js';
  *  · EL WRAPPER `.dropdown-menu` ES OBLIGATORIO. Todo el CSS de Basecoat para
  *    este componente cuelga de él como descendiente.
  *  · EL CONTENT VA SIN `<Portal>`. Portalado al `body` la cadena de descendencia
- *    se corta y no le llega UNA SOLA REGLA. Por eso también se le da la
- *    superficie a mano en vez de usar el `[data-popover]` de Basecoat: Radix
- *    posiciona con transform inline y Basecoat con top/inset, y pelean.
+ *    se corta y no le llega UNA SOLA REGLA — ni la superficie ni el aspecto de
+ *    los ítems, que cuelgan de `.dropdown-menu [data-popover] [role=menuitem]`.
+ *
+ * LA SUPERFICIE ES LA DE BASECOAT (`data-popover`), no una propia. El Content de
+ * Radix es hijo DIRECTO del wrapper —`Root` no renderiza nodo—, así que entra por
+ * `.dropdown-menu > [data-popover]` y se lleva fondo, borde, sombra y el estilo
+ * de los ítems de una. Verificado sobre el CSS compilado: esta versión del
+ * paquete no le pone posición a `[data-popover]`, así que no hay nada que pelee
+ * con el posicionamiento de Radix.
  *
  * `align="end"` por lo mismo que en el template: el disparador vive pegado al
  * borde derecho, y alineado al inicio el menú se sale de la pantalla.
@@ -63,7 +69,7 @@ export function UserMenu(): React.ReactElement {
           </button>
         </DropdownMenu.Trigger>
 
-        <DropdownMenu.Content align="end" sideOffset={6} className="sw-user__menu">
+        <DropdownMenu.Content align="end" sideOffset={6} data-popover>
           <div className="sw-user__cab" role="presentation">
             <span className="sw-user__nombre">{nombre}</span>
             <span className="sw-user__perfil">{perfil}</span>
