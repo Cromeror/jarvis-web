@@ -1,0 +1,52 @@
+/* EL CAMPO DE PUNTOS de los vacíos. Vive en flows/canvas.css del template,
+   junto al lienzo nodal; acá se trae SOLO este bloque porque el resto de ese
+   archivo es del canvas, que todavía no está portado. El dibujo lo genera la
+   isla `empty-state.js` (window.SW.vacio.marca): keyframes por punto y spans
+   posicionados. Sin estas reglas los spans salen sin tamaño ni posición y el
+   campo no se ve. */
+
+/* ---------------------------------------------------------------
+   EL CAMPO DE PUNTOS — el dibujo del vacío, en CSS puro.
+
+   Los puntos y sus valores los emite canvas.js (camposDePuntos), con
+   semilla fija: el campo es el mismo en cada carga. Acá hay UNA regla para
+   todos; lo que cambia de uno a otro son las variables que trae cada
+   <span> en su style.
+
+   SÓLO transform y opacity (regla 7). La posición la fija left/top una vez
+   y no se anima; lo que se mueve es una traslación de pocos píxeles. Con
+   prefers-reduced-motion el reset global de base.css corta la duración y el
+   campo queda quieto, que es exactamente lo que corresponde: es decoración.
+   --------------------------------------------------------------- */
+.sw-vacio-campo {
+  position: relative;
+  flex: 0 0 auto;
+  width: var(--sw-vacio-w);
+  height: var(--sw-vacio-h);
+}
+
+/* Lo COMÚN a los ochenta y pico de puntos. Lo propio de cada uno —posición,
+   diámetro, y los nombres, duraciones y desfases de sus dos animaciones—
+   llega inline desde canvas.js.
+
+   Acá NO hay @keyframes ni var() dentro de una animación, y es deliberado:
+   una animación que menciona una custom property no se puede componer en el
+   hilo gráfico, porque resolver la variable es recalcular estilo. Medido: la
+   versión con var() en los keyframes costaba 182ms de recalculo cada 5s.
+   Los keyframes literales, uno por punto, los emite marcaDelCampo(). */
+.sw-vacio-campo > span {
+  position: absolute;
+  border-radius: var(--sw-r-pill);
+  background: var(--sw-text);
+  /* DOS ANIMACIONES, no una, y cada una con su reloj: la deriva mueve, el
+     titileo enciende y apaga. Con un solo ciclo el punto se apaga siempre
+     en la misma punta del recorrido y el campo entero late al unísono —
+     que es lo que delata que son spans y no un campo.
+
+     Los desfases van NEGATIVOS (los pone canvas.js): al abrir la pantalla el
+     campo ya está en movimiento y repartido, en vez de arrancar todos juntos
+     desde el mismo cuadro. */
+  animation-timing-function: var(--sw-ease-inout);
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}

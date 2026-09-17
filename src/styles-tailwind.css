@@ -54,6 +54,7 @@
 @import "./theme/shell/llegada.css";
 @import "./theme/auth/login.css";
 @import "./theme/chat/chat.css";
+@import "./theme/chat/vacio-campo.css";
 
 @import "./theme/basecoat-ext.css";
 
