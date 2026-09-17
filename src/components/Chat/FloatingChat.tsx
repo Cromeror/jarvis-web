@@ -221,13 +221,15 @@ export function FloatingChat(): React.ReactElement | null {
           className="sw-comp__campo"
           rows={1}
           value={texto}
-          disabled={sinProyecto || !sessionId}
           onChange={(e) => setTexto(e.target.value)}
           onKeyDown={(e) => {
             // Enter envía y Shift+Enter hace salto, como el composer grande.
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
-              void enviar();
+              // Sin sesión no se manda, pero lo escrito NO se pierde: queda en
+              // el campo y el error dice qué falta.
+              if (sessionId) void enviar();
+              else setError('Elegí un proyecto para conversar: entrá a un chat, un plan, un environment o un paquete.');
             }
           }}
           placeholder="Pedí un cambio, preguntá algo, o describí lo que querés hacer…"
@@ -260,12 +262,13 @@ export function FloatingChat(): React.ReactElement | null {
             <button
               className="sw-comp__send"
               type="button"
-              disabled={!active && (!texto.trim() || !sessionId)}
+              disabled={!active && !texto.trim()}
               aria-label={active ? 'Detener' : 'Enviar'}
               title={active ? 'Detener' : 'Enviar'}
               onClick={() => {
                 if (active && sessionId) void stopChatMessage(sessionId);
-                else void enviar();
+                else if (sessionId) void enviar();
+                else setError('Elegí un proyecto para conversar: entrá a un chat, un plan, un environment o un paquete.');
               }}
             >
               <Icon name={active ? 'stop' : 'avanzar'} />
