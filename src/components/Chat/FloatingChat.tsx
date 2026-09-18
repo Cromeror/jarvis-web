@@ -6,7 +6,7 @@ import { MessageList } from '../ui/molecules/MessageList.js';
 import { useActiveProjectId } from '../../hooks/useActiveProject.js';
 import { Icon } from '../Icon.js';
 import '../../theme/islas/empty-state.js';
-import { ExecutorLoginPrompt } from './ExecutorLoginPrompt.js';
+import { FalloDeArranque } from './FalloDeArranque.js';
 
 
 /**
@@ -37,12 +37,15 @@ export function FloatingChat(): React.ReactElement | null {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   /**
-   * El turno murió antes de arrancar el motor: casi siempre la sesión del
-   * executor vencida. Se distingue por el `step` que manda el server, no por el
-   * texto del mensaje — ahí el chat puede ofrecer el arreglo en vez de sólo
-   * mostrar el error.
+   * El turno murió antes de arrancar el motor, y POR QUÉ.
+   *
+   * Lo manda el server como una causa clasificada; no se deduce del `step` ni
+   * del texto. Antes se asumía que todo fallo de arranque era la sesión
+   * vencida, y el chat ofrecía re-loguear para un `root_path` inexistente: el
+   * login funcionaba, el chat seguía roto, y no había forma de saber por qué
+   * desde la pantalla.
    */
-  const [sinSesionDelExecutor, setSinSesionDelExecutor] = useState(false);
+  const [causaDelFallo, setCausaDelFallo] = useState<string | null>(null);
 
   const refrescarHistorial = useCallback(async (): Promise<void> => {
     if (!sessionId) return;
@@ -55,9 +58,11 @@ export function FloatingChat(): React.ReactElement | null {
 
   const { active, liveText, pending } = useChatStream(sessionId, {
     onHistoryChanged: () => void refrescarHistorial(),
-    onError: (message, step) => {
+    onError: (message, step, cause) => {
       setError(message);
-      if (step === 'spawn') setSinSesionDelExecutor(true);
+      // Sin causa declarada no se inventa una: se muestra el error crudo, que
+      // es más útil que una explicación equivocada.
+      setCausaDelFallo(cause ?? (step === 'spawn' ? 'unknown' : null));
     },
   });
 
@@ -194,12 +199,14 @@ export function FloatingChat(): React.ReactElement | null {
         )}
       </div>
 
-      {error && !sinSesionDelExecutor && <p className="sw-chat__context">{error}</p>}
-      {sinSesionDelExecutor && (
-        <ExecutorLoginPrompt
+      {error && !causaDelFallo && <p className="sw-chat__context">{error}</p>}
+      {causaDelFallo && (
+        <FalloDeArranque
+          causa={causaDelFallo}
+          detalle={error}
           projectId={projectId}
           onResuelto={() => {
-            setSinSesionDelExecutor(false);
+            setCausaDelFallo(null);
             setError(null);
           }}
         />

@@ -30,7 +30,7 @@ type ChatSseEvent =
   | { kind: 'background_tasks'; tasks: BackgroundTaskLike[] }
   | { kind: 'turn_end' }
   | { kind: 'plan_created'; plan_id: string }
-  | { kind: 'error'; message: string; error_id?: string; step?: string };
+  | { kind: 'error'; message: string; error_id?: string; step?: string; cause?: string };
 
 interface ChatStreamHandlers {
   /**
@@ -57,12 +57,14 @@ interface ChatStreamHandlers {
   /**
    * The session failed with messages still unanswered.
    *
-   * `step` dice qué falló, y la UI lo necesita para distinguir UN caso del
-   * resto: `spawn` es casi siempre la sesión del executor vencida, y eso se
-   * arregla desde la pantalla. Reconocerlo por el texto del mensaje sería
-   * atarse a una frase que se reescribe sin avisar.
+   * `cause` dice QUÉ hay que arreglar y `step` dónde se rompió. Antes sólo
+   * llegaba `step`, y la UI trataba todo `spawn` como «sesión del executor
+   * vencida» — pero ese paso también falla por el pool lleno o por un
+   * `root_path` que apunta a un directorio inexistente. Con eso, un problema de
+   * configuración se presentaba como uno de credenciales y el login «no
+   * arreglaba nada» porque no había nada que arreglar ahí.
    */
-  onError?: (message: string, step?: string) => void;
+  onError?: (message: string, step?: string, cause?: string) => void;
 }
 
 /**
@@ -143,7 +145,7 @@ export function useChatStream(sessionId: string | null, handlers: ChatStreamHand
             handlersRef.current.onPlanCreated?.(data.plan_id);
             return;
           case 'error':
-            handlersRef.current.onError?.(data.message, data.step);
+            handlersRef.current.onError?.(data.message, data.step, data.cause);
             return;
           case 'assistant_text':
             setActive(true);
