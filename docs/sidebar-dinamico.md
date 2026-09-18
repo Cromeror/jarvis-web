@@ -24,7 +24,7 @@ proyecto.
 paquete (contabilidad, por ejemplo) es una opción del menú, y adentro un submenú
 deja elegir el módulo con el que se va a trabajar (conciliación de bancos,
 generación de informes). El modelo —paquete, módulo, utilidad, y quién los
-configura— está en `docs/paquetes-y-modulos.md` del repo `jarvis-agent`; acá
+configura— está en `docs/suites-y-modulos.md` del repo `jarvis-agent`; acá
 sólo vive la navegación.
 
 ## Cómo quedó
@@ -42,7 +42,7 @@ sólo vive la navegación.
   sidebar no es lugar para mostrar un error de carga.
 
 El modelo de lo que se muestra —paquete, módulo, utilidad y quién los
-configura— está en `docs/paquetes-y-modulos.md` del repo `jarvis-agent`.
+configura— está en `docs/suites-y-modulos.md` del repo `jarvis-agent`.
 
 ## Qué sigue abierto
 

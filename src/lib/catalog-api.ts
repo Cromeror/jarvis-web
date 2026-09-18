@@ -1,5 +1,5 @@
 /**
- * Cliente de `api/catalog` — paquetes, módulos y utilidades.
+ * Cliente de `api/catalog` — suites, módulos y herramientas.
  *
  * ACÁ SE SIGUE DICIENDO «moduleTool», Y ES A PROPÓSITO: es el contrato con la API
  * (`CatalogModuleTool`, `runModuleTool`, `/api/catalog/module-tools`), que vive en el
@@ -42,13 +42,13 @@ export interface CatalogModule {
   key: string | null;
   origin: 'code' | 'manual';
   status: 'active' | 'missing';
-  /** `any` = acepta también las utilidades abiertas; `declared` = sólo las que lo nombran. */
+  /** `any` = acepta también las herramientas abiertas; `declared` = sólo las que lo nombran. */
   accepts: 'any' | 'declared';
   created_at: string;
   updated_at: string;
 }
 
-export interface CatalogPackage {
+export interface CatalogSuite {
   id: string;
   slug: string;
   name: string;
@@ -112,25 +112,25 @@ export interface CatalogModuleToolInput extends CatalogItemInput {
   tool_name?: string | null;
 }
 
-export async function listPackages(): Promise<CatalogPackage[]> {
-  return handle<CatalogPackage[]>(await fetch('/api/catalog/packages'));
+export async function listSuites(): Promise<CatalogSuite[]> {
+  return handle<CatalogSuite[]>(await fetch('/api/catalog/suites'));
 }
 
-export async function createPackage(input: CatalogItemInput): Promise<CatalogPackage> {
-  return send('POST', '/api/catalog/packages', input);
+export async function createSuite(input: CatalogItemInput): Promise<CatalogSuite> {
+  return send('POST', '/api/catalog/suites', input);
 }
 
-export async function updatePackage(id: string, input: Partial<CatalogItemInput>): Promise<CatalogPackage> {
-  return send('PATCH', `/api/catalog/packages/${encodeURIComponent(id)}`, input);
+export async function updateSuite(id: string, input: Partial<CatalogItemInput>): Promise<CatalogSuite> {
+  return send('PATCH', `/api/catalog/suites/${encodeURIComponent(id)}`, input);
 }
 
-export async function deletePackage(id: string): Promise<void> {
-  await send('DELETE', `/api/catalog/packages/${encodeURIComponent(id)}`);
+export async function deleteSuite(id: string): Promise<void> {
+  await send('DELETE', `/api/catalog/suites/${encodeURIComponent(id)}`);
 }
 
 /** Reemplazo TOTAL y en orden: la lista que se manda es la que queda. */
-export async function setPackageModules(id: string, ids: string[]): Promise<CatalogPackage> {
-  return send('PUT', `/api/catalog/packages/${encodeURIComponent(id)}/modules`, { ids });
+export async function setSuiteModules(id: string, ids: string[]): Promise<CatalogSuite> {
+  return send('PUT', `/api/catalog/suites/${encodeURIComponent(id)}/modules`, { ids });
 }
 
 export async function listModules(): Promise<CatalogModule[]> {
@@ -169,23 +169,23 @@ export async function deleteModuleTool(id: string): Promise<void> {
   await send('DELETE', `/api/catalog/module-tools/${encodeURIComponent(id)}`);
 }
 
-/** Las tools que se pueden asociar a una utilidad — la misma fuente que valida al guardar. */
+/** Las tools que se pueden asociar a una herramienta — la misma fuente que valida al guardar. */
 export async function listCatalogTools(): Promise<CatalogToolOption[]> {
   const body = await handle<{ tools: CatalogToolOption[] }>(await fetch('/api/catalog/tools'));
   return body.tools;
 }
 
-/** A qué proyectos está asignado cada paquete, indexado por package_id. */
+/** A qué proyectos está asignada cada suite, indexado por suite_id. */
 export async function listAssignments(): Promise<Record<string, string[]>> {
   return handle<Record<string, string[]>>(await fetch('/api/catalog/assignments'));
 }
 
-export async function setProjectPackages(projectId: string, ids: string[]): Promise<CatalogPackage[]> {
-  return send('PUT', `/api/catalog/projects/${encodeURIComponent(projectId)}/packages`, { ids });
+export async function setProjectSuites(projectId: string, ids: string[]): Promise<CatalogSuite[]> {
+  return send('PUT', `/api/catalog/projects/${encodeURIComponent(projectId)}/suites`, { ids });
 }
 
 /**
- * Si una utilidad puede colgarse de un módulo.
+ * Si una herramienta puede colgarse de un módulo.
  *
  * Misma regla que el backend (`isModuleToolCompatible` en `@jarvis/core`), acá para
  * que la pantalla ofrezca sólo lo compatible en vez de dejar elegir algo que el
@@ -201,7 +201,7 @@ export function esCompatible(moduleTool: CatalogModuleTool, module: CatalogModul
   return module.key !== null && moduleTool.compatible_with.includes(module.key);
 }
 
-/** Ejecuta una utilidad del menú del proyecto y devuelve lo que la tool respondió. */
+/** Ejecuta una herramienta del menú del proyecto y devuelve lo que la tool respondió. */
 export async function runModuleTool(
   projectId: string,
   moduleToolId: string,
@@ -209,7 +209,7 @@ export async function runModuleTool(
 ): Promise<unknown> {
   const body = await send<{ output: unknown }>(
     'POST',
-    `/api/catalog/projects/${encodeURIComponent(projectId)}/moduleTools/${encodeURIComponent(moduleToolId)}/run`,
+    `/api/catalog/projects/${encodeURIComponent(projectId)}/module-tools/${encodeURIComponent(moduleToolId)}/run`,
     { input },
   );
   return body.output;
@@ -219,9 +219,9 @@ export async function runModuleTool(
  * El menú del proyecto. La pide cualquier usuario, no sólo el superadmin, y
  * devuelve únicamente lo asignado a ese proyecto.
  */
-export async function fetchNavigation(projectId: string): Promise<CatalogPackage[]> {
-  const body = await handle<{ packages: CatalogPackage[] }>(
+export async function fetchNavigation(projectId: string): Promise<CatalogSuite[]> {
+  const body = await handle<{ suites: CatalogSuite[] }>(
     await fetch(`/api/catalog/navigation?project_id=${encodeURIComponent(projectId)}`),
   );
-  return body.packages;
+  return body.suites;
 }

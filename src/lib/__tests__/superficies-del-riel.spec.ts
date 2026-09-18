@@ -5,9 +5,9 @@ import {
   superficiesDe,
   superficieDeLaRuta,
 } from '../superficies-del-riel.js';
-import type { CatalogPackage } from '../catalog-api.js';
+import type { CatalogSuite } from '../catalog-api.js';
 
-const paquete = (slug: string, modulos: string[]): CatalogPackage => ({
+const suite = (slug: string, modulos: string[]): CatalogSuite => ({
   id: slug,
   slug,
   name: slug.toUpperCase(),
@@ -44,18 +44,18 @@ const paquete = (slug: string, modulos: string[]): CatalogPackage => ({
 });
 
 describe('superficiesDe — son dos rieles disjuntos, no uno con recortes', () => {
-  it('EL CLIENTE VE SUS PAQUETES Y NADA MÁS', () => {
+  it('EL CLIENTE VE SUS SUITES Y NADA MÁS', () => {
     const s = superficiesDe({
-      paquetes: [paquete('facturacion', ['emision'])],
+      suites: [suite('facturacion', ['emision'])],
       projectId: 'acme',
       esOperador: false,
     });
-    expect(s.map((x) => x.id)).toEqual(['/paquetes/facturacion']);
+    expect(s.map((x) => x.id)).toEqual(['/suites/facturacion']);
   });
 
   it('ni Dashboard, ni la maquinaria, ni la administración', () => {
     const ids = superficiesDe({
-      paquetes: [paquete('facturacion', ['emision'])],
+      suites: [suite('facturacion', ['emision'])],
       projectId: 'acme',
       esOperador: false,
     }).map((x) => x.id);
@@ -64,21 +64,21 @@ describe('superficiesDe — son dos rieles disjuntos, no uno con recortes', () =
     }
   });
 
-  it('un cliente sin paquetes habilitados se queda con el riel VACÍO', () => {
+  it('un cliente sin suites habilitadas se queda con el riel VACÍO', () => {
     // No es un menú roto: el chat flotante está en todas las pantallas y no se
     // navega. Lo que no hay es a dónde ir, que es lo que efectivamente pasa.
-    expect(superficiesDe({ paquetes: [], projectId: 'acme', esOperador: false })).toEqual([]);
+    expect(superficiesDe({ suites: [], projectId: 'acme', esOperador: false })).toEqual([]);
   });
 
-  it('sin ámbito tampoco hay paquetes: la pregunta no tiene sujeto', () => {
+  it('sin ámbito tampoco hay suites: la pregunta no tiene sujeto', () => {
     expect(
-      superficiesDe({ paquetes: [paquete('facturacion', ['emision'])], projectId: null, esOperador: false }),
+      superficiesDe({ suites: [suite('facturacion', ['emision'])], projectId: null, esOperador: false }),
     ).toEqual([]);
   });
 
-  it('EL OPERADOR VE LA MAQUINARIA Y LA ADMINISTRACIÓN, y no paquetes', () => {
+  it('EL OPERADOR VE LA MAQUINARIA Y LA ADMINISTRACIÓN, y no suites', () => {
     const s = superficiesDe({
-      paquetes: [paquete('facturacion', ['emision'])],
+      suites: [suite('facturacion', ['emision'])],
       projectId: 'acme',
       esOperador: true,
     });
@@ -94,54 +94,54 @@ describe('superficiesDe — son dos rieles disjuntos, no uno con recortes', () =
   });
 
   it('el riel NO lleva Chat: el chat es el panel flotante de la derecha', () => {
-    const ids = superficiesDe({ paquetes: [], projectId: 'acme', esOperador: true }).map((s) => s.id);
+    const ids = superficiesDe({ suites: [], projectId: 'acme', esOperador: true }).map((s) => s.id);
     expect(ids).not.toContain('/chat');
   });
 
   it('las herramientas del operador entran directo y no listan nada', () => {
-    const s = superficiesDe({ paquetes: [], projectId: 'acme', esOperador: true });
+    const s = superficiesDe({ suites: [], projectId: 'acme', esOperador: true });
     expect(s.every((x) => x.directa)).toBe(true);
     expect(s.every((x) => x.modulos === undefined)).toBe(true);
   });
 
   it('con ámbito elegido, la herramienta lleva el proyecto adentro del destino', () => {
-    const s = superficiesDe({ paquetes: [], projectId: 'acme', esOperador: true });
+    const s = superficiesDe({ suites: [], projectId: 'acme', esOperador: true });
     expect(s.find((x) => x.id === '/plans')?.to).toBe('/plans/acme');
     expect(s.find((x) => x.id === '/')?.to).toBe('/');
   });
 
   it('sin ámbito, la herramienta cae a la ruta pelada', () => {
-    const s = superficiesDe({ paquetes: [], projectId: null, esOperador: true });
+    const s = superficiesDe({ suites: [], projectId: null, esOperador: true });
     expect(s.find((x) => x.id === '/plans')?.to).toBe('/plans');
   });
 
-  it('el paquete trae sus módulos, y cada módulo sus herramientas', () => {
+  it('la suite trae sus módulos, y cada módulo sus herramientas', () => {
     const s = superficiesDe({
-      paquetes: [paquete('facturacion', ['emision', 'cobros'])],
+      suites: [suite('facturacion', ['emision', 'cobros'])],
       projectId: 'acme',
       esOperador: false,
     });
-    const pkg = s.find((x) => x.id === '/paquetes/facturacion');
-    expect(pkg?.to).toBe('/paquetes/acme/facturacion');
-    expect(pkg?.modulos?.map((m) => m.id)).toEqual([
-      '/paquetes/acme/facturacion/emision',
-      '/paquetes/acme/facturacion/cobros',
+    const laSuite = s.find((x) => x.id === '/suites/facturacion');
+    expect(laSuite?.to).toBe('/suites/acme/facturacion');
+    expect(laSuite?.modulos?.map((m) => m.id)).toEqual([
+      '/suites/acme/facturacion/emision',
+      '/suites/acme/facturacion/cobros',
     ]);
-    expect(pkg?.modulos?.[0]?.herramientas.map((h) => h.name)).toEqual(['util-emision']);
+    expect(laSuite?.modulos?.[0]?.herramientas.map((h) => h.name)).toEqual(['util-emision']);
   });
 });
 
 describe('superficieDeLaRuta', () => {
   const delCliente = superficiesDe({
-    paquetes: [paquete('facturacion', ['emision'])],
+    suites: [suite('facturacion', ['emision'])],
     projectId: 'acme',
     esOperador: false,
   });
-  const delOperador = superficiesDe({ paquetes: [], projectId: 'acme', esOperador: true });
+  const delOperador = superficiesDe({ suites: [], projectId: 'acme', esOperador: true });
 
-  it('el módulo abierto marca a SU paquete', () => {
-    expect(superficieDeLaRuta('/paquetes/acme/facturacion/emision', delCliente)?.id).toBe(
-      '/paquetes/facturacion',
+  it('el módulo abierto marca a SU suite', () => {
+    expect(superficieDeLaRuta('/suites/acme/facturacion/emision', delCliente)?.id).toBe(
+      '/suites/facturacion',
     );
   });
 
@@ -169,52 +169,52 @@ describe('superficieDeLaRuta', () => {
 
 describe('moduloDeLaRuta', () => {
   const s = superficiesDe({
-    paquetes: [paquete('facturacion', ['emision'])],
+    suites: [suite('facturacion', ['emision'])],
     projectId: 'acme',
     esOperador: false,
   });
 
-  it('encuentra el módulo abierto y de qué paquete es', () => {
-    const r = moduloDeLaRuta('/paquetes/acme/facturacion/emision', s);
+  it('encuentra el módulo abierto y de qué suite es', () => {
+    const r = moduloDeLaRuta('/suites/acme/facturacion/emision', s);
     expect(r?.modulo.slug).toBe('emision');
-    expect(r?.paquete.id).toBe('/paquetes/facturacion');
+    expect(r?.suite.id).toBe('/suites/facturacion');
   });
 
-  it('en el paquete sin módulo en la URL cae al primero, igual que la página', () => {
+  it('en la suite sin módulo en la URL cae al primero, igual que la página', () => {
     // La página muestra el primer módulo cuando la ruta no dice cuál. Si la caja
     // devolviera null acá, el centro mostraría un módulo y la derecha diría que
     // no hay ninguno — la misma pantalla contando dos cosas distintas.
-    const r = moduloDeLaRuta('/paquetes/acme/facturacion', s);
+    const r = moduloDeLaRuta('/suites/acme/facturacion', s);
     expect(r?.modulo.slug).toBe('emision');
   });
 
-  it('fuera de todo paquete no hay caja de herramientas', () => {
+  it('fuera de todo suite no hay caja de herramientas', () => {
     expect(moduloDeLaRuta('/plans/acme', s)).toBeNull();
   });
 
   it('un slug que la navegación no devolvió NUNCA se devuelve: cae al primero real', () => {
     // La ruta puede existir; lo que decide es lo que la API haya habilitado. Y
-    // el fallback es el mismo de `PackagePage`, que con un slug desconocido
+    // el fallback es el mismo de `SuitePage`, que con un slug desconocido
     // también muestra el primer módulo — si acá diera null, la misma pantalla
     // contaría dos cosas distintas.
-    const r = moduloDeLaRuta('/paquetes/acme/facturacion/ajeno', s);
+    const r = moduloDeLaRuta('/suites/acme/facturacion/ajeno', s);
     expect(r?.modulo.slug).toBe('emision');
     expect(r?.modulo.slug).not.toBe('ajeno');
   });
 });
 
 describe('rutaDeAterrizaje', () => {
-  it('el cliente aterriza en su primer paquete, no en el Dashboard', () => {
+  it('el cliente aterriza en su primera suite, no en el Dashboard', () => {
     const s = superficiesDe({
-      paquetes: [paquete('facturacion', ['emision']), paquete('nomina', ['liquidacion'])],
+      suites: [suite('facturacion', ['emision']), suite('nomina', ['liquidacion'])],
       projectId: 'acme',
       esOperador: false,
     });
-    expect(rutaDeAterrizaje(s)).toBe('/paquetes/acme/facturacion');
+    expect(rutaDeAterrizaje(s)).toBe('/suites/acme/facturacion');
   });
 
   it('el operador aterriza en el Dashboard, que es lo suyo', () => {
-    const s = superficiesDe({ paquetes: [], projectId: 'acme', esOperador: true });
+    const s = superficiesDe({ suites: [], projectId: 'acme', esOperador: true });
     expect(rutaDeAterrizaje(s)).toBe('/');
   });
 
@@ -223,7 +223,7 @@ describe('rutaDeAterrizaje', () => {
   });
 
   it('la administración no cuenta como aterrizaje: está al pie por algo', () => {
-    const soloPie = superficiesDe({ paquetes: [], projectId: 'acme', esOperador: true }).filter(
+    const soloPie = superficiesDe({ suites: [], projectId: 'acme', esOperador: true }).filter(
       (x) => x.alPie,
     );
     expect(rutaDeAterrizaje(soloPie)).toBeNull();
@@ -232,7 +232,7 @@ describe('rutaDeAterrizaje', () => {
 
 describe('el borde con la API: `moduleTool` se traduce a `herramienta` acá y no antes', () => {
   const s = superficiesDe({
-    paquetes: [paquete('facturacion', ['emision'])],
+    suites: [suite('facturacion', ['emision'])],
     projectId: 'acme',
     esOperador: false,
   });

@@ -1,13 +1,13 @@
 import React, { Suspense, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { fetchNavigation } from '../lib/catalog-api.js';
-import type { CatalogPackage } from '../lib/catalog-api.js';
+import type { CatalogSuite } from '../lib/catalog-api.js';
 import { StatusBadge } from '../components/ui/atoms/StatusBadge.js';
 import { moduleView } from '../modules/registry.js';
 import { useHerramientaCorrida } from '../components/layout/herramienta-corrida.js';
 
 /**
- * Un paquete asignado al proyecto: sus módulos, y el trabajo del módulo
+ * Una suite asignada al proyecto: sus módulos, y el trabajo del módulo
  * elegido.
  *
  * LAS HERRAMIENTAS DEL MÓDULO YA NO VIVEN ACÁ. Tenía un rail propio
@@ -23,14 +23,14 @@ import { useHerramientaCorrida } from '../components/layout/herramienta-corrida.
  * discrepar: una lista de módulos armada por otro camino terminaría ofreciendo
  * uno que el menú no tiene.
  */
-export function PackagePage(): React.ReactElement {
-  const { projectId, packageSlug, moduleSlug } = useParams<{
+export function SuitePage(): React.ReactElement {
+  const { projectId, suiteSlug, moduleSlug } = useParams<{
     projectId: string;
-    packageSlug: string;
+    suiteSlug: string;
     moduleSlug?: string;
   }>();
   const navigate = useNavigate();
-  const [packages, setPackages] = useState<CatalogPackage[] | null>(null);
+  const [suites, setSuites] = useState<CatalogSuite[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   /* Lo último que devolvió una herramienta de la caja. Se muestra acá, en el
      área de trabajo, que es donde hay lugar para un JSON.
@@ -45,20 +45,20 @@ export function PackagePage(): React.ReactElement {
     let cancelado = false;
     void fetchNavigation(projectId)
       .then((p) => {
-        if (!cancelado) setPackages(p);
+        if (!cancelado) setSuites(p);
       })
       .catch((err: unknown) => {
-        if (!cancelado) setError(err instanceof Error ? err.message : 'No se pudo cargar el paquete');
+        if (!cancelado) setError(err instanceof Error ? err.message : 'No se pudo cargar la suite');
       });
     return () => {
       cancelado = true;
     };
   }, [projectId]);
 
-  const paquete = packages?.find((p) => p.slug === packageSlug) ?? null;
-  // Sin módulo en la URL se muestra el primero: entrar a un paquete y ver una
+  const suite = suites?.find((p) => p.slug === suiteSlug) ?? null;
+  // Sin módulo en la URL se muestra el primero: entrar a una suite y ver una
   // pantalla vacía obligaría a un clic más para llegar a lo único que hay.
-  const modulo = paquete?.modules.find((m) => m.slug === moduleSlug) ?? paquete?.modules[0] ?? null;
+  const modulo = suite?.modules.find((m) => m.slug === moduleSlug) ?? suite?.modules[0] ?? null;
   const Vista = moduleView(modulo?.key ?? null);
 
   if (error) {
@@ -69,7 +69,7 @@ export function PackagePage(): React.ReactElement {
     );
   }
 
-  if (!packages) {
+  if (!suites) {
     return (
       <div className="h-full overflow-y-auto bg-[var(--app-bg)] p-6">
         <p className="text-sm text-slate-400">Cargando…</p>
@@ -77,11 +77,11 @@ export function PackagePage(): React.ReactElement {
     );
   }
 
-  if (!paquete) {
+  if (!suite) {
     return (
       <div className="h-full overflow-y-auto bg-[var(--app-bg)] p-6">
         <p className="text-sm text-slate-400">
-          Este proyecto no tiene asignado el paquete «{packageSlug}». Pedíselo a quien administre el producto.
+          Este proyecto no tiene asignada la suite «{suiteSlug}». Pedíselo a quien administre el producto.
         </p>
       </div>
     );
@@ -93,19 +93,19 @@ export function PackagePage(): React.ReactElement {
     // superficie. Esta pantalla no tiene por qué traer la suya.
     <div className="h-full overflow-y-auto bg-[var(--app-bg)] p-2">
       <div className="min-w-0 p-4">
-      <h1 className="text-lg font-semibold text-white">{paquete.name}</h1>
-      {paquete.description && <p className="mt-1 text-sm text-slate-400">{paquete.description}</p>}
+      <h1 className="text-lg font-semibold text-white">{suite.name}</h1>
+      {suite.description && <p className="mt-1 text-sm text-slate-400">{suite.description}</p>}
 
-      {paquete.modules.length === 0 ? (
-        <p className="mt-4 text-sm text-slate-400">Este paquete todavía no tiene módulos configurados.</p>
+      {suite.modules.length === 0 ? (
+        <p className="mt-4 text-sm text-slate-400">Esta suite todavía no tiene módulos configurados.</p>
       ) : (
         <>
           <div className="mt-4 flex flex-wrap gap-2 border-b border-white/10 pb-3">
-            {paquete.modules.map((m) => (
+            {suite.modules.map((m) => (
               <button
                 key={m.id}
                 type="button"
-                onClick={() => navigate(`/paquetes/${projectId}/${paquete.slug}/${m.slug}`)}
+                onClick={() => navigate(`/suites/${projectId}/${suite.slug}/${m.slug}`)}
                 className={`rounded-lg px-3 py-2 text-sm ${
                   m.id === modulo?.id ? 'bg-indigo-500/20 text-white' : 'text-slate-300 hover:bg-white/5'
                 }`}

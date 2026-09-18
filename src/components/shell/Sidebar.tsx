@@ -34,7 +34,7 @@ import {
  * de escape necesita un último escalón, o el teclado queda atrapado.
  *
  * EL RIEL NO ES UNA LISTA FIJA, y son DOS rieles disjuntos: el cliente ve sus
- * paquetes y nada más; el operador, la maquinaria del producto y la
+ * suites y nada más; el operador, la maquinaria del producto y la
  * administración. La regla vive en `superficiesDe()` — acá sólo se dibuja.
  *
  * EL NIVEL 3 YA NO EXISTE. Tuvo dos inquilinos y ninguno quedó: las
@@ -49,7 +49,7 @@ export function Sidebar({ children }: { children?: React.ReactNode }): React.Rea
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { user } = useAuth();
-  const { projectId, paquetes } = useActiveProject();
+  const { projectId, suites } = useActiveProject();
 
   const sideRef = useRef<HTMLDivElement>(null);
   const railRef = useRef<HTMLElement>(null);
@@ -63,11 +63,11 @@ export function Sidebar({ children }: { children?: React.ReactNode }): React.Rea
   const [query, setQuery] = useState('');
 
   const superficies = superficiesDe({
-    paquetes,
+    suites,
     projectId,
     esOperador: user?.account_type === 'operator',
   });
-  /* El riel de un cliente sin paquetes habilitados queda VACÍO, y entonces no
+  /* El riel de un cliente sin suites habilitadas queda VACÍO, y entonces no
      hay superficie que describir: el panel se dibuja igual pero sin rótulo de
      nada, porque no hay nada de lo que sea la lista. */
   const def: Superficie | null = superficieDeLaRuta(pathname, superficies) ?? null;
@@ -271,7 +271,7 @@ export function Sidebar({ children }: { children?: React.ReactNode }): React.Rea
               {query
                 ? `Nada que coincida con «${query}»`
                 : /* Una superficie directa no despliega el panel, así que este
-                     vacío es el del paquete sin módulos. */
+                     vacío es el de la suite sin módulos. */
                   `Sin ${def?.unidad ?? 'objetos'}s todavía`}
               <br />
               Probá con otro nombre.

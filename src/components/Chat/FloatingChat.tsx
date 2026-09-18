@@ -183,7 +183,7 @@ export function FloatingChat(): React.ReactElement | null {
               <h3>Empezá una conversación</h3>
               <p>
                 {sinProyecto
-                  ? 'Elegí un proyecto para conversar: entrá a un chat, un plan, un environment o un paquete.'
+                  ? 'Elegí un proyecto para conversar: entrá a un chat, un plan, un environment o una suite.'
                   : 'Jarvis puede cambiar lo que tenés abierto, explicarte algo o armarlo con vos.'}
               </p>
             </header>
@@ -236,7 +236,7 @@ export function FloatingChat(): React.ReactElement | null {
               // Sin sesión no se manda, pero lo escrito NO se pierde: queda en
               // el campo y el error dice qué falta.
               if (sessionId) void enviar();
-              else setError('Elegí un proyecto para conversar: entrá a un chat, un plan, un environment o un paquete.');
+              else setError('Elegí un proyecto para conversar: entrá a un chat, un plan, un environment o una suite.');
             }
           }}
           placeholder="Pedí un cambio, preguntá algo, o describí lo que querés hacer…"
@@ -281,7 +281,7 @@ export function FloatingChat(): React.ReactElement | null {
               onClick={() => {
                 if (active && sessionId) void stopChatMessage(sessionId);
                 else if (sessionId) void enviar();
-                else setError('Elegí un proyecto para conversar: entrá a un chat, un plan, un environment o un paquete.');
+                else setError('Elegí un proyecto para conversar: entrá a un chat, un plan, un environment o una suite.');
               }}
             >
               <Icon name={active ? 'stop' : 'avanzar'} />

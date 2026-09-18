@@ -7,7 +7,7 @@
  */
 
 /** Secciones cuya segunda parte de la ruta ES un proyecto. */
-export const CON_PROYECTO = ['chat', 'plans', 'environments', 'workspaces', 'paquetes'];
+export const CON_PROYECTO = ['chat', 'plans', 'environments', 'workspaces', 'suites'];
 
 const CLAVE = 'jarvis_proyecto_activo';
 
@@ -72,13 +72,13 @@ export function resolverProyectoActivo(entrada: {
  *
  * Se vuelve a la RAÍZ de la superficie, nunca al mismo objeto: un
  * `/chat/viejo/:sessionId` con el id nuevo pediría una conversación de otro
- * proyecto, y `/paquetes/viejo/:slug` un paquete que el nuevo puede no tener.
- * Por eso los paquetes caen al inicio — su ruta entera es del proyecto anterior.
+ * proyecto, y `/suites/viejo/:slug` una suite que el nuevo puede no tener.
+ * Por eso las suites caen al inicio — su ruta entera es del proyecto anterior.
  */
 export function rutaAlCambiarDeProyecto(pathname: string, projectId: string): string {
   const [, seccion] = pathname.split('/');
   if (!seccion || !CON_PROYECTO.includes(seccion)) return pathname;
-  if (seccion === 'paquetes') return '/';
+  if (seccion === 'suites') return '/';
   return `/${seccion}/${projectId}`;
 }
 

@@ -10,11 +10,11 @@ export interface Sidebar2NavItemData {
   /**
    * El submenú, que se despliega cuando el ítem está activo.
    *
-   * Existe para los paquetes: un paquete es una entrada del menú y sus módulos
-   * el submenú del mismo. Se muestra SÓLO con el padre activo —si no, un
-   * usuario con cuatro paquetes tendría veinte entradas permanentes— y no se
+   * Existe para las suites: una suite es una entrada del menú y sus módulos
+   * el submenú de la misma. Se muestra SÓLO con el padre activo —si no, un
+   * usuario con cuatro suites tendría veinte entradas permanentes— y no se
    * muestra colapsado, donde no hay lugar para el texto y un ícono de módulo no
-   * se distingue del de su paquete.
+   * se distingue del de su suite.
    */
   children?: Sidebar2NavItemData[];
 }

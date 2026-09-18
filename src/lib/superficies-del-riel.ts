@@ -1,4 +1,4 @@
-import type { CatalogPackage, CatalogModuleTool } from './catalog-api.js';
+import type { CatalogSuite, CatalogModuleTool } from './catalog-api.js';
 
 /**
  * QUÉ ENTRADAS TIENE EL RIEL — la regla sola, sin render.
@@ -101,31 +101,31 @@ const ADMINISTRACION: Superficie[] = [
  *
  * SON DOS RIELES DISJUNTOS, no uno con recortes:
  *
- *  · EL CLIENTE VE SUS PAQUETES, Y NADA MÁS. Ni Dashboard ni la maquinaria del
+ *  · EL CLIENTE VE SUS SUITES, Y NADA MÁS. Ni Dashboard ni la maquinaria del
  *    producto: entra a usar lo que tiene habilitado en su proyecto.
- *  · EL OPERADOR VE LA MAQUINARIA Y LA ADMINISTRACIÓN, y NO ve paquetes. No es
+ *  · EL OPERADOR VE LA MAQUINARIA Y LA ADMINISTRACIÓN, y NO ve suites. No es
  *    una restricción: los módulos por proyecto son del modelo del cliente
- *    —organización → proyectos → paquetes habilitados— y el operador es hoy
+ *    —organización → proyectos → suites habilitadas— y el operador es hoy
  *    superadmin del producto. Lo suyo es el catálogo entero desde `/catalogo`,
- *    que es de dónde salen los paquetes de todos; darle además los de un
+ *    que es de dónde salen las suites de todos; darle además los de un
  *    proyecto sería mostrarle un recorte de lo que ya administra completo, y
  *    encima atado a un ámbito que en su caso ni siquiera se autoelige.
  *
- * Sin proyecto elegido no hay paquetes que mostrar —no porque falten permisos,
+ * Sin proyecto elegido no hay suites que mostrar —no porque falten permisos,
  * sino porque la pregunta «¿cuáles?» todavía no tiene sujeto.
  *
  * ASÍ QUE EL RIEL DE UN CLIENTE PUEDE QUEDAR VACÍO: sin ámbito, o con un
- * proyecto sin paquetes habilitados. No es un menú roto — el chat flotante está
+ * proyecto sin suites habilitadas. No es un menú roto — el chat flotante está
  * en todas las pantallas y no se navega, así que sigue habiendo qué hacer. Lo
  * que no hay es a dónde ir, y eso es exactamente lo que pasa cuando a alguien
  * todavía no le habilitaron nada.
  */
 export function superficiesDe(entrada: {
-  paquetes: CatalogPackage[];
+  suites: CatalogSuite[];
   projectId: string | null;
   esOperador: boolean;
 }): Superficie[] {
-  const { paquetes, projectId, esOperador } = entrada;
+  const { suites, projectId, esOperador } = entrada;
 
   const herramientas: Superficie[] = (esOperador ? HERRAMIENTAS : []).map((h) => ({
     id: h.id,
@@ -140,17 +140,17 @@ export function superficiesDe(entrada: {
     directa: true,
   }));
 
-  const dePaquetes: Superficie[] =
+  const deSuites: Superficie[] =
     projectId && !esOperador
-      ? paquetes.map((pkg) => ({
-          id: `/paquetes/${pkg.slug}`,
-          to: `/paquetes/${projectId}/${pkg.slug}`,
-          match: `/paquetes/${projectId}/${pkg.slug}`,
+      ? suites.map((suite) => ({
+          id: `/suites/${suite.slug}`,
+          to: `/suites/${projectId}/${suite.slug}`,
+          match: `/suites/${projectId}/${suite.slug}`,
           icono: 'layers',
-          label: pkg.name,
+          label: suite.name,
           unidad: 'módulo',
-          modulos: pkg.modules.map((m) => ({
-            id: `/paquetes/${projectId}/${pkg.slug}/${m.slug}`,
+          modulos: suite.modules.map((m) => ({
+            id: `/suites/${projectId}/${suite.slug}/${m.slug}`,
             slug: m.slug,
             name: m.name,
             description: m.description,
@@ -165,15 +165,15 @@ export function superficiesDe(entrada: {
         }))
       : [];
 
-  return [...herramientas, ...dePaquetes, ...(esOperador ? ADMINISTRACION : [])];
+  return [...herramientas, ...deSuites, ...(esOperador ? ADMINISTRACION : [])];
 }
 
 /**
  * Qué superficie corresponde a una ruta.
  *
- * Se recorre AL REVÉS porque las rutas anidan: `/paquetes/p/facturacion` y
- * `/paquetes/p/facturacion/emision` matchean las dos por prefijo, y las
- * superficies de paquete van después de las herramientas. Sin nada que matchee
+ * Se recorre AL REVÉS porque las rutas anidan: `/suites/p/facturacion` y
+ * `/suites/p/facturacion/emision` matchean las dos por prefijo, y las
+ * superficies de suite van después de las herramientas. Sin nada que matchee
  * cae en la primera —el Dashboard—, que es el único destino que siempre existe.
  */
 export function superficieDeLaRuta(pathname: string, superficies: Superficie[]): Superficie | undefined {
@@ -194,9 +194,9 @@ export function superficieDeLaRuta(pathname: string, superficies: Superficie[]):
  * slug que la navegación no devolvió no es un módulo de este usuario, aunque la
  * ruta exista.
  *
- * EN EL PAQUETE SIN MÓDULO EN LA URL CAE AL PRIMERO, igual que `PackagePage`.
+ * EN LA SUITE SIN MÓDULO EN LA URL CAE AL PRIMERO, igual que `SuitePage`.
  * Esa página muestra el primer módulo cuando la ruta no dice cuál —entrar a un
- * paquete y ver una pantalla vacía obligaría a un clic más—, así que sin este
+ * suite y ver una pantalla vacía obligaría a un clic más—, así que sin este
  * fallback la caja de herramientas se quedaba vacía justo en la pantalla de
  * llegada: el centro mostraba un módulo y la derecha decía que no había
  * ninguno. Los dos tienen que caer al MISMO, o dicen cosas distintas de la
@@ -205,15 +205,15 @@ export function superficieDeLaRuta(pathname: string, superficies: Superficie[]):
 export function moduloDeLaRuta(
   pathname: string,
   superficies: Superficie[],
-): { modulo: ModuloDeMenu; paquete: Superficie } | null {
+): { modulo: ModuloDeMenu; suite: Superficie } | null {
   for (const s of superficies) {
     const modulo = s.modulos?.find((m) => m.id === pathname || pathname.startsWith(`${m.id}/`));
-    if (modulo) return { modulo, paquete: s };
+    if (modulo) return { modulo, suite: s };
   }
   for (const s of superficies) {
-    const enElPaquete = pathname === s.to || pathname.startsWith(`${s.to}/`);
+    const enLaSuite = pathname === s.to || pathname.startsWith(`${s.to}/`);
     const primero = s.modulos?.[0];
-    if (enElPaquete && primero) return { modulo: primero, paquete: s };
+    if (enLaSuite && primero) return { modulo: primero, suite: s };
   }
   return null;
 }
@@ -226,7 +226,7 @@ export function moduloDeLaRuta(
  * sacarla del menú — si la ruta raíz sigue mostrándola, sigue mostrándose.
  *
  * Devuelve `null` cuando no hay a dónde ir, que es el caso real de un cliente
- * sin paquetes habilitados. Ahí NO se inventa un destino: redirigir a algo que
+ * sin suites habilitadas. Ahí NO se inventa un destino: redirigir a algo que
  * tampoco le corresponde sería cambiar una pantalla equivocada por otra.
  */
 export function rutaDeAterrizaje(superficies: Superficie[]): string | null {

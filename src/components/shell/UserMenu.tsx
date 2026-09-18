@@ -34,7 +34,7 @@ import { useTheme, type Tema } from '../../hooks/useTheme.js';
  * borde derecho, y alineado al inicio el menú se sale de la pantalla.
  *
  * ACÁ TAMBIÉN SE CAMBIA DE PROYECTO, y va primero de todo. Cambiar de proyecto
- * no es navegar: cambia el menú entero —el riel de un cliente SON sus paquetes—
+ * no es navegar: cambia el menú entero —el riel de un cliente SON sus suites—
  * y con él lo que se puede hacer. Eso es un switch de contexto, de la misma
  * familia que quién sos y cómo se ve la app, no una entrada más del sidebar.
  * Tuvo un disparador propio arriba del riel y se movió acá: el riel es lo que

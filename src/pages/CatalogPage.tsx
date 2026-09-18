@@ -6,22 +6,22 @@ import type { ProjectSummary } from '../lib/projects-api.js';
 import {
   CatalogApiError,
   createModule,
-  createPackage,
+  createSuite,
   createModuleTool,
   deleteModule,
-  deletePackage,
+  deleteSuite,
   deleteModuleTool,
   esCompatible,
   listAssignments,
   listCatalogTools,
   listModules,
-  listPackages,
+  listSuites,
   listModuleTools,
   setModuleTools as asignarHerramientasAlModulo,
-  setPackageModules,
-  setProjectPackages,
+  setSuiteModules,
+  setProjectSuites,
 } from '../lib/catalog-api.js';
-import type { CatalogModule, CatalogPackage, CatalogToolOption, CatalogModuleTool } from '../lib/catalog-api.js';
+import type { CatalogModule, CatalogSuite, CatalogToolOption, CatalogModuleTool } from '../lib/catalog-api.js';
 import { StatusBadge } from '../components/ui/atoms/StatusBadge.js';
 
 const PANEL_CLASS = 'rounded-xl border border-white/10 bg-white/[0.03] p-4';
@@ -99,8 +99,8 @@ function AltaRapida({
 /**
  * La composición: qué hijos tiene el elegido, en una lista de casillas.
  *
- * Es el mismo control para las tres relaciones (módulos de un paquete,
- * herramientas de un módulo, proyectos de un paquete) porque las tres son lo
+ * Es el mismo control para las tres relaciones (módulos de una suite,
+ * herramientas de un módulo, proyectos de una suite) porque las tres son lo
  * mismo: elegir un subconjunto de un catálogo y guardarlo COMPLETO. El guardado
  * es un reemplazo total, así que no hay que decir aparte qué se quitó.
  */
@@ -165,25 +165,25 @@ function Composicion<T extends { id: string; name: string }>({
 }
 
 /**
- * Configuración del catálogo — paquetes, módulos y herramientas.
+ * Configuración del catálogo — suites, módulos y herramientas.
  *
  * Exclusiva del superadmin, igual que el backend: acá se define el producto que
  * después se le asigna a cada cliente. Un cliente no ve esta pantalla; ve el
  * resultado, que es su menú.
  *
  * Las tres secciones están en una sola página y no en tres porque configurar
- * uno de los niveles sin ver los otros dos es adivinar: el paquete se arma con
+ * uno de los niveles sin ver los otros dos es adivinar: la suite se arma con
  * módulos que hay que poder crear ahí mismo, y el módulo con herramientas.
  */
 export function CatalogPage(): React.ReactElement {
   const { user } = useAuth();
-  const [packages, setPackages] = useState<CatalogPackage[]>([]);
+  const [suites, setSuites] = useState<CatalogSuite[]>([]);
   const [modules, setModules] = useState<CatalogModule[]>([]);
   const [moduleTools, setModuleTools] = useState<CatalogModuleTool[]>([]);
   const [tools, setTools] = useState<CatalogToolOption[]>([]);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [assignments, setAssignments] = useState<Record<string, string[]>>({});
-  const [packageId, setPackageId] = useState<string | null>(null);
+  const [suiteId, setSuiteId] = useState<string | null>(null);
   const [moduleId, setModuleId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -191,20 +191,20 @@ export function CatalogPage(): React.ReactElement {
   async function refresh(): Promise<void> {
     try {
       const [p, m, u, t, proj, asg] = await Promise.all([
-        listPackages(),
+        listSuites(),
         listModules(),
         listModuleTools(),
         listCatalogTools(),
         listProjects(),
         listAssignments(),
       ]);
-      setPackages(p);
+      setSuites(p);
       setModules(m);
       setModuleTools(u);
       setTools(t);
       setProjects(proj);
       setAssignments(asg);
-      setPackageId((actual) => actual ?? p[0]?.id ?? null);
+      setSuiteId((actual) => actual ?? p[0]?.id ?? null);
       setModuleId((actual) => actual ?? m[0]?.id ?? null);
       setError(null);
     } catch (err) {
@@ -228,7 +228,7 @@ export function CatalogPage(): React.ReactElement {
     }
   }
 
-  const paquete = useMemo(() => packages.find((p) => p.id === packageId) ?? null, [packages, packageId]);
+  const suite = useMemo(() => suites.find((p) => p.id === suiteId) ?? null, [suites, suiteId]);
   const modulo = useMemo(() => modules.find((m) => m.id === moduleId) ?? null, [modules, moduleId]);
 
   // El superadmin es el único que configura el producto. Un cliente que llegue
@@ -238,10 +238,10 @@ export function CatalogPage(): React.ReactElement {
   return (
     <div className="h-full overflow-y-auto bg-[var(--app-bg)] p-6">
       <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-lg font-semibold text-white">Paquetes, módulos y herramientas</h1>
+        <h1 className="text-lg font-semibold text-white">Suites, módulos y herramientas</h1>
       </div>
       <p className="mb-4 max-w-3xl text-xs text-slate-400">
-        Un paquete contiene módulos y un módulo contiene herramientas. Nada de eso viene dado: se arma acá y se le asigna
+        Una suite contiene módulos y un módulo contiene herramientas. Nada de eso viene dado: se arma acá y se le asigna
         a cada proyecto, y eso es lo que termina siendo su menú.
       </p>
 
@@ -254,29 +254,29 @@ export function CatalogPage(): React.ReactElement {
       ) : (
         <div className="space-y-4">
           <section className={PANEL_CLASS}>
-            <h2 className="text-sm font-semibold text-white">Paquetes</h2>
+            <h2 className="text-sm font-semibold text-white">Suites</h2>
             <div className="mt-3 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
               <div>
                 <div className="max-h-56 space-y-1 overflow-y-auto rounded-lg border border-white/10 p-2">
-                  {packages.length === 0 && <p className="px-1 py-2 text-xs text-slate-500">Todavía no hay paquetes.</p>}
-                  {packages.map((p) => (
+                  {suites.length === 0 && <p className="px-1 py-2 text-xs text-slate-500">Todavía no hay suites.</p>}
+                  {suites.map((p) => (
                     <div
                       key={p.id}
                       className={`flex items-center gap-2 rounded px-2 py-1 text-sm ${
-                        p.id === packageId ? 'bg-indigo-500/20 text-white' : 'text-slate-200 hover:bg-white/5'
+                        p.id === suiteId ? 'bg-indigo-500/20 text-white' : 'text-slate-200 hover:bg-white/5'
                       }`}
                     >
-                      <button type="button" onClick={() => setPackageId(p.id)} className="flex-1 truncate text-left">
+                      <button type="button" onClick={() => setSuiteId(p.id)} className="flex-1 truncate text-left">
                         {p.name}
                         <span className="ml-2 text-xs text-slate-400">{p.modules.length} módulos</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => {
-                          if (!window.confirm(`¿Eliminar el paquete '${p.name}'? Los módulos no se borran.`)) return;
+                          if (!window.confirm(`¿Eliminar la suite '${p.name}'? Los módulos no se borran.`)) return;
                           void conManejoDeError(async () => {
-                            await deletePackage(p.id);
-                            if (packageId === p.id) setPackageId(null);
+                            await deleteSuite(p.id);
+                            if (suiteId === p.id) setSuiteId(null);
                           });
                         }}
                         className="rounded px-1 text-xs text-red-400 hover:bg-red-500/10"
@@ -287,32 +287,32 @@ export function CatalogPage(): React.ReactElement {
                   ))}
                 </div>
                 <AltaRapida
-                  titulo="Nombre del paquete"
+                  titulo="Nombre de la suite"
                   onCrear={async (input) => {
-                    await conManejoDeError(() => createPackage(input));
+                    await conManejoDeError(() => createSuite(input));
                   }}
                 />
               </div>
 
-              {paquete ? (
+              {suite ? (
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Composicion
-                    titulo={`Módulos de ${paquete.name}`}
-                    vacio="Creá un módulo abajo para poder ponerlo en este paquete."
+                    titulo={`Módulos de ${suite.name}`}
+                    vacio="Creá un módulo abajo para poder ponerlo en esta suite."
                     opciones={modules}
-                    seleccionados={paquete.modules.map((m) => m.id)}
-                    onGuardar={(ids) => conManejoDeError(() => setPackageModules(paquete.id, ids))}
+                    seleccionados={suite.modules.map((m) => m.id)}
+                    onGuardar={(ids) => conManejoDeError(() => setSuiteModules(suite.id, ids))}
                   />
                   <Composicion
-                    titulo="Proyectos que lo tienen"
+                    titulo="Proyectos que la tienen"
                     vacio="No hay proyectos."
                     opciones={projects.map((p) => ({ id: p.id, name: p.name }))}
-                    seleccionados={assignments[paquete.id] ?? []}
+                    seleccionados={assignments[suite.id] ?? []}
                     onGuardar={async (ids) => {
                       // La asignación se guarda por PROYECTO (es lo que el
                       // backend expone), así que un cambio acá puede tocar
                       // varios: se recalcula la lista de cada uno afectado.
-                      const antes = new Set(assignments[paquete.id] ?? []);
+                      const antes = new Set(assignments[suite.id] ?? []);
                       const ahora = new Set(ids);
                       const tocados = [...new Set([...antes, ...ahora])].filter(
                         (projectId) => antes.has(projectId) !== ahora.has(projectId),
@@ -321,18 +321,18 @@ export function CatalogPage(): React.ReactElement {
                         for (const projectId of tocados) {
                           const actuales = Object.entries(assignments)
                             .filter(([, proyectos]) => proyectos.includes(projectId))
-                            .map(([pkgId]) => pkgId);
+                            .map(([suiteId]) => suiteId);
                           const nuevos = ahora.has(projectId)
-                            ? [...new Set([...actuales, paquete.id])]
-                            : actuales.filter((pkgId) => pkgId !== paquete.id);
-                          await setProjectPackages(projectId, nuevos);
+                            ? [...new Set([...actuales, suite.id])]
+                            : actuales.filter((otraId) => otraId !== suite.id);
+                          await setProjectSuites(projectId, nuevos);
                         }
                       });
                     }}
                   />
                 </div>
               ) : (
-                <p className="text-xs text-slate-500">Elegí un paquete para configurarlo.</p>
+                <p className="text-xs text-slate-500">Elegí una suite para configurarla.</p>
               )}
             </div>
           </section>

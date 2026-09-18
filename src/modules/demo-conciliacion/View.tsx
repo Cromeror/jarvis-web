@@ -23,7 +23,7 @@ const LIBRO_EJEMPLO = `[
  *
  * Es el EJEMPLO que valida la estructura de punta a punta: el módulo se declara
  * en el código (`BUILT_MODULES`), el sync lo trae a la base, el superadmin lo
- * mete en un paquete y se lo asigna a un proyecto, el sidebar lo ancla, y acá se
+ * mete en una suite y se la asigna a un proyecto, el sidebar lo ancla, y acá se
  * resuelve y se ejecuta su herramienta contra la tool real.
  *
  * Deliberadamente feo y directo: dos textareas con JSON. Lo que se prueba es la

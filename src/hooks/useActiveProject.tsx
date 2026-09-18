@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { listProjects, type ProjectSummary } from '../lib/projects-api.js';
-import { fetchNavigation, type CatalogPackage } from '../lib/catalog-api.js';
+import { fetchNavigation, type CatalogSuite } from '../lib/catalog-api.js';
 import {
   guardarProyecto,
   leerProyectoGuardado,
@@ -19,7 +19,7 @@ export { projectIdDeLaUrl } from '../lib/proyecto-activo.js';
  *
  * Antes salía sólo de la URL, con un fallback al único proyecto accesible. Eso
  * alcanzaba mientras el proyecto decidía únicamente QUÉ CONTENIDO se mira; deja
- * de alcanzar ahora que también decide QUÉ MENÚ HAY —los paquetes del proyecto
+ * de alcanzar ahora que también decide QUÉ MENÚ HAY —las suites del proyecto
  * son entradas del sidebar—, porque entonces el menú se rearmaba en cada
  * navegación a una ruta sin proyecto y volvía a aparecer cuando la ruta lo
  * traía. El menú no puede parpadear con la pantalla.
@@ -37,14 +37,14 @@ type Estado = {
   /** La lista todavía no llegó: no es lo mismo que no tener proyectos. */
   cargando: boolean;
   /**
-   * Los paquetes habilitados en el proyecto activo.
+   * Las suites habilitadas en el proyecto activo.
    *
    * Viven acá y no en el sidebar porque tienen DOS lectores que no se ven entre
    * sí: el riel, que dibuja el menú, y la caja de herramientas de la columna
    * derecha, que muestra las herramientas del módulo abierto. Pedirlos en cada
    * uno serían dos llamadas por proyecto para la misma respuesta.
    */
-  paquetes: CatalogPackage[];
+  suites: CatalogSuite[];
   /** La elección es una decisión del usuario y no un trámite: hay más de uno, o todavía no hay ninguno elegido. */
   hayQueElegir: boolean;
   elegir: (projectId: string) => void;
@@ -58,7 +58,7 @@ export function ActiveProjectProvider({ children }: { children: React.ReactNode 
   const { user } = useAuth();
 
   const [proyectos, setProyectos] = useState<ProjectSummary[] | null>(null);
-  const [paquetes, setPaquetes] = useState<CatalogPackage[]>([]);
+  const [suites, setSuites] = useState<CatalogSuite[]>([]);
   const [guardado, setGuardado] = useState<string | null>(() => leerProyectoGuardado());
 
   // La lista se recarga si cambia el usuario: los proyectos accesibles son
@@ -102,23 +102,23 @@ export function ActiveProjectProvider({ children }: { children: React.ReactNode 
     }
   }, [projectId, guardado]);
 
-  /* Un 403 o un proyecto sin paquetes dejan la lista vacía: un fallo de carga
+  /* Un 403 o un proyecto sin suites dejan la lista vacía: un fallo de carga
      no se cuenta en el menú. Al operador ni se le piden — su riel no los dibuja
      (ver `superficiesDe`), así que sería una llamada por proyecto para tirar la
      respuesta. */
   const esOperador = user?.account_type === 'operator';
   useEffect(() => {
     if (!projectId || esOperador) {
-      setPaquetes([]);
+      setSuites([]);
       return;
     }
     let vivo = true;
     void fetchNavigation(projectId)
       .then((p) => {
-        if (vivo) setPaquetes(p);
+        if (vivo) setSuites(p);
       })
       .catch(() => {
-        if (vivo) setPaquetes([]);
+        if (vivo) setSuites([]);
       });
     return () => {
       vivo = false;
@@ -140,7 +140,7 @@ export function ActiveProjectProvider({ children }: { children: React.ReactNode 
       projectId,
       proyectos: proyectos ?? [],
       cargando: proyectos === null,
-      paquetes,
+      suites,
       /* Con un proyecto ya elegido y ningún otro adonde ir, no hay decisión que
          tomar. Pero un operador con un solo proyecto SÍ tiene que poder
          elegirlo: no se le autoeligió, así que sin esto quedaría sin forma de
@@ -148,7 +148,7 @@ export function ActiveProjectProvider({ children }: { children: React.ReactNode 
       hayQueElegir: (proyectos?.length ?? 0) > 1 || (projectId === null && (proyectos?.length ?? 0) > 0),
       elegir,
     }),
-    [projectId, proyectos, paquetes, elegir],
+    [projectId, proyectos, suites, elegir],
   );
 
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;
@@ -163,7 +163,7 @@ export function useActiveProject(): Estado {
       projectId: null,
       proyectos: [],
       cargando: false,
-      paquetes: [],
+      suites: [],
       hayQueElegir: false,
       elegir: () => {},
     };

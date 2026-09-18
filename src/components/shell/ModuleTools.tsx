@@ -12,7 +12,7 @@ import { useHerramientaCorrida } from '../layout/herramienta-corrida.js';
  * está mirando, en la pestaña «Herramientas» de la columna derecha.
  *
  * Reemplaza a `UtilitiesRail`, que hacía esto mismo pero en un rail PROPIO de
- * `PackagePage`. Eran dos cajas de herramientas: la de la superficie, que el
+ * `SuitePage`. Eran dos cajas de herramientas: la de la superficie, que el
  * shell ya tenía y nadie llenaba —siempre decía «esta superficie no trae caja
  * de herramientas»— y una segunda adentro de una sola pantalla. La columna
  * derecha es LA caja de herramientas (decisión 43 del template), así que las
@@ -29,13 +29,13 @@ import { useHerramientaCorrida } from '../layout/herramienta-corrida.js';
  */
 export function ModuleTools(): React.ReactElement | null {
   const { pathname } = useLocation();
-  const { projectId, paquetes } = useActiveProject();
+  const { projectId, suites } = useActiveProject();
   const { user } = useAuth();
   const { setCorrida } = useHerramientaCorrida();
   const [corriendo, setCorriendo] = useState<string | null>(null);
 
   const superficies = superficiesDe({
-    paquetes,
+    suites,
     projectId,
     esOperador: user?.account_type === 'operator',
   });
@@ -49,7 +49,7 @@ export function ModuleTools(): React.ReactElement | null {
   }, [moduloId, setCorrida]);
 
   if (!enfoque || !projectId) return null;
-  const { modulo, paquete } = enfoque;
+  const { modulo, suite } = enfoque;
 
   async function ejecutar(herramienta: (typeof modulo.herramientas)[number]): Promise<void> {
     setCorriendo(herramienta.id);
@@ -73,7 +73,7 @@ export function ModuleTools(): React.ReactElement | null {
   return (
     <div className="sw-herr">
       <header className="sw-herr__cab">
-        <p className="sw-herr__ruta">{paquete.label}</p>
+        <p className="sw-herr__ruta">{suite.label}</p>
         <h3 className="sw-herr__titulo">{modulo.name}</h3>
         {modulo.description ? <p className="sw-herr__sub">{modulo.description}</p> : null}
       </header>

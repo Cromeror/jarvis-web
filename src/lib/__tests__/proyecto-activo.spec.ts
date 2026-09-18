@@ -9,7 +9,7 @@ describe('projectIdDeLaUrl', () => {
   it('lo saca de las secciones que lo llevan', () => {
     expect(projectIdDeLaUrl('/chat/acme')).toBe('acme');
     expect(projectIdDeLaUrl('/chat/acme/sesion-1')).toBe('acme');
-    expect(projectIdDeLaUrl('/paquetes/acme/facturacion/emision')).toBe('acme');
+    expect(projectIdDeLaUrl('/suites/acme/facturacion/emision')).toBe('acme');
   });
 
   it('devuelve null donde el segundo segmento no es un proyecto', () => {
@@ -101,8 +101,8 @@ describe('rutaAlCambiarDeProyecto', () => {
     );
   });
 
-  it('un paquete cae al inicio: su ruta entera es del proyecto anterior', () => {
-    expect(rutaAlCambiarDeProyecto('/paquetes/viejo/facturacion/emision', 'nuevo')).toBe('/');
+  it('una suite cae al inicio: su ruta entera es del proyecto anterior', () => {
+    expect(rutaAlCambiarDeProyecto('/suites/viejo/facturacion/emision', 'nuevo')).toBe('/');
   });
 
   it('una ruta sin proyecto se queda donde está', () => {

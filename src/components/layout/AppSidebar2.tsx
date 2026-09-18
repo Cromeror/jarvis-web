@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { fetchNavigation } from '../../lib/catalog-api.js';
 import { useActiveProjectId } from '../../hooks/useActiveProject.js';
-import type { CatalogPackage } from '../../lib/catalog-api.js';
+import type { CatalogSuite } from '../../lib/catalog-api.js';
 import { useCollapsible } from '../../hooks/useCollapsible.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { Sidebar2, type Sidebar2NavItemData } from '../ui/organisms/Sidebar2.js';
@@ -58,25 +58,25 @@ export function AppSidebar2({
   const navigate = useNavigate();
 
   // El proyecto activo, con su fallback al único accesible: sin eso, un usuario
-  // cliente entra al Dashboard y ve el menú sin sus paquetes.
+  // cliente entra al Dashboard y ve el menú sin sus suites.
   const projectId = useActiveProjectId();
-  const [packages, setPackages] = useState<CatalogPackage[]>([]);
+  const [suites, setSuites] = useState<CatalogSuite[]>([]);
 
-  // Los paquetes asignados al proyecto de la URL. Un 403 o un proyecto sin
-  // paquetes dejan la lista vacía y el menú se queda con su piso: el sidebar no
+  // Las suites asignadas al proyecto de la URL. Un 403 o un proyecto sin
+  // suites dejan la lista vacía y el menú se queda con su piso: el sidebar no
   // es lugar para mostrar un error de carga.
   useEffect(() => {
     if (!projectId) {
-      setPackages([]);
+      setSuites([]);
       return;
     }
     let cancelado = false;
     void fetchNavigation(projectId)
       .then((p) => {
-        if (!cancelado) setPackages(p);
+        if (!cancelado) setSuites(p);
       })
       .catch(() => {
-        if (!cancelado) setPackages([]);
+        if (!cancelado) setSuites([]);
       });
     return () => {
       cancelado = true;
@@ -84,20 +84,20 @@ export function AppSidebar2({
   }, [projectId]);
 
   /**
-   * Una entrada por paquete, con sus módulos de submenú.
+   * Una entrada por suite, con sus módulos de submenú.
    *
-   * El id de cada ruta es la propia URL: los paquetes son datos, no constantes,
+   * El id de cada ruta es la propia URL: las suites son datos, no constantes,
    * así que no hay un id estable que escribir a mano y usar el path evita
    * mantener un mapa aparte.
    */
-  const packageRoutes: NavRoute[] = packages.map((pkg) => ({
-    id: `/paquetes/${projectId}/${pkg.slug}`,
-    to: `/paquetes/${projectId}/${pkg.slug}`,
-    label: pkg.name,
+  const suiteRoutes: NavRoute[] = suites.map((suite) => ({
+    id: `/suites/${projectId}/${suite.slug}`,
+    to: `/suites/${projectId}/${suite.slug}`,
+    label: suite.name,
     icon: 'workspaces',
     end: false,
-    children: pkg.modules.map((mod) => ({
-      id: `/paquetes/${projectId}/${pkg.slug}/${mod.slug}`,
+    children: suite.modules.map((mod) => ({
+      id: `/suites/${projectId}/${suite.slug}/${mod.slug}`,
       label: mod.name,
       icon: 'plans',
     })),
@@ -105,12 +105,12 @@ export function AppSidebar2({
 
   const routes =
     user?.account_type === 'operator'
-      ? [...NAV_ROUTES, ...packageRoutes, ...ADMIN_ROUTES]
-      : [...NAV_ROUTES, ...packageRoutes];
+      ? [...NAV_ROUTES, ...suiteRoutes, ...ADMIN_ROUTES]
+      : [...NAV_ROUTES, ...suiteRoutes];
   const allRoutes = [ACCENT_ROUTE, ...routes];
-  // El módulo activo gana sobre su paquete: los dos matchean por prefijo, y con
-  // el paquete primero un módulo abierto nunca se vería seleccionado.
-  const moduloActivo = packageRoutes
+  // El módulo activo gana sobre su suite: los dos matchean por prefijo, y con
+  // la suite primero un módulo abierto nunca se vería seleccionado.
+  const moduloActivo = suiteRoutes
     .flatMap((r) => r.children ?? [])
     .find((child) => location.pathname === child.id);
   const activeRoute =

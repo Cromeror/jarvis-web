@@ -28,7 +28,7 @@ const TITULOS: Record<string, { titulo: string; sub?: string }> = {
   plans: { titulo: 'Planes', sub: 'Lo que se ejecuta por pasos' },
   environments: { titulo: 'Environments', sub: 'Lo que cada proyecto necesita corriendo' },
   workspaces: { titulo: 'Workspaces', sub: 'Espacios de trabajo y sus cambios' },
-  catalogo: { titulo: 'Catálogo', sub: 'Paquetes y módulos' },
+  catalogo: { titulo: 'Catálogo', sub: 'Suites y módulos' },
   users: { titulo: 'Usuarios', sub: 'Quién entra y con qué permisos' },
 };
 
@@ -70,7 +70,7 @@ export function AppLayout(): React.ReactElement {
  * Con `replace`: el Dashboard no tiene que quedar en el historial de alguien
  * que no debería verlo, o el botón «atrás» lo trae de vuelta.
  *
- * Y sólo cuando HAY a dónde ir. Un cliente sin paquetes habilitados se queda
+ * Y sólo cuando HAY a dónde ir. Un cliente sin suites habilitadas se queda
  * donde está: mandarlo a otra pantalla que tampoco le corresponde sería cambiar
  * un problema por otro. Eso deja un pendiente real —la pantalla de «todavía no
  * tenés nada habilitado» no existe— y se ve así en vez de taparse.
@@ -79,10 +79,10 @@ function useAterrizaje(): void {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { projectId, paquetes } = useActiveProject();
+  const { projectId, suites } = useActiveProject();
 
   const esOperador = user?.account_type === 'operator';
-  const destino = rutaDeAterrizaje(superficiesDe({ paquetes, projectId, esOperador }));
+  const destino = rutaDeAterrizaje(superficiesDe({ suites, projectId, esOperador }));
 
   useEffect(() => {
     if (esOperador || pathname !== '/' || !destino || destino === '/') return;

@@ -24,6 +24,7 @@ export interface ModuleViewProps {
  * cliente pagaría la descarga del producto entero para ver su menú.
  */
 export const MODULE_VIEWS: Record<string, React.LazyExoticComponent<React.ComponentType<ModuleViewProps>>> = {
+  'causacion-facturas-001': lazy(async () => ({ default: (await import('./causacion-facturas/View.js')).View })),
   'demo-conciliacion': lazy(async () => ({ default: (await import('./demo-conciliacion/View.js')).View })),
 };
 
