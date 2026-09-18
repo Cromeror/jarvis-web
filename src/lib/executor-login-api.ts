@@ -19,6 +19,12 @@ export type LoginEventKind = 'url' | 'awaiting_code' | 'log' | 'success' | 'erro
 
 export interface LoginEvent {
   event: 'login_updated' | 'login_finished';
+  /**
+   * De qué intento habla. El servidor siempre lo manda; se declara para que el
+   * consumidor pueda descartar lo que no es suyo — al reintentar puede quedar
+   * un stream viejo en vuelo, y su final no es el del intento nuevo.
+   */
+  attemptId?: string;
   type?: LoginEventKind;
   data?: string;
   status?: 'success' | 'error';

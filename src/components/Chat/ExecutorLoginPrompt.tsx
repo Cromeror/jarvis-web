@@ -40,24 +40,57 @@ export function ExecutorLoginPrompt({
   const [detalle, setDetalle] = useState<string | null>(null);
   const cortarStream = useRef<(() => void) | null>(null);
 
-  // El stream se corta al desmontar, y el intento se cancela si quedó a medias:
-  // un `claude auth login` vivo esperando un código que ya nadie va a pegar se
-  // queda ocupando el proceso hasta su timeout de 5 minutos.
+  /* Lo último que se supo, para el cleanup. Va en refs y no se lee del estado
+     porque el cleanup tiene que correr UNA vez, al desmontar, y un cleanup que
+     lea estado necesitaría ese estado en las dependencias — que es exactamente
+     lo que rompía esto (abajo). */
+  const attemptRef = useRef<LoginStarted | null>(null);
+  const faseRef = useRef<Fase>('ofrecido');
+  attemptRef.current = attempt;
+  faseRef.current = fase;
+
+  /* SE CORTA AL DESMONTAR, Y SÓLO AHÍ. Las dependencias eran `[attempt, fase]`,
+     así que el cleanup corría en CADA cambio de cualquiera de los dos — y el
+     primero que cambia es `attempt`, un renglón antes de que se abra el stream.
+     Resultado: React cerraba el stream recién abierto y cancelaba el intento,
+     la pantalla se quedaba en «Pidiendo la URL de autorización…» para siempre
+     y el backend terminaba el login sin nadie escuchando. El arreglo del
+     servidor —que el stream cuente lo ya pasado al conectar— no alcanzaba: no
+     había stream vivo al que contárselo.
+
+     El intento se cancela si quedó a medias: un `claude auth login` esperando
+     un código que ya nadie va a pegar ocupa el proceso hasta su timeout de 5
+     minutos. */
   useEffect(
     () => () => {
       cortarStream.current?.();
-      if (attempt && fase !== 'ok') void cancelExecutorLogin(attempt.attemptId);
+      const pendiente = attemptRef.current;
+      if (pendiente && faseRef.current !== 'ok') void cancelExecutorLogin(pendiente.attemptId);
     },
-    [attempt, fase],
+    [],
   );
 
   async function arrancar(): Promise<void> {
+    /* REINTENTAR ES EMPEZAR DE CERO, y eso incluye soltar el stream anterior.
+       Sin esto quedaban dos abiertos, y como `openSseStream` RECONECTA cuando
+       el servidor cierra —que es lo que hace un intento al terminar—, el viejo
+       volvía a conectarse, recibía de nuevo el estado terminal que ya tenía
+       guardado y pisaba al intento nuevo con su error. El síntoma era el bucle:
+       aparecía el link y al instante volvía «Reintentar», sin fin, hasta
+       recargar la página. */
+    cortarStream.current?.();
+    cortarStream.current = null;
+    setUrl(null);
     setFase('arrancando');
     setDetalle(null);
     try {
       const iniciado = await startExecutorLogin(projectId);
       setAttempt(iniciado);
-      cortarStream.current = watchExecutorLogin(iniciado.attemptId, (evento) => {
+      const cortar = watchExecutorLogin(iniciado.attemptId, (evento) => {
+        // Un evento de OTRO intento no decide nada de éste: al reintentar
+        // rápido puede quedar uno en vuelo, y su terminal no es el nuestro.
+        if (evento.attemptId && evento.attemptId !== iniciado.attemptId) return;
+
         if (evento.type === 'url' && evento.data) {
           setUrl(evento.data);
           setFase('esperando_autorizacion');
@@ -65,13 +98,20 @@ export function ExecutorLoginPrompt({
         if (evento.type === 'error') {
           setDetalle(evento.data ?? 'El login falló');
           setFase('error');
+          /* Terminal: se corta acá. Si no, el servidor cierra su lado, el
+             cliente reconecta y vuelve a recibir el mismo final para siempre. */
+          cortar();
+          if (cortarStream.current === cortar) cortarStream.current = null;
         }
         if (evento.type === 'success') {
           setDetalle(evento.data ? `Sesión abierta como ${evento.data}` : 'Sesión abierta');
           setFase('ok');
           onResuelto?.();
+          cortar();
+          if (cortarStream.current === cortar) cortarStream.current = null;
         }
       });
+      cortarStream.current = cortar;
     } catch (err) {
       setDetalle(err instanceof Error ? err.message : 'No se pudo arrancar el login');
       setFase('error');
