@@ -69,7 +69,10 @@ export function UserMenu(): React.ReactElement {
     .toUpperCase();
 
   return (
-    <div className="dropdown-menu sw-user">
+    /* `id="sw-user"` no es opcional: el CSS del template acota el ancho mínimo
+       del popover con `#sw-user [data-popover] { min-width: 232px }`. Sin el id
+       esa regla no aplica y el menú se encoge al ancho de su texto más largo. */
+    <div className="dropdown-menu sw-user" id="sw-user">
       <DropdownMenu.Root>
         <DropdownMenu.Trigger asChild>
           <button type="button" className="sw-user__trigger" aria-label="Cuenta y preferencias">
@@ -96,11 +99,17 @@ export function UserMenu(): React.ReactElement {
                 <hr />
               </DropdownMenu.Separator>
 
-              <div className="sw-user__rotulo" role="presentation">
-                Proyecto
-              </div>
-
-              <DropdownMenu.RadioGroup value={projectId ?? ''} onValueChange={elegir}>
+              {/* AGRUPADO COMO EN EL TEMPLATE: `role="group"` con `aria-label`,
+                  igual que el grupo de tema en `chrome.js`. El nombre del grupo
+                  NO se dibuja — es para el lector de pantalla. Acá había un
+                  rótulo visible («Proyecto») con una clase propia metida dentro
+                  de `chrome.css`, que es un archivo del template y no se toca. */}
+              <DropdownMenu.RadioGroup
+                value={projectId ?? ''}
+                onValueChange={elegir}
+                asChild
+              >
+                <div role="group" aria-label="Proyecto">
                 {proyectos.map((p) => (
                   <DropdownMenu.RadioItem key={p.id} value={p.id} asChild>
                     <button type="button">
@@ -112,6 +121,7 @@ export function UserMenu(): React.ReactElement {
                     </button>
                   </DropdownMenu.RadioItem>
                 ))}
+                </div>
               </DropdownMenu.RadioGroup>
             </>
           )}

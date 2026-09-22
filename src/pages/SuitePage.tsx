@@ -1,5 +1,5 @@
 import React, { Suspense, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { fetchNavigation } from '../lib/catalog-api.js';
 import type { CatalogSuite } from '../lib/catalog-api.js';
 import { StatusBadge } from '../components/ui/atoms/StatusBadge.js';
@@ -29,7 +29,6 @@ export function SuitePage(): React.ReactElement {
     suiteSlug: string;
     moduleSlug?: string;
   }>();
-  const navigate = useNavigate();
   const [suites, setSuites] = useState<CatalogSuite[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   /* Lo último que devolvió una herramienta de la caja. Se muestra acá, en el
@@ -91,40 +90,40 @@ export function SuitePage(): React.ReactElement {
     // El trabajo ocupa el ancho entero: lo que se hace SOBRE él está en la
     // columna derecha del shell, que es la caja de herramientas de cualquier
     // superficie. Esta pantalla no tiene por qué traer la suya.
-    <div className="h-full overflow-y-auto bg-[var(--app-bg)] p-2">
-      <div className="min-w-0 p-4">
-      <h1 className="text-lg font-semibold text-white">{suite.name}</h1>
-      {suite.description && <p className="mt-1 text-sm text-slate-400">{suite.description}</p>}
-
+    // EL SCROLL ES DE LA SUPERFICIE, NO DE LA PÁGINA — el modelo del template:
+    // la superficie mide el alto de su caja y lo que scrollea es la pieza que
+    // tiene de más (la tabla, adentro de su card). Con la página scrolleando,
+    // un módulo que pida `height: 100%` no tiene contra qué medirse y la
+    // cabecera pegajosa de su tabla se va hacia arriba con las filas.
+    <div className="h-full min-h-0 overflow-hidden bg-[var(--app-bg)] p-2">
+      <div className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] p-4">
+      {/* EL TRABAJO. Scrollea sólo si su contenido no entra: un módulo con vista
+          propia mide 100% y no lo hace nunca —scrollea él, adentro—; la lista de
+          herramientas del módulo sin vista crece y sí. */}
+      <div className="min-w-0 min-h-0 overflow-y-auto">
+      {/* SIN ENCABEZADOS. Ni el nombre de la suite ni el del módulo: esto es la
+          SUPERFICIE DE TRABAJO, y quien la abrió ya sabe dónde está — se lo
+          dicen el riel encendido, las migas y el título del topbar, que desde
+          ahora nombra el módulo. Repetirlo acá gasta el alto que necesita el
+          trabajo, que es lo que la persona vino a hacer. */}
       {suite.modules.length === 0 ? (
         <p className="mt-4 text-sm text-slate-400">Esta suite todavía no tiene módulos configurados.</p>
       ) : (
         <>
-          <div className="mt-4 flex flex-wrap gap-2 border-b border-white/10 pb-3">
-            {suite.modules.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => navigate(`/suites/${projectId}/${suite.slug}/${m.slug}`)}
-                className={`rounded-lg px-3 py-2 text-sm ${
-                  m.id === modulo?.id ? 'bg-indigo-500/20 text-white' : 'text-slate-300 hover:bg-white/5'
-                }`}
-              >
-                {m.name}
-              </button>
-            ))}
-          </div>
-
+          {/* SIN TABS. Los módulos de la suite ya son el submenú del sidebar
+              (nivel 2 de `shell/Sidebar`), así que una tira de botones acá es un
+              segundo navegador para lo mismo. */}
           {modulo && (
-            <section className="mt-4">
-              <h2 className="text-sm font-semibold text-white">{modulo.name}</h2>
-              {modulo.description && <p className="mt-1 text-xs text-slate-400">{modulo.description}</p>}
-
+            // `h-full` SÓLO cuando hay vista: es lo que le da a la superficie
+            // del módulo el alto definido contra el que resolver su `height:
+            // 100%`. Sin vista el contenido es una lista que crece, y forzarle
+            // el alto la dejaría con un hueco abajo.
+            <section className={Vista ? 'h-full min-h-0' : undefined}>
               {Vista ? (
                 // El módulo está construido: manda su propia vista, y las
                 // herramientas las presenta ella (un botón, un paso de un
                 // asistente, lo que corresponda a ese trabajo).
-                <div className="mt-3">
+                <div className="h-full min-h-0">
                   <Suspense fallback={<p className="text-sm text-slate-400">Cargando el módulo…</p>}>
                     <Vista projectId={projectId as string} module={modulo} />
                   </Suspense>
@@ -164,6 +163,7 @@ export function SuitePage(): React.ReactElement {
           )}
         </>
       )}
+      </div>
 
       {/* El resultado de una herramienta corrida desde la caja. Vive acá y no
           en la columna porque un JSON no entra en 350px — y porque es el

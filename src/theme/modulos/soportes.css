@@ -1,0 +1,105 @@
+/* ============================================================================
+   Módulo de causación — LA TABLA DE SOPORTES
+   ============================================================================
+   Anatomía del template, no de Tailwind: clases semánticas `sw-*` acá y los
+   tokens del sistema. La versión anterior de esta pantalla estaba escrita con
+   utilidades y tokens `--table2-*` del design system viejo, que en esta rama
+   NO ESTÁN DEFINIDOS — o sea que la tabla se pintaba sin fondo, sin borde y sin
+   padding. Eso es lo que se reemplaza.
+
+   `--sw-tabla-filete` ya existía en tokens.css sin un solo consumidor: se
+   definió midiendo justamente esta tabla («medido en la tabla de Contabilidad»,
+   1,03:1 entre filas en oscuro). Este archivo es quien lo usa.
+   ============================================================================ */
+
+/* DOS FRANJAS Y NO TRES — la anatomía de `.sw-ctb` del template (su superficie
+   de Contabilidad): arriba lo que dice sobre qué se está trabajando, y abajo la
+   tabla, «quedándose con todo lo que sobra».
+
+   El `height: 100%` y el `minmax(0, 1fr)` son lo que le da ALTO DEFINIDO a la
+   tabla. Sin eso la columna es de alto automático y la tabla mide lo que miden
+   sus filas: con tres documentos la card terminaba bajo la tercera fila, la
+   cabecera pegajosa no tenía contra qué pegarse —scrolleaba la página, no la
+   tabla— y el paginador quedaba flotando debajo de la última fila en vez de
+   clavado abajo de la card.
+
+   El tope (`max-height: 100%`) lo trae la tabla sola; el ESTIRAMIENTO lo tiene
+   que dar el padre. Es el reparto del template y por eso se copia entero. */
+.sw-soportes {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: var(--sw-s-4);
+  height: 100%;
+  min-height: 0;
+}
+
+/* LA FRANJA DE ARRIBA, una sola. La barra y lo que la subida tenga que avisar
+   son la misma cosa —el estado de la acción que vive en la barra—, así que van
+   juntos en una franja y no en tres filas sueltas: con `grid-template-rows` de
+   dos, un tercer hijo cae en una fila implícita y le come el alto a la tabla. */
+.sw-soportes__franja { display: flex; flex-direction: column; gap: var(--sw-s-3); }
+
+/* El hueco de la tabla — `.sw-ctb__tabla` del template, misma regla: el ítem de
+   grid estira por default y la card lo llena. */
+.sw-soportes__tabla { min-height: 0; display: grid; }
+
+/* --- LA BARRA: qué hay, y las acciones sobre el conjunto ------------------ */
+
+.sw-soportes__barra {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sw-s-4);
+  flex-wrap: wrap;
+}
+.sw-soportes__conteo { color: var(--sw-muted); font-size: var(--sw-t-body-sm); }
+.sw-soportes__acciones { display: flex; align-items: center; gap: var(--sw-s-2); }
+
+/* --- LA TABLA: NO ESTÁ ACÁ ------------------------------------------------
+
+   Acá vivían `.sw-tabla__th/__td/__fila/__th--num/__corte/__vacio` y
+   `.sw-soportes__marco/__scroll`: una tabla entera escrita a mano contra
+   `shell/menus.css`, con un vocabulario que NO EXISTE en el template.
+
+   La tabla del template es `src/accounting/table.css` + `table.js`, y sus
+   clases son otras: `.sw-tabla__cont`, `__t`, `__ajustes`, `__ord`, `__cmarca`,
+   `__cmenu`, `__pie`, `__pag`, `__rango`, `__elip`. Está portada en
+   `theme/tabla/tabla.css` (copia literal) y `components/ui/Tabla.tsx`.
+
+   Lo que se perdía escribiéndola a mano no era estética: el reparto de anchos
+   en proporción, el orden de tres pasos, la paginación con ventana, la casilla
+   maestra de tres estados y el menú de columnas con su píldora.
+
+   No queda nada de eso: hasta el «—» de una celda sin dato se fue, porque el
+   template deja la celda vacía y punto.
+   ------------------------------------------------------------------------- */
+
+.sw-soportes__archivo {
+  color: var(--sw-text);
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+}
+
+/* EL ESTADO lo dibuja `.sw-tabla__punto`, del template. Acá había una píldora
+   propia (`.sw-soportes__estado`) que era vocabulario paralelo para algo que la
+   tabla ya resuelve — y peor: como texto, ocupaba el ancho de una columna
+   entera para decir lo que un punto de 9px dice igual. */
+
+/* --- ESTADOS -------------------------------------------------------------- */
+
+.sw-soportes__aviso {
+  border: var(--sw-border) solid var(--sw-line);
+  border-radius: var(--sw-r-md);
+  padding: var(--sw-s-3);
+  font-size: var(--sw-t-body-sm);
+}
+.sw-soportes__aviso--error { border-color: var(--sw-error); color: var(--sw-error); }
+.sw-soportes__aviso--parcial { border-color: var(--sw-warning); color: var(--sw-text-2); }
+.sw-soportes__aviso ul { margin: var(--sw-s-2) 0 0; padding-left: var(--sw-s-4); }
+.sw-soportes__aviso li { font-size: var(--sw-t-caption); color: var(--sw-muted); }
+
+/* El VACÍO lo dibuja la tabla (`.sw-tabla__nada`), dentro de la tabla y no en
+   lugar de ella: la cabecera se queda, porque es lo que dice contra qué se
+   filtró. */

@@ -1,39 +1,150 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { ModuleViewProps } from '../registry.js';
+import { Icon } from '../../components/Icon.js';
 import {
-  AccountingApiError,
+  SoporteApiError,
+  deleteDocument,
   downloadUrl,
   fetchLimits,
   leerBase64,
   listDocuments,
   uploadDocument,
-  type AccountingDocument,
-} from '../../lib/accounting-documents-api.js';
-import { DataTable, type DataTableColumn } from '../../components/ui/organisms/DataTable.js';
-import { Button2 } from '../../components/ui/atoms/Button2.js';
-import { StatusBadge } from '../../components/ui/atoms/StatusBadge.js';
-import { COLUMNAS } from './columnas.js';
+  type CausacionSoporte,
+} from '../../lib/causacion-soportes-api.js';
+import { COLUMNAS, COLUMNAS_POR_DEFECTO } from './columnas.js';
+import { Tabla, type ColumnaDeTabla } from '../../components/ui/Tabla.js';
+import type { GrupoDeMenu } from '../../components/ui/MenuContextual.js';
+import { usePublicarMedida } from '../../components/layout/medida-de-superficie.js';
 
 /**
- * Área de trabajo de `causacion-facturas`: el repositorio de soportes.
+ * Área de trabajo de `causacion-facturas-001`: subir soportes y verlos.
  *
- * Esta primera vuelta es deliberadamente chica — subir y listar — porque es lo
- * que hace falta para que el módulo sirva desde el día uno y para validar las
- * reglas que sí están completas: la whitelist por firma de bytes, el rechazo de
- * duplicados por contenido y el audit log. Mover, copiar y el árbol de carpetas
- * ya tienen endpoint y tool; les falta sólo la UI.
- *
- * La tabla trae las 24 columnas del extractor aunque hoy la mayoría venga
- * vacía. Es a propósito: el procesamiento todavía no existe, y una tabla que
- * crece de 5 a 24 columnas cuando llegue obligaría a rehacer el layout. Las
- * columnas vacías muestran qué falta; las llenas, qué ya se sabe.
+ * ESCRITA CON LA ANATOMÍA DEL TEMPLATE — clases semánticas `sw-*` y su hoja en
+ * `theme/modulos/soportes.css`, no utilidades sueltas. La versión anterior era
+ * Tailwind sobre `DataTable`, que consume tokens `--table2-*` del design system
+ * viejo: en esta rama esos tokens NO EXISTEN, así que la tabla se pintaba sin
+ * fondo, sin borde y sin padding. No era una diferencia de gusto.
  */
 
-const ESTADO_TONE: Record<AccountingDocument['procesamiento_estado'], 'neutral' | 'success' | 'danger'> = {
-  pendiente: 'neutral',
-  listo: 'success',
-  fallo: 'danger',
+/**
+ * Las columnas, en el vocabulario de la TABLA DEL TEMPLATE.
+ *
+ * `COLUMNAS` (en `columnas.ts`) sigue siendo la fuente: define qué hay y de
+ * dónde se lee cada dato —columna indexada o clave del jsonb—. Acá sólo se
+ * traduce a la forma que la tabla pide (`{ id, label, w, al, tip }`), y se
+ * marca cuáles arrancan escondidas.
+ *
+ * `elastica` en el tercero: es la única columna de texto libre, y el template
+ * es explícito en que sólo esa puede encogerse — «una cifra truncada no es una
+ * cifra, y una fecha a medias tampoco».
+ */
+const ANCHOS: Record<string, number> = {
+  archivo: 220,
+  tipo_documento: 150,
+  fecha: 120,
+  tercero_nombre: 240,
+  numero_documento: 140,
+  valor_total: 130,
+  procesamiento_estado: 120,
 };
+
+function aColumnaDeTabla(c: (typeof COLUMNAS)[number]): ColumnaDeTabla {
+  return {
+    id: c.key,
+    label: c.header,
+    dato: c.key,
+    w: ANCHOS[c.key] ?? 140,
+    al: c.numerica ? 'der' : undefined,
+    // El globo sólo donde puede haber recorte de verdad.
+    tip: !c.numerica && c.key !== 'procesamiento_estado',
+    elastica: c.key === 'tercero_nombre',
+  };
+}
+
+/**
+ * LAS SIETE QUE SE DIBUJAN y LAS QUE SE PUEDEN AGREGAR.
+ *
+ * No es «mostrar siete y esconder catorce»: son dos listas de distinta
+ * naturaleza, y el template las separa en dos menús por eso. El primero
+ * contesta *qué de lo que hay quiero ver* —siete tildes—; el segundo, *qué más
+ * hay*. Meter las catorce abajo de las siete convertiría el menú en una lista
+ * de veintiuna cosas que no se parecen.
+ */
+const COLUMNAS_DE_TABLA: ColumnaDeTabla[] = COLUMNAS.filter((c) =>
+  COLUMNAS_POR_DEFECTO.includes(c.key),
+).map(aColumnaDeTabla);
+
+const COLUMNAS_MAS: ColumnaDeTabla[] = COLUMNAS.filter(
+  (c) => !COLUMNAS_POR_DEFECTO.includes(c.key),
+).map(aColumnaDeTabla);
+
+/** El dominio pinta la celda; la tabla arma la grilla. */
+function celdaDeSoporte(
+  doc: CausacionSoporte,
+  col: ColumnaDeTabla,
+  projectId: string,
+): React.ReactNode {
+  const def = COLUMNAS.find((c) => c.key === col.id);
+  const valor = def ? def.leer(doc) : '';
+  /* Un dato que el extractor no leyó deja la celda VACÍA, sin guion ni
+     placeholder: es lo que hace el template (`esc(f[c.dato] == null ? '' : …)`).
+     Había un `—` con clase propia, que era UI inventada — y además, con
+     veinticuatro columnas, una pantalla de guiones pesa más que el hueco. */
+  if (!valor) return null;
+  if (col.id === 'archivo') {
+    return (
+      <a
+        className="sw-soportes__archivo"
+        href={downloadUrl(projectId, doc.id)}
+        title={`${doc.kind} · ${formatearTamano(doc.size_bytes)}`}
+      >
+        {valor}
+      </a>
+    );
+  }
+  if (col.id === 'procesamiento_estado') return <Estado estado={doc.procesamiento_estado} />;
+  // Las clases tipográficas son del template: `sw-mono` para un consecutivo,
+  // `sw-tabular` para que las fechas y las cifras alineen dígito con dígito.
+  if (col.id === 'numero_documento' || col.id === 'cufe_cude') {
+    return <span className="sw-mono">{valor}</span>;
+  }
+  if (col.id === 'fecha' || col.al === 'der') return <span className="sw-tabular">{valor}</span>;
+  return valor;
+}
+
+/**
+ * El estado del procesamiento, con el PUNTO del template (`.sw-tabla__punto`).
+ *
+ * Era una píldora con la palabra adentro (`.sw-soportes__estado`), inventada.
+ * El template ya resuelve esto y su decisión está escrita al lado del código:
+ * **el tono sale del dato, no de la columna** — un documento que todavía no se
+ * procesó está esperando, y pintarlo del mismo naranja que a uno que falló
+ * «inventa un problema que no hay».
+ *
+ * `data-lleno` (relleno vs. contorno) y `data-tono` (color) son dos ejes
+ * distintos a propósito: el relleno dice si el hecho ocurrió, el tono dice si
+ * eso está bien. Y lleva `role="img"` con su etiqueta, porque un punto de 9px
+ * sin nombre accesible no dice nada.
+ */
+const DICHO: Record<CausacionSoporte['procesamiento_estado'], string> = {
+  listo: 'Procesado',
+  pendiente: 'Todavía sin procesar',
+  fallo: 'El procesamiento falló',
+};
+
+function Estado({ estado }: { estado: CausacionSoporte['procesamiento_estado'] }): React.ReactElement {
+  const tono = estado === 'listo' ? 'ok' : estado === 'fallo' ? 'falta' : 'espera';
+  return (
+    <span
+      className="sw-tabla__punto"
+      data-lleno={String(estado === 'listo')}
+      data-tono={tono}
+      role="img"
+      aria-label={DICHO[estado]}
+      title={DICHO[estado]}
+    />
+  );
+}
 
 function formatearTamano(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -47,8 +158,14 @@ interface Rechazo {
 }
 
 export function View({ projectId }: ModuleViewProps): React.ReactElement {
-  const [documentos, setDocumentos] = useState<AccountingDocument[]>([]);
+  const [documentos, setDocumentos] = useState<CausacionSoporte[]>([]);
   const [total, setTotal] = useState(0);
+
+  /* EL SEGUNDO RENGLÓN DEL TÍTULO. El template lo arma con
+     `[mod.sub, val].filter(Boolean)`: la descripción la declara el módulo, la
+     CUENTA la publica la superficie viva. Una cuenta sin sujeto no dice nada
+     —«17» no se sabe de qué— y por eso va debajo de la descripción, no sola. */
+  usePublicarMedida(total ? `${total} ${total === 1 ? 'documento' : 'documentos'}` : null);
   const [cargando, setCargando] = useState(true);
   const [subiendo, setSubiendo] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -81,7 +198,7 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
   }, [projectId, recargar]);
 
   /**
-   * Se sube archivo por archivo y los rechazos se acumulan, no cortan.
+   * Se sube archivo por archivo y los rechazos se ACUMULAN, no cortan.
    *
    * Es lo contrario a los adjuntos del chat (todo o nada por turno) y por una
    * razón concreta: acá cada documento es independiente, y que una factura de
@@ -99,10 +216,7 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
         const content_base64 = await leerBase64(file);
         await uploadDocument(projectId, { filename: file.name, content_base64 });
       } catch (err) {
-        const motivo =
-          err instanceof AccountingApiError || err instanceof Error
-            ? err.message
-            : 'no se pudo subir';
+        const motivo = err instanceof SoporteApiError || err instanceof Error ? err.message : 'no se pudo subir';
         fallidos.push({ filename: file.name, motivo });
       }
     }
@@ -114,108 +228,157 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
     if (inputRef.current) inputRef.current.value = '';
   }
 
-  const columnas: Array<DataTableColumn<AccountingDocument>> = useMemo(
-    () => [
-      ...COLUMNAS.map((col) => ({
-        key: col.key,
-        header: col.header,
-        className: col.numerica ? 'text-right tabular-nums whitespace-nowrap' : 'whitespace-nowrap',
-        render: (doc: AccountingDocument): React.ReactNode => {
-          const valor = col.leer(doc);
-          if (!valor) return <span className="text-[var(--card-text-secondary)] opacity-40">—</span>;
-          if (col.key === 'archivo') {
-            return (
-              <a
-                href={downloadUrl(projectId, doc.id)}
-                className="font-medium underline decoration-dotted underline-offset-2"
-                title={`${doc.kind} · ${formatearTamano(doc.size_bytes)}`}
-              >
-                {valor}
-              </a>
-            );
-          }
-          // Las columnas largas del extractor (observaciones, descripción)
-          // arruinan la tabla si se dejan crecer: se cortan y el texto completo
-          // queda en el title.
-          return (
-            <span className="block max-w-[28ch] truncate" title={valor}>
-              {valor}
-            </span>
-          );
+
+  /**
+   * EL MENÚ DE LA FILA — y con él, el de la TABLA.
+   *
+   * No es decoración: en el template la columna `__menu` sólo existe si hay
+   * `menuFila` (`.concat(o.menuFila ? [COL_MENU] : [])` en `table.js`), y el
+   * botón `…` de la CABECERA —el que abre las tildes de columnas y «Agregar una
+   * columna…»— vive en esa misma columna, un nivel arriba. Sin menú de fila la
+   * tabla se quedaba sin la columna, sin el `…` y sin forma de elegir qué
+   * columnas ver: las catorce escondidas no tenían puerta.
+   *
+   * Las tres acciones son las que el módulo REALMENTE puede hacer hoy
+   * (`/download`, el `cufe_cude` leído, `DELETE`). Ninguna inventada: el
+   * template apaga con su nombre puesto lo que todavía no tiene de dónde salir
+   * —«esconderlo haría creer que la función no existe»—, que es lo que hace acá
+   * copiar el código cuando el extractor no lo leyó.
+   */
+  function menuDeFila(doc: CausacionSoporte): {
+    groups: GrupoDeMenu[];
+    onSelect: (id: string, f: CausacionSoporte) => void;
+  } {
+    const codigo = String(doc.procesamiento?.cufe_cude ?? '');
+    return {
+      groups: [
+        {
+          items: [
+            /* El endpoint fuerza `Content-Disposition: attachment` (servir un
+               PDF o un SVG inline es confiar en el contenido), así que no hay
+               un «abrir» distinto de un «descargar»: es una sola acción. */
+            { id: 'bajar', label: 'Descargar el original', icon: 'bajar' },
+            {
+              id: 'cufe',
+              label: 'Copiar el CUFE / CUDE',
+              icon: 'copy',
+              disabled: !codigo,
+            },
+          ],
         },
-      })),
-      {
-        key: 'procesamiento_estado',
-        header: 'Procesamiento',
-        className: 'whitespace-nowrap',
-        render: (doc) => <StatusBadge label={doc.procesamiento_estado} tone={ESTADO_TONE[doc.procesamiento_estado]} />,
+        { items: [{ id: 'borrar', label: 'Eliminar', icon: 'trash', danger: true }] },
+      ],
+      onSelect: (id, f) => {
+        if (id === 'bajar') {
+          window.location.href = downloadUrl(projectId, f.id);
+          return;
+        }
+        if (id === 'cufe') {
+          void navigator.clipboard?.writeText(codigo);
+          return;
+        }
+        if (id === 'borrar') {
+          if (!window.confirm(`¿Eliminar ${f.filename}?`)) return;
+          void deleteDocument(projectId, f.id)
+            .then(recargar)
+            .catch((err: unknown) =>
+              setError(err instanceof Error ? err.message : 'No se pudo eliminar el documento'),
+            );
+        }
       },
-    ],
-    [projectId],
-  );
+    };
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="sw-soportes">
+      {/* LA FRANJA DE ARRIBA. La barra y los avisos de la subida van juntos —es
+          el estado de la acción que vive en la barra—, así que la superficie
+          tiene DOS hijos y no cuatro: las filas de `.sw-soportes` son
+          `auto minmax(0, 1fr)`, y un tercer hijo caería en una fila implícita
+          robándole a la tabla el alto que la hace llenar la pantalla. */}
+      <div className="sw-soportes__franja">
+      <div className="sw-soportes__barra">
         <div>
-          <h2 className="text-sm font-semibold text-[var(--card-text-primary)]">Documentos</h2>
-          <p className="text-xs text-[var(--card-text-secondary)]">
+          <p className="sw-soportes__conteo">
             {cargando ? 'Cargando…' : `${total} documento${total === 1 ? '' : 's'}`}
-            {extensiones.length > 0 && ` · se aceptan ${extensiones.join(', ')}`}
+            {extensiones.length > 0 ? ` · se aceptan ${extensiones.join(', ')}` : ''}
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="sw-soportes__acciones">
           <input
             ref={inputRef}
             type="file"
             multiple
-            // Comodidad, no la puerta: el servidor valida por firma de bytes.
-            // Un archivo elegido por «todos los archivos» igual se rechaza allá.
+            /* Comodidad, no la puerta: el servidor valida por firma de bytes.
+               Un archivo elegido con «todos los archivos» igual se rechaza. */
             accept={extensiones.join(',')}
-            className="hidden"
+            hidden
             onChange={(e) => void subir(e.target.files)}
           />
-          <Button2
-            label={subiendo ? 'Subiendo…' : 'Subir documentos'}
-            iconLeft={<i className="pi pi-upload text-[12px]" />}
-            onClick={() => inputRef.current?.click()}
-          />
+          <button type="button" className="btn" disabled={subiendo} onClick={() => inputRef.current?.click()}>
+            <Icon name={subiendo ? 'cargando' : 'subir'} />
+            {subiendo ? 'Subiendo…' : 'Subir documentos'}
+          </button>
         </div>
       </div>
 
-      {error && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>
-      )}
+      {error ? <p className="sw-soportes__aviso sw-soportes__aviso--error">{error}</p> : null}
 
-      {rechazos.length > 0 && (
-        <div className="rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-sm text-orange-200">
-          <p className="font-medium">
-            {rechazos.length} archivo{rechazos.length === 1 ? '' : 's'} no se {rechazos.length === 1 ? 'subió' : 'subieron'}:
+      {rechazos.length > 0 ? (
+        <div className="sw-soportes__aviso sw-soportes__aviso--parcial">
+          <p>
+            {rechazos.length} archivo{rechazos.length === 1 ? '' : 's'} no se{' '}
+            {rechazos.length === 1 ? 'subió' : 'subieron'}:
           </p>
-          <ul className="mt-1 list-disc space-y-0.5 pl-5 text-xs">
+          <ul>
             {rechazos.map((r) => (
               <li key={r.filename}>
-                <span className="font-medium">{r.filename}</span> — {r.motivo}
+                <strong>{r.filename}</strong> — {r.motivo}
               </li>
             ))}
           </ul>
         </div>
-      )}
+      ) : null}
+      </div>
 
-      {!cargando && documentos.length === 0 ? (
-        <div className="rounded-[var(--table2-radius)] border border-dashed border-[var(--table2-border)] px-4 py-10 text-center">
-          <p className="text-sm text-[var(--card-text-secondary)]">
-            Todavía no hay documentos. Subí las facturas, remisiones y comprobantes que sustentan las operaciones.
-          </p>
-        </div>
-      ) : (
-        // La tabla del extractor es ancha por naturaleza (24 columnas): el
-        // scroll horizontal es la respuesta correcta, no esconder columnas.
-        <div className="overflow-x-auto">
-          <DataTable columns={columnas} rows={documentos} getRowKey={(d) => d.id} stripedRows />
-        </div>
-      )}
+      {/* EL HUECO DE LA TABLA — `.sw-ctb__tabla` del template. Existe para que
+          la tabla caiga en una franja con alto definido: es de ahí que sale que
+          llene el espacio y scrollee adentro en vez de crecer con sus filas. */}
+      <div className="sw-soportes__tabla">
+      {/* LA TABLA ES LA DEL TEMPLATE (`components/ui/Tabla`, port de
+          `src/accounting/table.js`). Acá se declaran las columnas y cómo se
+          pinta cada celda — que es lo que el template llama «el dominio pinta,
+          la tabla arma»—, y nada más: el reparto de anchos, el orden de tres
+          pasos, la paginación, la casilla maestra y el menú de columnas son
+          suyos.
+
+          El vacío y el selector de columnas ya NO se dibujan acá: los trae la
+          tabla. Antes había una tabla propia con clases inventadas
+          (`sw-tabla__th/__td/__fila/__corte`) que no existen en el template. */}
+      <Tabla<CausacionSoporte>
+        titulo="Documentos de soporte"
+        columnas={COLUMNAS_DE_TABLA}
+        filas={documentos}
+        clave={(d) => d.id}
+        nombreFila={(d) => d.filename}
+        seleccion={false}
+        menuFila={menuDeFila}
+        /* Las catorce restantes no nacen escondidas: nacen AFUERA, y se suman
+           con «Agregar una columna…». Es la distinción del template entre lo
+           que la tabla dibuja y lo que el dato además tiene. */
+        columnasExtra={() => COLUMNAS_MAS}
+        porPagina={100}
+        opcionesPagina={[100, 150]}
+        celda={(doc, col) => celdaDeSoporte(doc, col, projectId)}
+        textos={{
+          vacio: 'Todavía no hay documentos',
+          vacioPaso:
+            'Subí las facturas, remisiones y comprobantes que sustentan las operaciones.',
+          vacioIcono: 'archivo',
+        }}
+      />
+      </div>
     </div>
   );
 }

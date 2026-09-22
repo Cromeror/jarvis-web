@@ -117,6 +117,37 @@ export function Sidebar({ children }: { children?: React.ReactNode }): React.Rea
     navigate(m.id);
   }
 
+  /* UN CLIC AFUERA PLIEGA EL NIVEL 2 — la contraparte de la escalera de Escape,
+     para quien usa el mouse. Sin esto el panel queda abierto tapando el área de
+     trabajo hasta que alguien vuelva al riel, que es lo que se siente como que
+     «no se cierra».
+
+     Va en el DOCUMENTO y no en el componente, al revés que el Escape, y no es
+     una inconsistencia: «afuera» sólo se puede detectar desde afuera. Lo que sí
+     se copia del Escape es el acotamiento — el listener existe únicamente
+     mientras hay algo abierto, así que en reposo no hay nada escuchando.
+
+     `mousedown` y no `click`: es cuando el usuario decide, y evita el caso en
+     que lo que está debajo del puntero se mueve entre apretar y soltar.
+
+     «Adentro» son el riel y el panel, NO `.sw-side`: la raíz también envuelve
+     al área de trabajo, así que medir contra ella sería medir contra la app
+     entera y el panel no se cerraría nunca. El popover de filtros vive fuera
+     del panel a propósito (el panel recorta), así que cuenta como adentro. */
+  useEffect(() => {
+    if (collapsed) return;
+    const alApretarAfuera = (e: MouseEvent): void => {
+      const destino = e.target as Node | null;
+      if (!destino) return;
+      if (railRef.current?.contains(destino)) return;
+      if (panelRef.current?.contains(destino)) return;
+      if (destino instanceof Element && destino.closest('.sw-pop')) return;
+      setCollapsed(true);
+    };
+    document.addEventListener('mousedown', alApretarAfuera);
+    return () => document.removeEventListener('mousedown', alApretarAfuera);
+  }, [collapsed]);
+
   /* La escalera de Escape, escalón por escalón. Va en el componente y no en el
      documento para no pisarle el Esc a otra cosa —el compositor del chat, por
      ejemplo—, así que sólo actúa si el foco está adentro. */

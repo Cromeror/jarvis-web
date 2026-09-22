@@ -1,5 +1,5 @@
 /**
- * Cliente de `api/projects/:id/accounting-documents` — el repositorio de
+ * Cliente de `api/projects/:id/causacion/soportes` — el repositorio de
  * documentos que sustentan operaciones contables.
  *
  * No pasa por `runModuleTool` (la ruta genérica que ejecuta una herramienta del
@@ -8,7 +8,7 @@
  * correcta en el log, que es media razón de que el módulo exista.
  */
 
-export interface AccountingDocument {
+export interface CausacionSoporte {
   id: string;
   project_id: string;
   /** Relativa a la raíz del repositorio del proyecto. */
@@ -39,11 +39,11 @@ export interface EntradaArbol {
   nombre: string;
   path: string;
   tipo: 'carpeta' | 'documento';
-  documento: AccountingDocument | null;
+  documento: CausacionSoporte | null;
   size_bytes: number | null;
 }
 
-export class AccountingApiError extends Error {
+export class SoporteApiError extends Error {
   constructor(
     public readonly status: number,
     message: string,
@@ -65,12 +65,12 @@ async function readError(res: Response): Promise<string> {
 }
 
 async function handle<T>(res: Response): Promise<T> {
-  if (!res.ok) throw new AccountingApiError(res.status, await readError(res));
+  if (!res.ok) throw new SoporteApiError(res.status, await readError(res));
   return res.json() as Promise<T>;
 }
 
 function base(projectId: string): string {
-  return `/api/projects/${encodeURIComponent(projectId)}/accounting-documents`;
+  return `/api/projects/${encodeURIComponent(projectId)}/causacion/soportes`;
 }
 
 async function send<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -98,7 +98,7 @@ export interface DocumentQuery {
 export async function listDocuments(
   projectId: string,
   query: DocumentQuery = {},
-): Promise<{ documentos: AccountingDocument[]; total: number }> {
+): Promise<{ documentos: CausacionSoporte[]; total: number }> {
   const params = new URLSearchParams();
   for (const [clave, valor] of Object.entries(query)) {
     if (valor !== undefined && valor !== null && valor !== '') params.set(clave, String(valor));
@@ -143,7 +143,7 @@ export interface UploadInput {
 export async function uploadDocument(
   projectId: string,
   input: UploadInput,
-): Promise<{ documento: AccountingDocument }> {
+): Promise<{ documento: CausacionSoporte }> {
   return send('POST', base(projectId), input);
 }
 
@@ -155,15 +155,15 @@ export async function moveDocument(
   projectId: string,
   id: string,
   destino: string,
-): Promise<{ documento: AccountingDocument }> {
+): Promise<{ documento: CausacionSoporte }> {
   return send('POST', `${base(projectId)}/${encodeURIComponent(id)}/move`, { destino });
 }
 
 export async function updateDocument(
   projectId: string,
   id: string,
-  metadata: Partial<Pick<AccountingDocument, 'tipo' | 'tercero' | 'numero' | 'fecha_documento' | 'monto'>>,
-): Promise<{ documento: AccountingDocument }> {
+  metadata: Partial<Pick<CausacionSoporte, 'tipo' | 'tercero' | 'numero' | 'fecha_documento' | 'monto'>>,
+): Promise<{ documento: CausacionSoporte }> {
   return send('PATCH', `${base(projectId)}/${encodeURIComponent(id)}`, metadata);
 }
 

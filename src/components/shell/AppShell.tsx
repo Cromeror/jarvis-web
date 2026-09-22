@@ -4,6 +4,7 @@ import { Icon } from '../Icon.js';
 import { Sidebar } from './Sidebar.js';
 import { Topbar } from './Topbar.js';
 import { SideColumn } from './SideColumn.js';
+import { useMedidaDeSuperficie } from '../layout/medida-de-superficie.js';
 
 /**
  * EL CHASIS — el layout de la app después de entrar.
@@ -38,6 +39,8 @@ export function AppShell({
   titulo,
   sub,
   acciones,
+  migas,
+  onIrA,
   chat,
   herramientas,
   children,
@@ -46,6 +49,9 @@ export function AppShell({
   titulo: string;
   sub?: string;
   acciones?: React.ReactNode;
+  /** Dónde estás — la franja 2 del topbar. Vacío = no se muestra. */
+  migas?: import('../../lib/migas.js').Miga[];
+  onIrA?: (to: string) => void;
   chat?: React.ReactNode;
   herramientas?: React.ReactNode;
   children?: React.ReactNode;
@@ -57,6 +63,11 @@ export function AppShell({
      El estado vive acá y no en la columna porque el botón que lo alterna está en
      la barra superior: son dos piezas separadas en el DOM mirando el mismo dato. */
   const [columnaAbierta, setColumnaAbierta] = useState(true);
+
+  /* El segundo renglón del título lo publica la SUPERFICIE, no el shell: el
+     shell no sabe cuántos documentos hay. Mismo canal que la corrida de una
+     herramienta, y por la misma razón. */
+  const { medida } = useMedidaDeSuperficie();
 
   /* EL CHAT TIENE DOS UBICACIONES y el usuario elige: inquilino de la columna
      —como arranca— o tarjeta que flota sobre el área de trabajo.
@@ -80,7 +91,10 @@ export function AppShell({
         <Topbar
           titulo={titulo}
           sub={sub}
+          medida={medida}
           acciones={acciones}
+          migas={migas}
+          onIrA={onIrA}
           columnaAbierta={columnaAbierta}
           onAlternarColumna={() => setColumnaAbierta((v) => !v)}
         />

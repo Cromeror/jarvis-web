@@ -56,3 +56,104 @@
   --text-base--line-height: var(--sw-lh-body);
   --text-lg--line-height: var(--sw-lh-h3);
 }
+
+/* ============================================================================
+   LA CAJA DE HERRAMIENTAS DE UN MÓDULO (`.sw-herr`) — NUESTRO, no del template
+   ============================================================================
+   Vivía dentro de `theme/shell/chrome.css`, que es un archivo del template.
+   Ahí adentro impedía re-sincronizar: cualquier cambio del template sobre ese
+   archivo obligaba a rescatar estas 89 líneas a mano de un diff.
+
+   Es una pieza nuestra de verdad —el template no tiene módulos con sus propias
+   herramientas— así que va acá, con su nombre propio y siguiendo la anatomía
+   del sistema (tokens `--sw-*`, patrón bloque__elemento).
+   ============================================================================ */
+/* ── las utilidades del módulo, adentro de la caja de herramientas ──
+   Lo que trae el módulo que se está mirando. Vive en el slot del inquilino
+   `tools` de la columna derecha, así que no declara ni ancho ni scroll: eso
+   ya lo pone `.sw-inspector-slot`. */
+.sw-herr { display: flex; flex-direction: column; min-height: 0; }
+.sw-herr__cab {
+  padding: var(--sw-s-3);
+  border-bottom: var(--sw-border) solid var(--sw-line);
+}
+/* De qué paquete es. Va ARRIBA del nombre y en overline: es la ubicación, no
+   el título — leerlo primero dice dónde estás parado antes de qué tenés. */
+.sw-herr__ruta {
+  margin: 0 0 2px;
+  font-size: var(--sw-t-overline);
+  font-weight: var(--sw-w-medium);
+  letter-spacing: var(--sw-tr-overline);
+  text-transform: uppercase;
+  color: var(--sw-faint);
+}
+.sw-herr__titulo {
+  margin: 0;
+  font-size: var(--sw-t-body);
+  font-weight: var(--sw-w-medium);
+  color: var(--sw-text);
+}
+.sw-herr__sub {
+  margin: 4px 0 0;
+  font-size: var(--sw-t-caption);
+  color: var(--sw-muted);
+}
+.sw-herr__lista { overflow: auto; min-height: 0; padding: var(--sw-s-2) 0; }
+/* SON BOTONES: correr la herramienta es lo único que se hace con ella, así que
+   la fila entera es el disparador — un ícono-botón al costado obligaría a
+   apuntar a un blanco de 22px para la acción principal de la caja. */
+.sw-herr__item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sw-s-2);
+  width: 100%;
+  padding: 10px var(--sw-s-3);
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+/* El fondo va en ::after y por debajo, como en las filas del sidebar: encima
+   taparía el texto y el ícono. */
+.sw-herr__item::after {
+  content: ''; position: absolute; inset: 0 var(--sw-s-2); z-index: -1;
+  border-radius: var(--sw-r-md);
+  background: transparent;
+  transition: background var(--sw-d-micro) linear;
+}
+.sw-herr__item:hover:not(:disabled)::after { background: var(--sw-hover); }
+.sw-herr__item:focus-visible { outline: none; }
+.sw-herr__item:focus-visible::after { background: var(--sw-hover); }
+/* DESHABILITADA NO SE APAGA DEL TODO: una herramienta sin tool sigue siendo
+   información —está declarada, falta su tool— y bajarla al 35% la escondería
+   justo cuando hay algo que explicar. El motivo lo dice `__aviso`. */
+.sw-herr__item:disabled { cursor: default; opacity: .7; }
+/* Por qué no se puede correr, pegado a su nombre y no en un globo: el globo
+   hay que ir a buscarlo. */
+.sw-herr__aviso {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 1px 6px;
+  border-radius: var(--sw-r-sm);
+  background: var(--sw-warning-bg);
+  color: var(--sw-on-warning);
+  font-size: var(--sw-t-overline);
+  letter-spacing: var(--sw-tr-overline);
+  text-transform: uppercase;
+}
+.sw-herr__ico {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px;
+  border-radius: var(--sw-r-sm);
+  background: var(--sw-ink);
+  color: var(--sw-muted);
+}
+.sw-herr__ico svg { --sw-ico: var(--sw-ico-sm); }
+.sw-herr__txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sw-herr__nombre { font-size: var(--sw-t-body-sm); color: var(--sw-text); }
+.sw-herr__desc { font-size: var(--sw-t-caption); color: var(--sw-muted); }
+

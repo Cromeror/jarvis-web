@@ -57,6 +57,10 @@
 @import "./theme/chat/chat.css";
 @import "./theme/chat/vacio-campo.css";
 
+/* Módulos de negocio — cada uno trae su hoja, con la anatomía del template. */
+@import "./theme/tabla/tabla.css";
+@import "./theme/modulos/soportes.css";
+
 @import "./theme/basecoat-ext.css";
 
 /* Nuestro layout, último. Hoy vacío. */

@@ -1,0 +1,468 @@
+/* ============================================================================
+   LA TABLA DE DATOS
+   ----------------------------------------------------------------------------
+   Encima de `.table` y `.table-container` de Basecoat, que dan el filete de
+   fila, el relleno y el hover. Acá va lo que la librería no tiene: cabecera
+   pegajosa, anchos de columna, alineación por tipo de dato, el botón de orden,
+   el punto de estado, el paginador y el vacío.
+
+   DENSIDAD DE INSTRUMENTO (regla 4). Basecoat pone las celdas en 40px de alto
+   y 8px de relleno lateral. Acá la fila mide 36px —nueve unidades de 4— y el
+   relleno es de 12: la tabla del panel muestra cien filas por página y cada
+   4px de fila son 400px de pantalla que se van.
+   ============================================================================ */
+
+.sw-tabla {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  /* NUNCA MAS ALTA QUE SU CAJA. Sin esto la tabla crece con sus filas, el
+     contenedor interno no llega a tener scroll propio —scrollea la caja de
+     afuera— y la cabecera pegajosa se pega a nada: sube con las filas como si
+     no tuviera `sticky`. Es autocontenido a proposito, para que el modulo que
+     la monta no tenga que acordarse de darle alto. */
+  max-height: 100%;
+  overflow: hidden;   /* el radio de la card recorta la cabecera pegajosa */
+}
+
+.sw-tabla__cont {
+  flex: 1;
+  min-height: 0;
+  /* `.table-container` de Basecoat trae `overflow-x`. Acá hace falta el
+     vertical también: es lo que hace que la cabecera tenga contra qué pegarse.
+     Con `overflow-y: visible` el `sticky` no se ancla a nada y la cabecera se
+     va con el scroll de la página entera. */
+  overflow: auto;
+}
+
+/* ---------------------------------------------------------------
+   LA BANDA DE CONTROLES
+   Opcional, y la llena quien monta la tabla. Va ADENTRO de la card porque los
+   controles gobiernan esta tabla: sueltos entre dos cards, flotando sobre la
+   grilla punteada, no tenían fondo contra el cual leerse —medido, su filete
+   daba 1,073:1 contra el lienzo en claro— y encima no decían de quién eran.
+   --------------------------------------------------------------- */
+.sw-tabla__banda {
+  flex: none;
+  padding: var(--sw-s-2) var(--sw-s-3);
+  border-bottom: var(--sw-border) solid var(--sw-line);
+  /* LA BANDA VA UN ESCALON POR DEBAJO DE LA CARD, y sus controles uno por
+     encima de la banda. Es la regla 3 haciendo su trabajo: lo que hace leer un
+     control es el ESCALON DE VALOR, y el filete sólo lo termina.
+
+     Hacía falta porque el filete solo no alcanza y los números lo dicen: medido
+     contra los cinco escalones, en claro el filete lee mejor arriba de la
+     escalera (raised 1,207) y en oscuro abajo (surface 1,384, raised 1,026). No
+     hay un escalón que sirva en los dos. Con los controles sobre la banda
+     hundida, el valor los separa en los dos temas y el filete deja de ser el
+     único canal.
+
+     Y de paso dice algo cierto: esta banda es el CHROME de la tabla, no su
+     contenido. */
+  background: var(--sw-surface-2);
+}
+
+/* LA COLUMNA DEL SOBRANTE. Sin ancho declarado se queda con todo lo que no se
+   llevaron las demás, así que esconder una columna ya no deforma el espaciado
+   del resto: lo que sobra cae en un solo lugar y no se reparte.
+
+   No lleva padding ni filete: no es una columna, es el hueco entre la última de
+   datos y la de acciones. */
+.sw-tabla__sobra { padding: 0; border: 0; }
+
+.sw-tabla__t {
+  min-width: var(--sw-tabla-min, 100%);
+  /* `fixed` y no `auto`: con automático el ancho de cada columna lo decide el
+     contenido de la página que se está viendo, así que pasar de página movía
+     todas las columnas de lugar. Los anchos los declara el `<colgroup>` y no
+     cambian nunca. */
+  table-layout: fixed;
+  font-size: var(--sw-t-body-sm);
+}
+
+/* ---------------------------------------------------------------
+   LA CABECERA PEGAJOSA
+   --------------------------------------------------------------- */
+
+.sw-tabla__t thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  height: 36px;
+  padding: 0 var(--sw-s-3);
+  /* OPACO, y del color de la card: las filas pasan POR DEBAJO. Con un fondo
+     translúcido —o heredado— se ve el texto de la fila 12 cruzando el rótulo
+     de la columna. */
+  background: var(--sw-raised);
+  /* EL FILETE VA COMO SOMBRA INTERIOR Y NO COMO BORDE. Basecoat pone el suyo
+     en `thead tr`, y con `border-collapse: collapse` —que trae su preflight—
+     Chrome no dibuja el borde de un elemento pegajoso: la cabecera quedaba
+     flotando sobre las filas sin nada que la separara. La sombra interior sí
+     se pega porque es del propio `th`. */
+  box-shadow: inset 0 -1px 0 var(--sw-tabla-filete);
+  font-size: var(--sw-t-caption);
+  font-weight: var(--sw-w-medium);
+  color: var(--sw-text-2);
+  white-space: nowrap;
+}
+
+/* Basecoat pinta el hover de `.table tr` SIN acotar a `tbody`, así que la
+   cabecera se encendía al pasarle el puntero por encima como si fuera una
+   fila más. */
+.sw-tabla__t thead tr:hover { background: none; }
+
+.sw-tabla__rot {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------------------------------------------------------------
+   ORDENAR
+   --------------------------------------------------------------- */
+
+.sw-tabla__ord {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-s-1);
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  /* El botón ocupa la celda entera, así que el objetivo de click es el
+     encabezado completo y no las letras. */
+  text-align: inherit;
+}
+.sw-tabla__ord:hover { color: var(--sw-text); }
+.sw-tabla__ord svg {
+  --sw-ico: var(--sw-ico-xs);
+  flex: none;
+  /* LA FLECHA DE LA COLUMNA SIN ORDENAR VIVE APAGADA. Siete columnas con siete
+     pares de flechas a plena tinta compiten con los rótulos y la cabecera se
+     vuelve ruido. Se enciende al pasar por encima —«esto se puede ordenar»— y
+     queda encendida en la que está ordenando. */
+  opacity: 0;
+  transition: opacity var(--sw-d-micro) var(--sw-ease-out);
+}
+.sw-tabla__ord:hover svg,
+.sw-tabla__ord:focus-visible svg,
+.sw-tabla__ord[data-dir="asc"] svg,
+.sw-tabla__ord[data-dir="desc"] svg { opacity: 1; }
+.sw-tabla__ord[data-dir="asc"],
+.sw-tabla__ord[data-dir="desc"] { color: var(--sw-text); }
+
+/* La columna alineada a la derecha ordena desde la derecha: el rótulo y su
+   flecha tienen que quedar sobre los números que gobiernan. */
+.sw-tabla__t th[data-al="der"] .sw-tabla__ord { justify-content: flex-end; }
+.sw-tabla__t th[data-al="centro"] .sw-tabla__ord { justify-content: center; }
+
+/* ---------------------------------------------------------------
+   LAS CELDAS
+   --------------------------------------------------------------- */
+
+.sw-tabla__t td {
+  /* MAS AIRE EN LA FILA. 36px es alto de tabla de sistema, no de tabla que se
+     lee cien veces por día: con siete columnas de datos cortos los renglones se
+     pegan y el ojo salta de fila al recorrer una columna hacia abajo.
+
+     44 es además el objetivo táctil de la regla 9, así que la fila entera pasa
+     a ser un blanco legítimo sin agrandar ningún control. Y la CABECERA se
+     queda en 36: es un rótulo, no una fila de datos, y subirla también sólo
+     empuja la tabla hacia abajo. */
+  height: 44px;
+  padding: 0 var(--sw-s-3);
+  color: var(--sw-text);
+  /* Basecoat ya pone `white-space: nowrap`; lo que falta es qué pasa cuando no
+     entra. Sin esto el texto se sale de la celda y pisa la vecina. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sw-tabla__t td[data-al="der"],
+.sw-tabla__t th[data-al="der"] {
+  text-align: right;
+  /* Cifras tabulares en la columna que se recorre en vertical comparando: sin
+     ellas los dígitos tienen anchos distintos y las unidades no quedan una
+     sobre otra, que es lo único que hace comparable una columna de plata. */
+  font-variant-numeric: tabular-nums;
+}
+.sw-tabla__t td[data-al="centro"],
+.sw-tabla__t th[data-al="centro"] { text-align: center; }
+
+.sw-tabla__t tbody tr { cursor: pointer; }
+
+/* EL FILETE ENTRE FILAS, con token propio (pedido del dueño: en oscuro no se
+   veía — 1,03:1). Basecoat lo dibuja con una variable que se resuelve en :root,
+   así que se pisa el color del borde en la fila. En claro vale lo mismo.
+
+   LA CASILLA SIN MARCAR SE PINTA COMO LOS COMBOS (pedido del dueño, «para seguir
+   la misma línea»): relleno de --sw-raised-2 y el filete de siempre, que en
+   oscuro se funde — lo mismo que `.sw-txt__menuB` y los campos de Texto. Antes
+   era sólo un borde, y en oscuro daba 1,05:1: no se veía. Marcada o a medias
+   vuelve al relleno de acento de Basecoat. */
+.sw-tabla__t tbody tr { border-bottom-color: var(--sw-tabla-filete); }
+.sw-tabla__t input[type="checkbox"]:not(:checked):not(:indeterminate) {
+  background: var(--sw-raised-2);
+}
+
+/* ---------------------------------------------------------------
+   LAS DOS COLUMNAS DE SERVICIO
+   Miden 44px —el objetivo táctil de la regla 9— y el control de adentro sigue
+   midiendo lo que mide: se agranda el área, no el diseño.
+   --------------------------------------------------------------- */
+
+.sw-tabla__cmarca,
+.sw-tabla__cmenu { padding: 0 !important; text-align: center; }
+
+/* LA CASILLA NO SE CENTRABA CON `text-align`, y el motivo es que Basecoat le
+   pone `display: flex` al checkbox. `text-align` alinea contenido INLINE; un
+   contenedor flex es block-level, así que se quedaba pegado al canto izquierdo
+   de su celda — medido, la casilla arrancaba en el mismo píxel que la celda, o
+   sea a 1px del filete de la card, y con el `overflow: hidden` de la card su
+   propio borde quedaba comido. Se leían como casillas cortadas por la mitad.
+
+   Lo que centra un bloque de ancho conocido son los márgenes automáticos. El
+   `margin: 0` que había acá —puesto para sacarle el margen que trae la
+   librería— era justamente lo que se lo impedía.
+
+   El botón de tres puntos, del otro lado, no tenía el problema: es
+   `inline-flex`, o sea inline-level, y ahí `text-align: center` sí llega. La
+   diferencia entre los dos es la que hay que tener presente. */
+.sw-tabla__t .sw-tabla__cmarca input {
+  margin: 0 auto;
+  vertical-align: middle;
+}
+
+.sw-tabla__puntos {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--sw-r-sm);
+  background: none;
+  color: var(--sw-muted);
+  cursor: pointer;
+  /* APARECE AL PASAR POR LA FILA. Cien botones de tres puntos dibujados a la
+     vez son una columna de ruido; el que importa es el de la fila en la que
+     está el puntero. Se queda visible cuando está enfocado o abierto, que es
+     como llega el que navega con teclado. */
+  opacity: 0;
+  transition: opacity var(--sw-d-micro) var(--sw-ease-out);
+}
+.sw-tabla__t tbody tr:hover .sw-tabla__puntos,
+.sw-tabla__puntos:focus-visible,
+.sw-tabla__puntos[aria-expanded="true"] { opacity: 1; }
+.sw-tabla__puntos:hover { color: var(--sw-text); background: var(--sw-hover); }
+.sw-tabla__puntos svg { --sw-ico: var(--sw-ico-sm); }
+
+/* Sin hover no hay nada que revelar: el botón se ve siempre. */
+@media (hover: none) {
+  .sw-tabla__puntos { opacity: 1; }
+}
+
+/* ---------------------------------------------------------------
+   EL PUNTO DE ESTADO
+   NO SE DISTINGUE SÓLO POR COLOR. Rojo contra verde es justamente el par que
+   no se distingue, y para un lector de pantalla el color no existe. Acá el
+   punto cambia de RELLENO —macizo contra hueco— y el nombre accesible lo pone
+   quien lo pinta.
+   --------------------------------------------------------------- */
+
+.sw-tabla__punto {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: var(--sw-r-pill);
+  border: 1.5px solid currentColor;
+  vertical-align: middle;
+}
+.sw-tabla__punto[data-lleno="true"] { background: currentColor; }
+.sw-tabla__punto[data-tono="ok"]    { color: var(--sw-success); }
+.sw-tabla__punto[data-tono="falta"] { color: var(--sw-warning); }
+.sw-tabla__punto[data-tono="espera"] { color: var(--sw-faint); }
+
+/* ---------------------------------------------------------------
+   EL VACÍO
+   Dentro de la tabla y no en lugar de ella: la cabecera se queda, porque es lo
+   que dice contra qué se filtró. Una tabla que desaparece entera deja al
+   usuario sin saber si el filtro no encontró nada o si se rompió algo.
+   --------------------------------------------------------------- */
+
+.sw-tabla__nada td {
+  height: auto;
+  /* El Empty trae su propio aire (s-8 alrededor): la celda sólo lo separa del
+     canto. */
+  padding: var(--sw-s-4);
+  text-align: center;
+  white-space: normal;
+  /* El claro detrás del ícono del vacío, del color de la tarjeta y no del lienzo:
+     sobre la card, el del lienzo se veía como una mancha. */
+  --sw-vacio-claro: var(--sw-raised);
+}
+.sw-tabla__nada:hover { background: none; }
+.sw-tabla__t tbody tr.sw-tabla__nada { cursor: default; }
+.sw-tabla__nadaT {
+  margin: 0;
+  font-size: var(--sw-t-body);
+  color: var(--sw-text-2);
+}
+.sw-tabla__nadaP {
+  margin: var(--sw-s-1) 0 0;
+  font-size: var(--sw-t-body-sm);
+  color: var(--sw-muted);
+}
+
+/* ---------------------------------------------------------------
+   EL PIE
+   --------------------------------------------------------------- */
+
+.sw-tabla__pie {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-s-4);
+  flex-wrap: wrap;
+  padding: var(--sw-s-2) var(--sw-s-3);
+  border-top: var(--sw-border) solid var(--sw-tabla-filete);
+}
+
+.sw-tabla__rango {
+  margin: 0;
+  font-size: var(--sw-t-caption);
+  color: var(--sw-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* El paginador se va a la derecha y el tamaño de página al final: se lee
+   «cuánto hay» · «en qué página estoy» · «de a cuántas». */
+.sw-tabla__pag {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.sw-tabla__pagb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 var(--sw-s-1);
+  border: 0;
+  border-radius: var(--sw-r-sm);
+  background: none;
+  font-size: var(--sw-t-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--sw-text-2);
+  cursor: pointer;
+}
+.sw-tabla__pagb:hover { background: var(--sw-hover); color: var(--sw-text); }
+.sw-tabla__pagb[disabled] { color: var(--sw-faint); cursor: not-allowed; }
+.sw-tabla__pagb[disabled]:hover { background: none; color: var(--sw-faint); }
+/* LA PÁGINA ACTUAL VA CON EL ACENTO, que es uno de sus usos declarados —nav
+   activo— y ocupa 26×26 de toda la pantalla: dentro del presupuesto de 0,5%. */
+.sw-tabla__pagb[aria-current="page"] {
+  background: var(--sw-accent-solid);
+  color: var(--sw-on-fill);
+}
+.sw-tabla__pagb[aria-current="page"]:hover { background: var(--sw-accent-solid-lit); color: var(--sw-on-fill); }
+.sw-tabla__pagb svg { --sw-ico: var(--sw-ico-sm); }
+
+.sw-tabla__elip {
+  min-width: 26px;
+  text-align: center;
+  font-size: var(--sw-t-caption);
+  color: var(--sw-faint);
+}
+
+.sw-tabla__pp {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-s-1);
+}
+.sw-tabla__ppr {
+  font-size: var(--sw-t-caption);
+  color: var(--sw-muted);
+}
+.sw-tabla__ppb {
+  min-width: 26px;
+  height: 26px;
+  padding: 0 var(--sw-s-1);
+  border: var(--sw-border) solid transparent;
+  border-radius: var(--sw-r-sm);
+  background: none;
+  font-size: var(--sw-t-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--sw-text-2);
+  cursor: pointer;
+}
+.sw-tabla__ppb:hover { background: var(--sw-hover); }
+.sw-tabla__ppb[aria-pressed="true"] {
+  border-color: var(--sw-line-strong);
+  color: var(--sw-text);
+}
+
+/* Controles contiguos: la excepción declarada de la regla 9. Tres áreas de
+   44px sobre botones de 26 se pisan entre sí y el dedo activa la vecina, así
+   que acá se agranda EL CONTROL y no el área. */
+@media (pointer: coarse) {
+  .sw-tabla__pagb,
+  .sw-tabla__ppb { min-width: 34px; height: 34px; }
+  .sw-tabla__elip { min-width: 34px; }
+}
+
+/* LA FILA ABIERTA — la que se está mirando en la caja de herramientas. Es
+   distinta de la marcada, y por eso se dibuja distinto: marcada es un fondo
+   (lo pone Basecoat con `tr[data-state=selected]`), abierta es un filete de
+   acento en el canto izquierdo. Dos estados que se superponen todo el tiempo
+   —una fila puede estar marcada Y abierta— no pueden competir por el mismo
+   canal.
+
+   El filete va con `box-shadow` y no con `border-left`: un borde en una celda
+   con `border-collapse: collapse` corre el contenido de la fila entera 3px, y
+   la tabla salta cada vez que se abre una. */
+.sw-tabla__t tbody tr[data-abierta="true"] td:first-child {
+  box-shadow: inset 3px 0 0 var(--sw-accent-solid);
+}
+
+/* ---------------------------------------------------------------
+   LA FRANJA DE ACCIONES — la última de la card, debajo del pie.
+   Mismo escalón que la banda de arriba: las dos son CHROME de la tabla y no
+   su contenido, así que la card queda con el dato en el medio y sus controles
+   arriba y abajo, hundidos un paso.
+   --------------------------------------------------------------- */
+.sw-tabla__acciones {
+  flex: none;
+  border-top: var(--sw-border) solid var(--sw-tabla-filete);
+  background: var(--sw-surface-2);
+}
+
+/* EL BOTON DE AJUSTES DE LA TABLA — en la cabecera de la última columna, que
+   es la misma donde cada fila tiene su menú de tres puntos. Por fila, el menú
+   de esa fila; arriba, el de la tabla entera.
+
+   A DIFERENCIA DEL DE FILA, éste se ve siempre. El de fila aparece al pasar por
+   su fila porque hay cien; éste hay uno solo, y un control que gobierna toda la
+   tabla no puede depender de que alguien descubra que está ahí. */
+.sw-tabla__ajustes {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--sw-r-sm);
+  background: none;
+  color: var(--sw-muted);
+  cursor: pointer;
+}
+.sw-tabla__ajustes:hover { color: var(--sw-text); background: var(--sw-hover); }
+.sw-tabla__ajustes[aria-expanded="true"] { color: var(--sw-text); background: var(--sw-hover); }
+.sw-tabla__ajustes svg { --sw-ico: var(--sw-ico-sm); }
