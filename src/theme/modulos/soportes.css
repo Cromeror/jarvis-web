@@ -74,7 +74,18 @@
    template deja la celda vacía y punto.
    ------------------------------------------------------------------------- */
 
+/* ES UN <button>, no un enlace — abre el visor, no va a ningún lado. Se le
+   sacan los valores por default del botón para que siga leyéndose como el
+   nombre del archivo: lo que invita a clickearlo es el subrayado punteado, no
+   una caja. */
 .sw-soportes__archivo {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
   color: var(--sw-text);
   font-weight: 500;
   text-decoration: underline;
@@ -103,3 +114,125 @@
 /* El VACÍO lo dibuja la tabla (`.sw-tabla__nada`), dentro de la tabla y no en
    lugar de ella: la cabecera se queda, porque es lo que dice contra qué se
    filtró. */
+
+/* ============================================================================
+   LA TARJETA DE AVANCE
+   ----------------------------------------------------------------------------
+   Port de `.sw-ctb__avance` (`accounting.css:507-616` del template). Mismas
+   reglas, mismos tokens; cambia el nombre del bloque porque el bloque es el
+   módulo, igual que allá es la superficie de Contabilidad.
+   ============================================================================ */
+
+.sw-soportes__avance {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--sw-s-2) var(--sw-s-4);
+  padding: var(--sw-s-3) var(--sw-s-4);
+  align-items: center;
+}
+
+.sw-soportes__avTexto { min-width: 0; }
+.sw-soportes__avFrase {
+  margin: 0;
+  font-family: var(--sw-font-display);
+  font-size: var(--sw-t-h3);
+  font-weight: var(--sw-w-medium);
+  line-height: var(--sw-lh-h3);
+  color: var(--sw-text);
+}
+
+/* LA BARRA APILADA, y no una dona: son cinco estados que importan, y un anillo
+   sabe decir UNA proporción. NO SE ANIMA — cambia cuando cambia el contenido,
+   no es una transición, y animarla sería animar el reparto de una fila. */
+.sw-soportes__barraT {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 2px;
+  height: 6px;
+  border-radius: var(--sw-r-pill);
+  overflow: hidden;
+}
+.sw-soportes__tramo { flex-basis: 0; min-width: 3px; border-radius: var(--sw-r-pill); }
+
+/* LOS RELLENOS PLENOS Y NO LOS SEMÁNTICOS, con el motivo del template:
+   `--sw-success`/`--sw-warning` son colores de TEXTO calibrados contra una
+   superficie —en claro oscuros, en oscuro claros—, así que la misma barra
+   cambiaba de peso entre temas. Una proporción tiene que leerse igual en los
+   dos o deja de ser la misma lectura. */
+.sw-soportes__tramo[data-e='causadas'],
+.sw-soportes__punto[data-e='causadas']       { background: var(--sw-success-fill); }
+.sw-soportes__tramo[data-e='listas'],
+.sw-soportes__punto[data-e='listas']         { background: var(--sw-mute-fill); }
+.sw-soportes__tramo[data-e='revision'],
+.sw-soportes__punto[data-e='revision']       { background: var(--sw-warning-fill); }
+/* Sin analizar es la cola de la máquina, no una falta de nadie: el gris más
+   callado de la escalera, que es lo que dice «todavía nada». */
+.sw-soportes__tramo[data-e='sin_clasificar'],
+.sw-soportes__punto[data-e='sin_clasificar'] { background: var(--sw-line-strong); }
+/* Para reclasificar va al ACENTO y no al naranja: es otro destino, no un
+   problema. Pintarlo como lo que espera al contador inventaría un trabajo
+   propio que no existe — se resuelve en otro módulo. */
+.sw-soportes__tramo[data-e='otra_operacion'],
+.sw-soportes__punto[data-e='otra_operacion'] { background: var(--sw-accent-solid); }
+
+/* LA LEYENDA, con su cuadrito y su número: la barra da la proporción, la
+   leyenda da la cifra. Va DEBAJO y en la misma columna que la frase, para
+   leerse de corrido con ella. */
+.sw-soportes__leyenda {
+  grid-column: 1 / -1;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sw-s-1) var(--sw-s-4);
+  font-size: var(--sw-t-body-sm);
+  color: var(--sw-text-2);
+}
+.sw-soportes__leyenda li { display: flex; align-items: center; gap: var(--sw-s-2); }
+.sw-soportes__punto {
+  width: 8px; height: 8px; flex: none;
+  border-radius: var(--sw-r-sm);
+}
+.sw-soportes__leyN {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--sw-w-medium);
+  color: var(--sw-text);
+}
+
+
+/* ---- EL VISOR ------------------------------------------------------------
+   `<dialog class="dialog">` de Basecoat, con la misma anatomía que el template
+   usa en `shell/toolbox.js`. Acá sólo va lo que Basecoat no puede saber: cuánto
+   puede crecer la caja y cómo entra la imagen adentro.
+   -------------------------------------------------------------------------- */
+
+/* La foto de una factura es alta y angosta; el diálogo tiene que dejarla crecer
+   sin taparle la pantalla entera. El ancho se lo queda Basecoat. */
+.sw-soportes__visor > article { max-width: min(920px, calc(100vw - 2rem)); }
+
+.sw-soportes__visorCuerpo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  /* SCROLLEA EL CUERPO, no el diálogo: la cabecera con el nombre del archivo y
+     el pie con Descargar tienen que quedar a la vista con la imagen larga. */
+  overflow: auto;
+}
+
+/* `contain` y no `cover`: recortar una factura para que llene la caja es
+   esconder justo el renglón que se venía a leer. */
+.sw-soportes__visorImg {
+  max-width: 100%;
+  max-height: calc(100vh - 16rem);
+  object-fit: contain;
+  border-radius: var(--sw-r-sm);
+}
+
+.sw-soportes__visorNada {
+  margin: 0;
+  color: var(--sw-muted);
+  font-size: var(--sw-t-body-sm);
+  text-align: center;
+}

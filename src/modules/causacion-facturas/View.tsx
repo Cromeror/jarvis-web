@@ -3,8 +3,8 @@ import type { ModuleViewProps } from '../registry.js';
 import { Icon } from '../../components/Icon.js';
 import {
   SoporteApiError,
-  deleteDocument,
-  downloadUrl,
+  eliminarDocumento,
+  descargarSoporte,
   fetchLimits,
   leerBase64,
   listDocuments,
@@ -13,6 +13,9 @@ import {
 } from '../../lib/causacion-soportes-api.js';
 import { COLUMNAS, COLUMNAS_POR_DEFECTO } from './columnas.js';
 import { Tabla, type ColumnaDeTabla } from '../../components/ui/Tabla.js';
+import { Avance } from './Avance.js';
+import { Visor } from './Visor.js';
+import { listDocumentos, type DocumentoDeAvance } from '../../lib/causacion-documentos-api.js';
 import type { GrupoDeMenu } from '../../components/ui/MenuContextual.js';
 import { usePublicarMedida } from '../../components/layout/medida-de-superficie.js';
 
@@ -82,7 +85,7 @@ const COLUMNAS_MAS: ColumnaDeTabla[] = COLUMNAS.filter(
 function celdaDeSoporte(
   doc: CausacionSoporte,
   col: ColumnaDeTabla,
-  projectId: string,
+  abrir: (d: CausacionSoporte) => void,
 ): React.ReactNode {
   const def = COLUMNAS.find((c) => c.key === col.id);
   const valor = def ? def.leer(doc) : '';
@@ -92,14 +95,19 @@ function celdaDeSoporte(
      veinticuatro columnas, una pantalla de guiones pesa más que el hueco. */
   if (!valor) return null;
   if (col.id === 'archivo') {
+    /* UN BOTÓN Y NO UN ENLACE, y el cambio no es de estilo: el `href` iba a la
+       URL de descarga, que es una NAVEGACIÓN —sin el `Authorization` que pone
+       el interceptor de `fetch`—, así que devolvía 401. Y además lo que hace
+       ahora no es ir a ningún lado: abre el visor. */
     return (
-      <a
+      <button
+        type="button"
         className="sw-soportes__archivo"
-        href={downloadUrl(projectId, doc.id)}
+        onClick={() => abrir(doc)}
         title={`${doc.kind} · ${formatearTamano(doc.size_bytes)}`}
       >
         {valor}
-      </a>
+      </button>
     );
   }
   if (col.id === 'procesamiento_estado') return <Estado estado={doc.procesamiento_estado} />;
@@ -170,7 +178,18 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
   const [subiendo, setSubiendo] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rechazos, setRechazos] = useState<Rechazo[]>([]);
+  /* CANCELAR LA SUBIDA. Elegir veinte archivos y darse cuenta de que eran los
+     del mes equivocado no puede obligar a esperar a que entren los veinte. */
+  const cancelarSubida = useRef(false);
+  const [progreso, setProgreso] = useState<{ hecho: number; total: number } | null>(null);
+  const [cancelados, setCancelados] = useState(0);
   const [extensiones, setExtensiones] = useState<string[]>([]);
+  /* Los DOCUMENTOS son otra población que los soportes: un documento agrupa
+     los archivos que lo componen (§2.2). Los cuenta la tarjeta de avance; la
+     tabla de abajo sigue listando archivos. */
+  const [avance, setAvance] = useState<DocumentoDeAvance[]>([]);
+  /** El soporte que se está mirando. `null` = el visor está cerrado. */
+  const [mirando, setMirando] = useState<CausacionSoporte | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const recargar = useCallback(async () => {
@@ -180,6 +199,14 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
       setDocumentos(docs);
       setTotal(t);
       setError(null);
+      /* El avance se recarga con la tabla y en la misma vuelta: subir un
+         archivo no cambia los documentos todavía —eso lo hace la IA al
+         analizarlo—, pero borrar uno sí puede, y dos recargas desfasadas dejan
+         la tarjeta contando algo que la tabla ya no muestra.
+         Su falla NO voltea la pantalla: la tabla es lo que hay que ver. */
+      await listDocumentos(projectId)
+        .then((r) => setAvance(r.documentos))
+        .catch(() => setAvance([]));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudieron cargar los documentos');
     } finally {
@@ -205,13 +232,25 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
    * veinte sea un formato no soportado no es motivo para descartar las otras
    * diecinueve que la persona ya seleccionó.
    */
-  async function subir(files: FileList | null): Promise<void> {
-    if (!files || files.length === 0) return;
+  async function subir(files: File[]): Promise<void> {
+    if (files.length === 0) return;
+    cancelarSubida.current = false;
     setSubiendo(true);
+    setProgreso({ hecho: 0, total: files.length });
+    setCancelados(0);
     setError(null);
     const fallidos: Rechazo[] = [];
+    let sinHacer = 0;
 
-    for (const file of Array.from(files)) {
+    for (const [i, file] of files.entries()) {
+      /* SE CORTA ENTRE ARCHIVOS, NO EN MEDIO DE UNO. Abortar un POST a mitad de
+         camino deja al servidor decidiendo qué hacer con medio archivo; entre
+         uno y otro, en cambio, el estado es exacto: los de antes entraron, los
+         de después no se intentaron, y eso es lo que se reporta. */
+      if (cancelarSubida.current) {
+        sinHacer = files.length - i;
+        break;
+      }
       try {
         const content_base64 = await leerBase64(file);
         await uploadDocument(projectId, { filename: file.name, content_base64 });
@@ -219,9 +258,12 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
         const motivo = err instanceof SoporteApiError || err instanceof Error ? err.message : 'no se pudo subir';
         fallidos.push({ filename: file.name, motivo });
       }
+      setProgreso({ hecho: i + 1, total: files.length });
     }
 
     setRechazos(fallidos);
+    setCancelados(sinHacer);
+    setProgreso(null);
     setSubiendo(false);
     // Se recarga aunque haya fallidos: los que sí entraron tienen que verse.
     await recargar();
@@ -270,7 +312,9 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
       ],
       onSelect: (id, f) => {
         if (id === 'bajar') {
-          window.location.href = downloadUrl(projectId, f.id);
+          void descargarSoporte(projectId, f.id, f.filename).catch((err: unknown) =>
+            setError(err instanceof Error ? err.message : 'No se pudo descargar el documento'),
+          );
           return;
         }
         if (id === 'cufe') {
@@ -278,8 +322,17 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
           return;
         }
         if (id === 'borrar') {
-          if (!window.confirm(`¿Eliminar ${f.filename}?`)) return;
-          void deleteDocument(projectId, f.id)
+          // Se elimina el DOCUMENTO, no el archivo suelto: un archivo se va a
+          // la papelera con el documento del que es evidencia. Por eso el aviso
+          // dice que puede llevarse más de una página — antes borraba una sola
+          // y dejaba el documento incompleto sin que nadie lo notara.
+          const documentoId = f.documento_id;
+          if (!documentoId) {
+            setError('Ese archivo todavía no pertenece a ningún documento.');
+            return;
+          }
+          if (!window.confirm(`¿Eliminar el documento de ${f.filename} y todas sus páginas?`)) return;
+          void eliminarDocumento(projectId, documentoId)
             .then(recargar)
             .catch((err: unknown) =>
               setError(err instanceof Error ? err.message : 'No se pudo eliminar el documento'),
@@ -297,6 +350,11 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
           `auto minmax(0, 1fr)`, y un tercer hijo caería en una fila implícita
           robándole a la tabla el alto que la hace llenar la pantalla. */}
       <div className="sw-soportes__franja">
+      {/* LA TARJETA VA ARRIBA DE TODO porque contesta la pregunta con la que se
+          entra —«¿cuánto trabajo me queda?»— y la barra de abajo es lo que se
+          hace después de leerla. Cuenta DOCUMENTOS; la tabla lista ARCHIVOS. */}
+      <Avance documentos={avance} />
+
       <div className="sw-soportes__barra">
         <div>
           <p className="sw-soportes__conteo">
@@ -314,16 +372,44 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
                Un archivo elegido con «todos los archivos» igual se rechaza. */
             accept={extensiones.join(',')}
             hidden
-            onChange={(e) => void subir(e.target.files)}
+            onChange={(e) => void subir(Array.from(e.target.files ?? []))}
           />
           <button type="button" className="btn" disabled={subiendo} onClick={() => inputRef.current?.click()}>
             <Icon name={subiendo ? 'cargando' : 'subir'} />
-            {subiendo ? 'Subiendo…' : 'Subir documentos'}
+            {subiendo && progreso
+              ? `Subiendo ${progreso.hecho + 1} de ${progreso.total}…`
+              : subiendo
+                ? 'Subiendo…'
+                : 'Subir documentos'}
           </button>
+          {/* EL CANCELAR APARECE SÓLO MIENTRAS HAY ALGO QUE CANCELAR. Un botón
+              permanente y apagado el 99% del tiempo ocupa el lugar de la acción
+              que sí se usa. Frena la tanda entre un archivo y el siguiente: los
+              que ya entraron se quedan, y eso se dice. */}
+          {subiendo ? (
+            <button
+              type="button"
+              className="btn"
+              data-variant="outline"
+              onClick={() => {
+                cancelarSubida.current = true;
+              }}
+            >
+              <Icon name="x" />
+              Cancelar
+            </button>
+          ) : null}
         </div>
       </div>
 
       {error ? <p className="sw-soportes__aviso sw-soportes__aviso--error">{error}</p> : null}
+
+      {cancelados > 0 ? (
+        <p className="sw-soportes__aviso sw-soportes__aviso--parcial">
+          Subida cancelada: {cancelados} archivo{cancelados === 1 ? '' : 's'} sin subir. Los que ya
+          habían entrado se quedaron.
+        </p>
+      ) : null}
 
       {rechazos.length > 0 ? (
         <div className="sw-soportes__aviso sw-soportes__aviso--parcial">
@@ -370,7 +456,7 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
         columnasExtra={() => COLUMNAS_MAS}
         porPagina={100}
         opcionesPagina={[100, 150]}
-        celda={(doc, col) => celdaDeSoporte(doc, col, projectId)}
+        celda={(doc, col) => celdaDeSoporte(doc, col, setMirando)}
         textos={{
           vacio: 'Todavía no hay documentos',
           vacioPaso:
@@ -379,6 +465,8 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
         }}
       />
       </div>
+
+      <Visor projectId={projectId} soporte={mirando} onCerrar={() => setMirando(null)} />
     </div>
   );
 }

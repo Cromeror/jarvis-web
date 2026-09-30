@@ -31,6 +31,11 @@ export interface CausacionSoporte {
   procesamiento: Record<string, unknown> | null;
   procesamiento_estado: 'pendiente' | 'listo' | 'fallo';
   creado_por: string | null;
+  /**
+   * De qué documento contable es evidencia este archivo, o `null` si está
+   * suelto. Lo accionable: un archivo se elimina con su documento.
+   */
+  documento_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -40,6 +45,15 @@ export interface EntradaArbol {
   path: string;
   tipo: 'carpeta' | 'documento';
   documento: CausacionSoporte | null;
+  /**
+   * De qué DOCUMENTO CONTABLE es esta entrada.
+   *
+   * En una carpeta, el documento que agrupa —su nombre es ese id—; en un
+   * archivo, el documento del que es evidencia, o `null` si está suelto.
+   *
+   * Es lo accionable: un archivo se elimina con su documento, no solo.
+   */
+  documento_id: string | null;
   size_bytes: number | null;
 }
 
@@ -147,8 +161,25 @@ export async function uploadDocument(
   return send('POST', base(projectId), input);
 }
 
-export async function deleteDocument(projectId: string, id: string): Promise<void> {
-  await send('DELETE', `${base(projectId)}/${encodeURIComponent(id)}`);
+/**
+ * Elimina un documento contable Y SUS ARCHIVOS.
+ *
+ * Reemplaza al borrado de archivo suelto, que se quitó: pasaba por fuera de las
+ * reglas —un archivo de un documento auditado se podía sacar sin más— y no era
+ * atómico. Este endpoint ejecuta exactamente lo mismo que la tool del chat.
+ *
+ * Es reversible: los bytes van a la papelera.
+ */
+export async function eliminarDocumento(
+  projectId: string,
+  documentoId: string,
+  motivo?: string,
+): Promise<{ archivos: string[] }> {
+  return send(
+    'DELETE',
+    `/api/projects/${encodeURIComponent(projectId)}/causacion/documentos/${encodeURIComponent(documentoId)}`,
+    motivo ? { motivo } : undefined,
+  );
 }
 
 export async function moveDocument(
@@ -176,4 +207,55 @@ export async function fetchTree(projectId: string, carpeta = ''): Promise<Entrad
     await fetch(`${base(projectId)}/tree${carpeta ? `?carpeta=${encodeURIComponent(carpeta)}` : ''}`),
   );
   return body.entradas;
+}
+
+/**
+ * Los BYTES del archivo, con la sesión puesta.
+ *
+ * No alcanza con apuntar un `<img src>` o un `<a href>` a `downloadUrl`: el
+ * token viaja en `Authorization`, que lo pone el interceptor de `window.fetch`
+ * (`lib/auth-fetch-interceptor.ts`), y el browser NO lo manda cuando carga un
+ * subrecurso ni cuando navega. `JwtAuthGuard` sólo lee ese header —no hay
+ * cookie de sesión—, así que por esos dos caminos el servidor responde 401.
+ *
+ * Con `fetch` sí pasa por el interceptor. De ahí sale un blob y un object URL,
+ * que es lo que se le puede dar al `<img>`.
+ */
+export async function fetchSoporteBlob(projectId: string, id: string): Promise<Blob> {
+  const res = await fetch(downloadUrl(projectId, id));
+  if (!res.ok) throw new SoporteApiError(res.status, await readError(res));
+  return res.blob();
+}
+
+/**
+ * Bajar el archivo, también con la sesión puesta.
+ *
+ * Mismo motivo que arriba: un `window.location.href` a la URL de descarga es
+ * una navegación sin token. Se traen los bytes y se dispara un `<a download>`
+ * sobre el object URL; el nombre sale del filename que guardamos, no del
+ * `Content-Disposition`, porque el blob ya perdió los headers.
+ */
+export async function descargarSoporte(projectId: string, id: string, filename: string): Promise<void> {
+  const url = URL.createObjectURL(await fetchSoporteBlob(projectId, id));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  /* Se revoca en el próximo tick y no en la línea siguiente: revocarlo antes de
+     que el click arranque la descarga la cancela. */
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+/**
+ * Si el browser puede dibujarlo en un `<img>`.
+ *
+ * El `kind` lo decide el servidor por FIRMA DE BYTES y viene como texto
+ * («imagen PNG», «documento PDF»), así que se pregunta por él y no por la
+ * extensión — un `.jpg` que en realidad es un PDF acá dice PDF.
+ *
+ * HEIC queda afuera aunque sea imagen: ningún navegador de escritorio lo
+ * decodifica, y un `<img>` roto es peor que decir que no se puede ver.
+ */
+export function sePuedeVer(kind: string): boolean {
+  return kind.startsWith('imagen') && !kind.includes('HEIC');
 }
