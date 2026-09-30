@@ -103,7 +103,8 @@ export interface DocumentQuery {
   tercero?: string;
   desde?: string;
   hasta?: string;
-  carpeta?: string;
+  /** Sólo para el multi-hoja: la página se cuelga de ese documento. */
+  documento_id?: string;
   procesamiento_estado?: 'pendiente' | 'listo' | 'fallo';
   limit?: number;
   offset?: number;
@@ -154,10 +155,21 @@ export interface UploadInput {
   monto?: number | null;
 }
 
+/**
+ * Sube un archivo y lo deja como DOCUMENTO.
+ *
+ * Devuelve los dos: el archivo y el documento contable que quedó. Antes sólo
+ * creaba el archivo, y un archivo sin documento no se clasifica, no se extrae y
+ * no cuenta para cerrar el periodo — no es un estado intermedio, es un
+ * documento perdido.
+ *
+ * Es exactamente lo mismo que hace la tool del chat; lo único que cambia es que
+ * acá los bytes suben por la red.
+ */
 export async function uploadDocument(
   projectId: string,
   input: UploadInput,
-): Promise<{ documento: CausacionSoporte }> {
+): Promise<{ archivo: CausacionSoporte; documento: { id: string } }> {
   return send('POST', base(projectId), input);
 }
 
