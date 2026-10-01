@@ -18,18 +18,6 @@ export interface CausacionSoporte {
   kind: string;
   size_bytes: number;
   sha256: string;
-  tipo: string | null;
-  tercero: string | null;
-  numero: string | null;
-  fecha_documento: string | null;
-  monto: number | null;
-  /**
-   * El resultado de procesar el documento. Forma LIBRE a propósito: todavía se
-   * está afinando, y fijarla acá obligaría a un cambio de tipos en cada
-   * iteración del extractor.
-   */
-  procesamiento: Record<string, unknown> | null;
-  procesamiento_estado: 'pendiente' | 'listo' | 'fallo';
   creado_por: string | null;
   /**
    * De qué documento contable es evidencia este archivo, o `null` si está
@@ -99,13 +87,8 @@ async function send<T>(method: string, path: string, body?: unknown): Promise<T>
 
 export interface DocumentQuery {
   texto?: string;
-  tipo?: string;
-  tercero?: string;
-  desde?: string;
-  hasta?: string;
   /** Sólo para el multi-hoja: la página se cuelga de ese documento. */
   documento_id?: string;
-  procesamiento_estado?: 'pendiente' | 'listo' | 'fallo';
   limit?: number;
   offset?: number;
 }
@@ -148,11 +131,6 @@ export interface UploadInput {
   filename: string;
   content_base64: string;
   carpeta?: string;
-  tipo?: string | null;
-  tercero?: string | null;
-  numero?: string | null;
-  fecha_documento?: string | null;
-  monto?: number | null;
 }
 
 /**
@@ -194,21 +172,19 @@ export async function eliminarDocumento(
   );
 }
 
-export async function moveDocument(
+/** Renombra, no mueve: el módulo guarda todo plano y esa ubicación es suya. */
+export async function renombrarArchivo(
   projectId: string,
   id: string,
-  destino: string,
+  nombre: string,
 ): Promise<{ documento: CausacionSoporte }> {
-  return send('POST', `${base(projectId)}/${encodeURIComponent(id)}/move`, { destino });
+  return send('POST', `${base(projectId)}/${encodeURIComponent(id)}/renombrar`, { nombre });
 }
 
-export async function updateDocument(
-  projectId: string,
-  id: string,
-  metadata: Partial<Pick<CausacionSoporte, 'tipo' | 'tercero' | 'numero' | 'fecha_documento' | 'monto'>>,
-): Promise<{ documento: CausacionSoporte }> {
-  return send('PATCH', `${base(projectId)}/${encodeURIComponent(id)}`, metadata);
-}
+// NO hay `updateDocument`, y es una decisión. Editaba tipo, tercero, número,
+// fecha y monto EN EL ARCHIVO — datos que son del asiento del documento, donde
+// además queda registrado si los puso la IA o el auditor. Escritos en el
+// archivo quedaban fuera de esa trazabilidad y el circuito no los miraba.
 
 export function downloadUrl(projectId: string, id: string): string {
   return `${base(projectId)}/${encodeURIComponent(id)}/download`;
