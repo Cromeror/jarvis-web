@@ -82,7 +82,11 @@ export function UserMenu(): React.ReactElement {
           </button>
         </DropdownMenu.Trigger>
 
-        <DropdownMenu.Content align="end" sideOffset={6} data-popover>
+        {/* `collisionPadding` es lo que deja aire entre el menú y el borde de la
+            ventana: Radix lo descuenta al calcular `--radix-popper-available-height`,
+            que es de donde sale el techo de alto del popover (ver `app.css`). Con
+            el default —0— el menú llegaría a tocar el borde. */}
+        <DropdownMenu.Content align="end" sideOffset={6} collisionPadding={8} data-popover>
           <div className="sw-user__cab" role="presentation">
             <span className="sw-user__nombre">{nombre}</span>
             <span className="sw-user__perfil">{perfil}</span>
@@ -109,7 +113,12 @@ export function UserMenu(): React.ReactElement {
                 onValueChange={elegir}
                 asChild
               >
-                <div role="group" aria-label="Proyecto">
+                {/* LA ÚNICA PARTE DEL MENÚ QUE SCROLLEA. Con muchos proyectos
+                    asignados la lista empujaba todo lo de abajo —tema, accesos,
+                    cerrar sesión— fuera de la pantalla, sin forma de llegar.
+                    El alto lo acota `app.css`; acá sólo hace falta que el grupo
+                    sea un elemento con nombre propio al que agarrarse. */}
+                <div role="group" aria-label="Proyecto" className="sw-user__proyectos">
                 {proyectos.map((p) => (
                   <DropdownMenu.RadioItem key={p.id} value={p.id} asChild>
                     <button type="button">

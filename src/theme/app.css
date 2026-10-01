@@ -157,3 +157,39 @@
 .sw-herr__nombre { font-size: var(--sw-t-body-sm); color: var(--sw-text); }
 .sw-herr__desc { font-size: var(--sw-t-caption); color: var(--sw-muted); }
 
+
+/* ── EL MENÚ DE USUARIO CABE EN LA PANTALLA ──────────────────────────────────
+   Con muchos proyectos asignados la lista los dibujaba todos y el popover
+   crecía con ella: pasaba el borde inferior de la ventana y «Cerrar sesión»
+   —que va último— quedaba fuera, sin forma de llegar. Nada lo acotaba.
+
+   EL TECHO SALE DE RADIX, no de una fracción de `vh` elegida a ojo:
+   `--radix-popper-available-height` la escribe el middleware `size` de
+   floating-ui sobre el wrapper del popover en cada reposicionamiento, y el
+   content la hereda. Es el alto real que queda entre el disparador y el borde
+   de la ventana, ya descontado el `collisionPadding` que pasa el componente.
+   El fallback existe para el caso sin Radix —el popover de Basecoat no define
+   esa variable—, donde el menú vuelve a ser lo que era pero con tope.
+
+   LO QUE CEDE ES LA LISTA DE PROYECTOS, no el menú entero. Scrollear todo el
+   popover dejaría «Cerrar sesión» igual de lejos, sólo que a un scroll de
+   distancia; la lista es la única parte que crece sin límite, así que es la
+   única que se acota. Por eso al content se le saca el `overflow-y: auto` que
+   trae Basecoat y sus hijos directos quedan sin encoger: el bloque de abajo
+   —tema, accesos, cerrar sesión— está siempre a la vista.
+
+   La lista NO lleva piso de alto a propósito: en una ventana muy baja preferimos
+   que se quede en nada antes que volver a empujar el final del menú fuera de
+   la pantalla, que es el problema que esto arregla. */
+#sw-user [data-popover] {
+  max-height: var(--radix-popper-available-height, 100vh);
+  overflow: hidden;
+}
+/* `display: flex` y la columna ya vienen del popover de Basecoat; acá sólo se
+   fija quién cede el alto cuando el contenido no entra. */
+#sw-user [data-popover] > * { flex: 0 0 auto; }
+#sw-user .sw-user__proyectos {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
