@@ -7,7 +7,7 @@ import { listUsers, createUser, updateUser, deleteUser } from '../lib/users-api.
 import type { UserSummary, AccountType, ProjectRoleInput } from '../lib/users-api.js';
 import { listRoles, listOrganizations } from '../lib/organizations-api.js';
 import type { RoleSummary, OrganizationSummary } from '../lib/organizations-api.js';
-import { DataTable, type DataTableColumn } from '../components/ui/organisms/DataTable.js';
+import { Tabla, type ColumnaDeTabla } from '../components/ui/Tabla.js';
 import { OrganizationRolesPanel } from '../components/organizations/OrganizationRolesPanel.js';
 import { OrganizationFormModal } from '../components/organizations/OrganizationFormModal.js';
 import { StatusBadge } from '../components/ui/atoms/StatusBadge.js';
@@ -406,7 +406,7 @@ function textoBuscable(user: UserSummary, projects: ProjectSummary[]): string {
     user.username,
     user.account_type === 'operator' ? 'operador del producto' : 'cliente',
     user.organization?.organization_name ?? '',
-    user.organization?.role_name ?? '',
+    ...(user.organization?.roles.map((r) => r.role_name ?? '') ?? []),
     !user.organization && user.account_type !== 'operator' ? 'sin organización' : '',
     ...user.project_roles.map((a) => `${nombreDe(a.project_id)} ${a.role_name}`),
     ...user.project_ids.filter((id) => !user.project_roles.some((a) => a.project_id === id)).map(nombreDe),
@@ -485,68 +485,96 @@ export function UsersPage(): React.ReactElement {
     });
   }, [users, projects, busqueda]);
 
-  const columns: Array<DataTableColumn<UserSummary>> = [
-    { key: 'username', header: 'Usuario', render: (u) => <span className="font-medium text-[var(--card-text-secondary)]">{u.username}</span> },
-    {
-      key: 'account_type',
-      header: 'Tipo de cuenta',
+  /* LA TABLA DE USUARIOS ES LA DEL TEMPLATE (`Tabla`), la misma que roles y
+     miembros acá al lado. Tenerla distinta era la rareza: tres listados en una
+     pantalla, dos con el ancho repartido, el menú de fila y la paginación del
+     template, y el de usuarios —el más largo de los tres— con otra anatomía.
+
+     `proyectos` es la elástica: es la única columna de largo impredecible —una
+     persona puede tocar uno o quince— y es la que el template deja absorber el
+     déficit de ancho. Las otras tres son acotadas y se declaran con su ideal. */
+  const COLUMNAS_USUARIO: ColumnaDeTabla[] = [
+    { id: 'username', label: 'Usuario', dato: 'username', w: 220, tip: true },
+    { id: 'account_type', label: 'Tipo de cuenta', dato: 'account_type', w: 180 },
+    { id: 'organization', label: 'Organización', w: 280, orden: false },
+    { id: 'proyectos', label: 'Proyectos', w: 420, orden: false, elastica: true },
+  ];
+
+  /* Editar y Eliminar van al menú de fila y no a dos botones en una columna
+     `actions`: es donde el template pone las acciones, y es lo que le da a la
+     tabla su columna `__menu` con el objetivo táctil de 44px. */
+  const menuDeUsuario = (u: UserSummary) => ({
+    groups: [
+      { items: [{ id: 'editar', label: 'Editar el usuario' }] },
+      { items: [{ id: 'eliminar', label: 'Eliminar el usuario', danger: true }] },
+    ],
+    onSelect: (id: string) => {
+      if (id === 'editar') { setEditing(u); return; }
+      void handleDelete(u);
+    },
+  });
+
+  function celdaDeUsuario(u: UserSummary, c: ColumnaDeTabla): React.ReactNode {
+    if (c.id === 'username') {
+      return <span className="font-medium">{u.username}</span>;
+    }
+    if (c.id === 'account_type') {
       // "Rol" acá era la ambigüedad: este eje no es RBAC sino tenancy — quién
       // sos respecto del producto (el operador de la instalación, o gente de un
       // cliente). Los roles de verdad son los de organización y los de proyecto.
-      render: (u) => <StatusBadge label={u.account_type === 'operator' ? 'Operador del producto' : 'Cliente'} tone={u.account_type === 'operator' ? 'info' : 'neutral'} />,
-    },
-    {
-      key: 'organization',
-      header: 'Organización',
+      return (
+        <StatusBadge
+          label={u.account_type === 'operator' ? 'Operador del producto' : 'Cliente'}
+          tone={u.account_type === 'operator' ? 'info' : 'neutral'}
+        />
+      );
+    }
+    if (c.id === 'organization') {
       // La columna que faltaba, y el motivo de unificar las dos pestañas: una
       // persona pertenece a UNA organización, así que es un atributo suyo. Sin
       // verlo acá, elegir a alguien para fundar o para sumar a otra terminaba en
       // un 409 al guardar, sin forma de anticiparlo.
-      render: (u) => {
-        if (u.account_type === 'operator') {
-          // No es un dato que falte: un operador opera el producto y por diseño
-          // no es de ningún cliente. Mostrarlo como "sin organización" lo haría
-          // parecer un estado a corregir.
-          return <span className="text-xs text-[var(--card-text-secondary)]">No aplica</span>;
-        }
-        if (!u.organization) {
-          return <StatusBadge label="Sin organización" tone="warning" />;
-        }
-        return (
-          <StatusBadge
-            label={`${u.organization.organization_name} · ${u.organization.role_name ?? '(rol desconocido)'}`}
-            tone="neutral"
-          />
-        );
-      },
-    },
-    {
-      key: 'projects',
-      header: 'Proyectos',
-      render: (u) => (u.account_type === 'operator' ? <span className="text-xs text-[var(--card-text-secondary)]">Todos</span> : <ProjectAccessBadges user={u} projects={projects} />),
-    },
-    {
-      key: 'actions',
-      header: '',
-      className: 'text-right',
-      render: (u) => (
-        <div className="flex justify-end gap-2">
-          <button type="button" onClick={() => setEditing(u)} className="rounded-lg px-2 py-1 text-xs text-[var(--card-text-secondary)] hover:bg-white/10">
-            Editar
-          </button>
-          <button type="button" onClick={() => void handleDelete(u)} className="rounded-lg px-2 py-1 text-xs text-red-400 hover:bg-red-500/10">
-            Eliminar
-          </button>
+      if (u.account_type === 'operator') {
+        // No es un dato que falte: un operador opera el producto y por diseño
+        // no es de ningún cliente. Mostrarlo como "sin organización" lo haría
+        // parecer un estado a corregir.
+        return <span className="text-xs opacity-70">No aplica</span>;
+      }
+      if (!u.organization) {
+        return <StatusBadge label="Sin organización" tone="warning" />;
+      }
+      /* La organización es una, los roles son varios: un chip para la
+         pertenencia y uno por rol. Sin roles se dice, porque es el estado que
+         explica el 403 — pertenece y no puede nada. */
+      return (
+        <div className="flex flex-wrap gap-1">
+          <StatusBadge label={u.organization.organization_name} tone="neutral" />
+          {u.organization.roles.length === 0 ? (
+            <StatusBadge label="sin roles" tone="warning" />
+          ) : (
+            u.organization.roles.map((r) => (
+              <StatusBadge key={r.role_id} label={r.role_name ?? '(rol desconocido)'} tone="neutral" />
+            ))
+          )}
         </div>
-      ),
-    },
-  ];
+      );
+    }
+    if (c.id === 'proyectos') {
+      return u.account_type === 'operator' ? (
+        <span className="text-xs opacity-70">Todos</span>
+      ) : (
+        <ProjectAccessBadges user={u} projects={projects} />
+      );
+    }
+    return null;
+  }
 
   return (
     // Fondo oscuro y no `bg-white`: es la superficie de la app
     // (`--app-bg`, la misma que el shell y que ChatContent). Lo que vive acá ya
-    // estaba pensado para fondo oscuro y sobre blanco se veía mal — `DataTable`
-    // trae su propio `--table2-bg: #221f1d`.
+    // estaba pensado para fondo oscuro y sobre blanco se veía mal — la `Tabla`
+    // del template resuelve su propio tema por tokens (`--sw-tabla-*`), que es
+    // lo que deja ponerla sobre esta superficie sin pedirle un fondo aparte.
     <div className="h-full overflow-y-auto bg-[var(--app-bg)] p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-lg font-semibold text-white">Usuarios y organizaciones</h1>
@@ -613,7 +641,24 @@ export function UsersPage(): React.ReactElement {
         ) : visibles.length === 0 && users.length > 0 ? (
           <p className="text-sm text-slate-400">Ningún usuario coincide con «{busqueda.trim()}».</p>
         ) : (
-          <DataTable columns={columns} rows={visibles} getRowKey={(u) => u.id} />
+          <Tabla<UserSummary>
+            titulo="Usuarios"
+            columnas={COLUMNAS_USUARIO}
+            filas={visibles}
+            clave={(u) => u.id}
+            nombreFila={(u) => u.username}
+            seleccion={false}
+            menuFila={menuDeUsuario}
+            celda={celdaDeUsuario}
+            porPagina={25}
+            opcionesPagina={[25, 50, 100]}
+            /* EL VACÍO DICE LA CONSECUENCIA, no "no hay filas": sin usuarios no
+               hay a quién darle un rol, y el alta está en el botón de arriba. */
+            textos={{
+              vacio: 'Todavía no hay usuarios',
+              vacioPaso: 'Un usuario nuevo se crea con «+ Nuevo usuario»; recién ahí se le puede dar un rol en una organización.',
+            }}
+          />
         )}
       </section>
 

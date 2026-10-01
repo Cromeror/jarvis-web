@@ -13,12 +13,12 @@ export interface ProjectRoleAssignment extends ProjectRoleInput {
   role_name: string;
 }
 
-/** A qué organización pertenece un usuario y con qué rol adentro. */
+/** A qué organización pertenece un usuario y con qué roles adentro. */
 export interface UserOrganizationSummary {
   organization_id: string;
   organization_name: string;
-  role_id: string;
-  role_name: string | null;
+  /** VARIOS: sus permisos son la unión. Vacío = pertenece sin poder nada. */
+  roles: Array<{ role_id: string; role_name: string | null }>;
 }
 
 export interface UserSummary {

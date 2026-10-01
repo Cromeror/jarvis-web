@@ -7,7 +7,7 @@ import {
   listOrganizations,
   listRoles,
   removeMember,
-  setMemberRole,
+  setMemberRoles,
   updateRole,
 } from '../../lib/organizations-api.js';
 import type {
@@ -19,7 +19,8 @@ import type {
 } from '../../lib/organizations-api.js';
 import type { UserSummary } from '../../lib/users-api.js';
 import { mensajeDeError } from './errores.js';
-import { DataTable, type DataTableColumn } from '../ui/organisms/DataTable.js';
+import { agruparPorModulo } from './permisos-por-modulo.js';
+import { Tabla, type ColumnaDeTabla } from '../ui/Tabla.js';
 import { StatusBadge } from '../ui/atoms/StatusBadge.js';
 
 /** Controles DENTRO de un modal, que sigue siendo una tarjeta clara sobre el overlay. */
@@ -331,116 +332,152 @@ export function OrganizationRolesPanel({
     }
   }
 
-  const roleColumns: Array<DataTableColumn<RoleSummary>> = [
-    {
-      key: 'name',
-      header: 'Rol',
-      render: (r) => (
-        <div>
-          <span className="font-medium text-[var(--card-text-secondary)]">{r.name}</span>
-          {r.description && <span className="block text-xs text-[var(--card-text-secondary)] opacity-70">{r.description}</span>}
-        </div>
-      ),
-    },
-    {
-      key: 'scope',
-      header: 'Alcance',
-      render: (r) => <StatusBadge label={r.scope === 'org' ? 'Organización' : 'Proyecto'} tone={r.scope === 'org' ? 'info' : 'neutral'} />,
-    },
-    {
-      key: 'permissions',
-      header: 'Permisos',
-      render: (r) =>
-        r.permissions.length === 0 ? (
-          <span className="text-xs text-[var(--card-text-secondary)]">Sin permisos</span>
-        ) : (
-          <div className="flex flex-wrap gap-1">
-            {r.permissions.map((p) => (
-              <StatusBadge key={p} label={p} tone="neutral" />
-            ))}
-          </div>
-        ),
-    },
-    {
-      key: 'actions',
-      header: '',
-      className: 'text-right',
-      render: (r) => (
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            disabled={!puedeRoles}
-            onClick={() => setEditingRole(r)}
-            className="rounded-lg px-2 py-1 text-xs text-[var(--card-text-secondary)] hover:bg-white/10 disabled:opacity-40"
-          >
-            Editar
-          </button>
-          <button
-            type="button"
-            disabled={!puedeRoles}
-            onClick={() => {
-              if (!selectedId) return;
-              if (!window.confirm(`¿Eliminar el rol '${r.name}'?`)) return;
-              void conManejoDeError(() => deleteRole(selectedId, r.id), 'Error al eliminar el rol');
-            }}
-            className="rounded-lg px-2 py-1 text-xs text-red-400 hover:bg-red-500/10 disabled:opacity-40"
-          >
-            Eliminar
-          </button>
-        </div>
-      ),
-    },
+  /* LA TABLA DE ROLES ES LA DEL TEMPLATE (`Tabla`), no el `DataTable` propio.
+     `permisos` es la elástica: es la única columna de largo impredecible —un rol
+     puede tener uno o quince— y el template es explícito en que sólo el texto
+     libre aguanta puntos suspensivos. */
+  const COLUMNAS_ROL: ColumnaDeTabla[] = [
+    { id: 'name', label: 'Rol', dato: 'name', w: 220, tip: true },
+    { id: 'scope', label: 'Alcance', dato: 'scope', w: 130 },
+    { id: 'permisos', label: 'Permisos', w: 420, orden: false, elastica: true },
   ];
 
-  const memberColumns: Array<DataTableColumn<OrganizationMember>> = [
-    {
-      key: 'username',
-      header: 'Usuario',
-      render: (m) => <span className="font-medium text-[var(--card-text-secondary)]">{m.username}</span>,
-    },
-    {
-      key: 'account_type',
-      header: 'Rol en la organización',
-      render: (m) => (
-        <select
-          value={m.role_id}
-          disabled={!puedeMiembros}
-          onChange={(e) => {
+  /* Editar y Eliminar van al menú de fila y no a botones sueltos en una columna
+     `actions`: es donde el template pone las acciones, y es lo que le da a la
+     tabla su columna `__menu` con el objetivo táctil de 44px. */
+  const menuDeRol = (r: RoleSummary) =>
+    puedeRoles
+      ? {
+          groups: [
+            { items: [{ id: 'editar', label: 'Editar el rol' }] },
+            { items: [{ id: 'eliminar', label: 'Eliminar el rol', danger: true }] },
+          ],
+          onSelect: (id: string) => {
+            if (id === 'editar') { setEditingRole(r); return; }
             if (!selectedId) return;
-            void conManejoDeError(() => setMemberRole(selectedId, m.user_id, e.target.value), 'Error al cambiar el rol', true);
-          }}
-          className="rounded-lg border border-white/15 bg-white/5 px-2 py-1 text-xs text-[var(--card-text-secondary)] disabled:opacity-40 [&>option]:bg-[#221f1d] [&>option]:text-white"
-        >
-          {/* Si el rol se borró por debajo, se muestra como tal en vez de saltar a otro en silencio. */}
-          {!roles.some((r) => r.id === m.role_id) && <option value={m.role_id}>{m.role_name ?? '(rol desconocido)'}</option>}
-          {roles.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.name}
-            </option>
+            if (!window.confirm(`¿Eliminar el rol '${r.name}'?`)) return;
+            void conManejoDeError(() => deleteRole(selectedId, r.id), 'Error al eliminar el rol');
+          },
+        }
+      : null;
+
+  function celdaDeRol(r: RoleSummary, c: ColumnaDeTabla): React.ReactNode {
+    if (c.id === 'name') {
+      return (
+        <div>
+          <span className="font-medium">{r.name}</span>
+          {r.description ? <span className="block text-xs opacity-70">{r.description}</span> : null}
+        </div>
+      );
+    }
+    if (c.id === 'scope') {
+      return <StatusBadge label={r.scope === 'org' ? 'Organización' : 'Proyecto'} tone={r.scope === 'org' ? 'info' : 'neutral'} />;
+    }
+    if (c.id === 'permisos') {
+      /* UN ROL SIN PERMISOS NO ES UNA CELDA VACÍA: es la causa del 403 que
+         nadie entiende (la suite se asigna al proyecto, el permiso al rol, y
+         nada los cruza). Se dice con todas las letras y no con un guion. */
+      if (r.permissions.length === 0) {
+        return <span className="text-xs opacity-70">Sin permisos — nadie con este rol puede hacer nada</span>;
+      }
+      /* Agrupados por módulo: la pregunta que se le hace a esta celda es "¿de
+         qué se puede ocupar este rol?", y una fila plana de nueve chips de tres
+         familias obliga a contarlos. El rótulo es la `key` cruda —con su id—
+         porque es lo que distingue un módulo de otro. */
+      return (
+        <div className="flex flex-col gap-1">
+          {agruparPorModulo(r.permissions).map((g) => (
+            <div key={g.titulo} className="flex flex-wrap items-center gap-1">
+              <span className="text-[10px] uppercase tracking-wide opacity-50">{g.titulo}</span>
+              {g.items.map((i) => (
+                <StatusBadge key={i.permiso} label={i.etiqueta} tone={g.plataforma ? 'neutral' : 'info'} />
+              ))}
+            </div>
           ))}
-        </select>
-      ),
-    },
-    {
-      key: 'actions',
-      header: '',
-      className: 'text-right',
-      render: (m) => (
-        <button
-          type="button"
-          disabled={!puedeMiembros}
-          onClick={() => {
+        </div>
+      );
+    }
+    return null;
+  }
+
+  const COLUMNAS_MIEMBRO: ColumnaDeTabla[] = [
+    { id: 'username', label: 'Usuario', dato: 'username', w: 240, tip: true, elastica: true },
+    /* El rol se EDITA en la celda: es la acción principal de esta tabla, y
+       mandarla a un modal agregaría dos clics a lo único que se viene a hacer
+       acá. Por eso no se puede ordenar — la celda no es un valor, es un control. */
+    { id: 'rol', label: 'Roles en la organización', w: 360, orden: false, elastica: true },
+  ];
+
+  const menuDeMiembro = (m: OrganizationMember) =>
+    puedeMiembros
+      ? {
+          groups: [{ items: [{ id: 'quitar', label: 'Sacar de la organización', danger: true }] }],
+          onSelect: () => {
             if (!selectedId) return;
             if (!window.confirm(`¿Sacar a '${m.username}' de la organización?`)) return;
             void conManejoDeError(() => removeMember(selectedId, m.user_id), 'Error al quitar el miembro', true);
-          }}
-          className="rounded-lg px-2 py-1 text-xs text-red-400 hover:bg-red-500/10 disabled:opacity-40"
-        >
-          Quitar
-        </button>
-      ),
-    },
-  ];
+          },
+        }
+      : null;
+
+  function celdaDeMiembro(m: OrganizationMember, c: ColumnaDeTabla): React.ReactNode {
+    if (c.id === 'username') return <span className="font-medium">{m.username}</span>;
+    if (c.id === 'rol') {
+      /* UN TOGGLE POR ROL, no un `<select multiple>`. Los permisos de un miembro
+         son la UNIÓN de sus roles, así que lo que hay que poder leer de un
+         vistazo es cuáles tiene — y un multi-select nativo esconde eso detrás
+         de un scroll y de un Ctrl+clic que nadie descubre. Acá cada rol es un
+         chip: encendido = lo tiene. */
+      const asignados = new Set(m.roles.map((r) => r.role_id));
+      const alternar = (roleId: string): void => {
+        if (!selectedId) return;
+        const siguiente = new Set(asignados);
+        if (siguiente.has(roleId)) siguiente.delete(roleId);
+        else siguiente.add(roleId);
+        void conManejoDeError(
+          () => setMemberRoles(selectedId, m.user_id, [...siguiente]),
+          'Error al cambiar los roles',
+          true,
+        );
+      };
+      /* Un rol borrado por debajo se muestra igual y apagado: desaparecer sin
+         decirlo haría que el miembro se vea con menos permisos de los que tiene. */
+      const fantasmas = m.roles.filter((r) => !roles.some((x) => x.id === r.role_id));
+      return (
+        <div className="flex flex-wrap gap-1">
+          {roles.map((r) => {
+            const activo = asignados.has(r.id);
+            return (
+              <button
+                key={r.id}
+                type="button"
+                disabled={!puedeMiembros}
+                onClick={() => alternar(r.id)}
+                aria-pressed={activo}
+                title={activo ? `Sacarle «${r.name}»` : `Darle «${r.name}»`}
+                className={`rounded-full border px-2 py-0.5 text-[11px] disabled:opacity-40 ${
+                  activo
+                    ? 'border-transparent bg-[var(--sw-accent)] text-white'
+                    : 'border-white/20 opacity-60 hover:opacity-100'
+                }`}
+              >
+                {r.name}
+              </button>
+            );
+          })}
+          {fantasmas.map((r) => (
+            <span key={r.role_id} className="rounded-full border border-amber-500/40 px-2 py-0.5 text-[11px] text-amber-300">
+              {r.role_name ?? '(rol desconocido)'}
+            </span>
+          ))}
+          {/* Pertenecer sin roles es un estado real y el que más confunde: la
+              persona entra y no puede nada. Se dice, no se deja en blanco. */}
+          {m.roles.length === 0 ? <span className="text-[11px] opacity-60">Sin roles — no puede nada</span> : null}
+        </div>
+      );
+    }
+    return null;
+  }
 
   if (loading) return <p className="text-sm text-slate-400">Cargando…</p>;
 
@@ -504,12 +541,42 @@ export function OrganizationRolesPanel({
 
       <section>
         <h2 className="mb-2 text-sm font-semibold text-white">Roles</h2>
-        <DataTable columns={roleColumns} rows={roles} getRowKey={(r) => r.id} />
+        <Tabla<RoleSummary>
+          titulo="Roles"
+          columnas={COLUMNAS_ROL}
+          filas={roles}
+          clave={(r) => r.id}
+          nombreFila={(r) => r.name}
+          seleccion={false}
+          menuFila={menuDeRol}
+          celda={celdaDeRol}
+          porPagina={25}
+          opcionesPagina={[25, 50]}
+          /* EL VACÍO DICE LA CONSECUENCIA, no "no hay filas". Sin roles nadie
+             puede nada adentro de los proyectos de esta organización, y ese es
+             el dato que evita buscar la causa en el eje equivocado. */
+          textos={{
+            vacio: 'Esta organización todavía no tiene roles',
+            vacioPaso: 'Sin un rol nadie puede hacer nada adentro de sus proyectos: la suite decide qué se ve, el rol decide qué se puede.',
+          }}
+        />
       </section>
 
       <section>
         <h2 className="mb-2 text-sm font-semibold text-white">Miembros</h2>
-        <DataTable columns={memberColumns} rows={members} getRowKey={(m) => m.user_id} />
+        <Tabla<OrganizationMember>
+          titulo="Miembros"
+          columnas={COLUMNAS_MIEMBRO}
+          filas={members}
+          clave={(m) => m.user_id}
+          nombreFila={(m) => m.username}
+          seleccion={false}
+          menuFila={menuDeMiembro}
+          celda={celdaDeMiembro}
+          porPagina={25}
+          opcionesPagina={[25, 50]}
+          textos={{ vacio: 'Esta organización todavía no tiene miembros' }}
+        />
 
         {/* Una organización sin miembros ya no es un estado roto —se puede fundar
             vacía— pero sí uno incompleto: conviene decir cómo se sale, porque las
@@ -555,7 +622,9 @@ export function OrganizationRolesPanel({
                 const { userId, roleId } = nuevoMiembro;
                 void conManejoDeError(
                   async () => {
-                    await setMemberRole(selectedId, userId, roleId);
+                    // El alta entra con UN rol; los demás se suman después
+                    // desde los chips de su fila.
+                    await setMemberRoles(selectedId, userId, [roleId]);
                     setNuevoMiembro({ userId: '', roleId: '' });
                   },
                   'Error al agregar el miembro',

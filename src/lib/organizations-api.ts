@@ -31,13 +31,20 @@ export interface RoleSummary {
   updated_at: string;
 }
 
+/** Un rol tal como se muestra: el id para operar, el nombre para leer. */
+export interface RoleRef {
+  role_id: string;
+  /** `null` si el rol se borró por debajo. Se muestra como tal, no se inventa un nombre. */
+  role_name: string | null;
+}
+
 export interface OrganizationMember {
   organization_id: string;
   user_id: string;
   username: string;
   user_account_type: 'operator' | 'member';
-  role_id: string;
-  role_name: string | null;
+  /** VARIOS: los permisos del miembro son la unión. Vacío = pertenece sin poder nada. */
+  roles: RoleRef[];
   created_at: string;
 }
 
@@ -156,10 +163,17 @@ export async function listMembers(organizationId: string): Promise<OrganizationM
   );
 }
 
-export async function setMemberRole(organizationId: string, userId: string, roleId: string): Promise<void> {
+/**
+ * Reemplaza el conjunto COMPLETO de roles del miembro — no acumula.
+ *
+ * Manda el estado que la pantalla muestra, no un diff: con un diff, dos pestañas
+ * abiertas se pisan sin que ninguna se entere. Un array vacío es legítimo (queda
+ * en la organización sin permisos) y por eso el campo viaja siempre, incluso vacío.
+ */
+export async function setMemberRoles(organizationId: string, userId: string, roleIds: string[]): Promise<void> {
   const res = await fetch(
     `/api/organizations/${encodeURIComponent(organizationId)}/members/${encodeURIComponent(userId)}`,
-    { method: 'PUT', headers: jsonHeaders, body: JSON.stringify({ role_id: roleId }) },
+    { method: 'PUT', headers: jsonHeaders, body: JSON.stringify({ role_ids: roleIds }) },
   );
   if (!res.ok) throw new ApiError(res.status, await readError(res));
 }
