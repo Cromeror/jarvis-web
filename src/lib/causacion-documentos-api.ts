@@ -11,11 +11,26 @@
  * analiza y de ahí sale si es factura o es otra operación.
  */
 
-/** El circuito del asiento. */
-export type EstadoCausacion = 'BORRADOR_IA' | 'VALIDADO_AUDITOR' | 'CAUSADO_EN_CONTABLE';
+/**
+ * EL ÚNICO EJE DE ESTADO del documento.
+ *
+ * Reemplaza a `EstadoCausacion` (`BORRADOR_IA` / `VALIDADO_AUDITOR` /
+ * `CAUSADO_EN_CONTABLE`) y a la columna de trazabilidad, que contestaban lo
+ * mismo con distinto vocabulario.
+ *
+ * `PENDIENTE_AUDITAR` es la bandeja humana: lo que la IA no pudo cerrar y lo
+ * que el contador devolvió. `AUDITADO` es el único terminal.
+ */
+export type EstadoDocumento = 'PENDIENTE_PROCESAR' | 'PENDIENTE_AUDITAR' | 'COMPLETADO' | 'AUDITADO';
 
-/** La primera pregunta: ¿esto se causa acá, o es de otro módulo? */
-export type Clasificacion = 'CAUSACION_CONTABLE' | 'OTRA_OPERACION' | 'PENDIENTE_CLASIFICAR';
+/**
+ * ¿Origina el asiento, o lo acompaña? `null` = todavía no se clasificó.
+ *
+ * Antes era `CAUSACION_CONTABLE` / `OTRA_OPERACION`, que sugería que del
+ * segundo no se leía nada — y sí se lee: un complementario arma la historia del
+ * asiento aunque no genere registro propio.
+ */
+export type Clasificacion = 'PRINCIPAL' | 'COMPLEMENTARIO';
 
 /**
  * Lo que la tarjeta lee de cada documento, y nada más.
@@ -27,8 +42,70 @@ export type Clasificacion = 'CAUSACION_CONTABLE' | 'OTRA_OPERACION' | 'PENDIENTE
 export interface DocumentoDeAvance {
   id: string;
   periodo: string | null;
-  clasificacion: { clasificacion: Clasificacion };
-  extraccion: { estado_causacion: EstadoCausacion } | null;
+  estado: EstadoDocumento;
+  clasificacion: { clasificacion: Clasificacion | null };
+}
+
+/** Un archivo del documento, tal como viene en la lista. */
+export interface ArchivoDeDocumento {
+  soporte_id: string;
+  orden: number;
+  filename?: string;
+  path?: string;
+  /** El visor los necesita para decidir si puede mostrarlo y qué dice el encabezado. */
+  kind?: string;
+  size_bytes?: number;
+}
+
+/**
+ * EL ASIENTO: las quince columnas que entran a la contabilidad.
+ *
+ * Todo nullable salvo los enums, y eso es regla del dominio: un campo que no se
+ * lee en el papel se deja VACÍO. Ponerle un `0` sería inventar un dato contable.
+ */
+export interface Extraccion {
+  tipo_documento: string | null;
+  numero_documento: string | null;
+  fecha: string | null;
+  tercero_nombre: string | null;
+  tercero_nit_cc: string | null;
+  descripcion: string | null;
+  cantidad: number | null;
+  valor_unitario: number | null;
+  subtotal: number | null;
+  iva: number | null;
+  otros_impuestos: number | null;
+  valor_total: number | null;
+  forma_pago: string | null;
+  soporte_fiscal_valido_dian: string;
+  cuenta_puc_sugerida: string | null;
+}
+
+/** El respaldo ante la DIAN. `cufe_cude` es uno solo: ante la DIAN no se discriminan. */
+export interface Trazabilidad {
+  cufe_cude: string | null;
+  observaciones_ia: string | null;
+  documento_valido_dian_trazado: string[];
+}
+
+/**
+ * EL DOCUMENTO CONTABLE, que es lo que la tabla lista.
+ *
+ * Antes listaba archivos, y eso era de cuando el archivo era la unidad. Lo que
+ * se clasifica, se causa y se cierra es el documento; el archivo es su
+ * evidencia, y puede ser más de uno.
+ */
+export interface DocumentoContable {
+  id: string;
+  periodo: string | null;
+  estado: EstadoDocumento;
+  importacion_error: string | null;
+  eliminado_en: string | null;
+  archivos: ArchivoDeDocumento[];
+  clasificacion: { clasificacion: Clasificacion | null; operacion_destino: string | null };
+  extraccion: Extraccion | null;
+  trazabilidad: Trazabilidad;
+  created_at: string;
 }
 
 function base(projectId: string): string {
@@ -49,4 +126,25 @@ export async function listDocumentos(
   const res = await fetch(`${base(projectId)}/documentos?limit=500`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as { documentos: DocumentoDeAvance[]; total: number };
+}
+
+export interface ConsultaDeDocumentos {
+  periodo?: string;
+  estado?: EstadoDocumento;
+  clasificacion?: Clasificacion;
+  texto?: string;
+  limit?: number;
+  offset?: number;
+}
+
+/** Los documentos para la tabla, con su asiento y su trazabilidad. */
+export async function buscarDocumentos(
+  projectId: string,
+  q: ConsultaDeDocumentos = {},
+): Promise<{ documentos: DocumentoContable[]; total: number }> {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(q)) if (v !== undefined && v !== '') params.set(k, String(v));
+  const res = await fetch(`${base(projectId)}/documentos?${params.toString()}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()) as { documentos: DocumentoContable[]; total: number };
 }

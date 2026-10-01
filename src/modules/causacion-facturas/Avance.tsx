@@ -34,9 +34,10 @@ import type { DocumentoDeAvance } from '../../lib/causacion-documentos-api.js';
  * - `revision` es MÍO: la IA ya dijo qué leyó y falta que el contador lo mire.
  * - `sin_clasificar` es DE LA MÁQUINA: todavía no dijo ni qué tipo de documento
  *   es. No es una falta de nadie, es la cola de análisis.
- * - `otra_operacion` es DE OTRO MÓDULO: nómina, tesorería, un traslado. Se
- *   causa, pero no acá (§2.2). Mezclarlo con lo pendiente infla el trabajo
- *   propio con algo que no se resuelve en esta pantalla.
+ * - `otra_operacion` son los COMPLEMENTARIOS: la remisión, la orden, el pago
+ *   que respaldan un asiento sin generar uno propio. Respaldan trabajo, no lo
+ *   generan; mezclarlos con lo pendiente infla la cuenta con algo que no se
+ *   resuelve causándolo.
  *
  * Los tonos siguen la regla del template —«el tono sale del dato»—: sólo lo que
  * espera a una persona va en naranja. Lo que va a otro módulo lleva el acento,
@@ -48,7 +49,7 @@ const GRUPOS = [
   { id: 'listas', rot: 'Listas para causar' },
   { id: 'revision', rot: 'Esperando al contador' },
   { id: 'sin_clasificar', rot: 'Sin analizar' },
-  { id: 'otra_operacion', rot: 'Para reclasificar' },
+  { id: 'otra_operacion', rot: 'Soportes' },
 ] as const;
 
 type GrupoId = (typeof GRUPOS)[number]['id'];
@@ -63,20 +64,23 @@ export function contar(documentos: DocumentoDeAvance[]): Record<GrupoId, number>
   };
   for (const d of documentos) {
     const cl = d.clasificacion?.clasificacion;
-    if (cl === 'OTRA_OPERACION') {
+    /* Un COMPLEMENTARIO respalda un asiento pero no genera uno propio, así que
+       no entra en la cuenta de lo que falta causar. */
+    if (cl === 'COMPLEMENTARIO') {
       c.otra_operacion++;
       continue;
     }
-    if (cl === 'PENDIENTE_CLASIFICAR') {
+    /* `null` = todavía no se clasificó. No hay un valor para eso: la ausencia
+       es el dato, y por eso acá se pregunta por `null` y no por un literal. */
+    if (!cl) {
       c.sin_clasificar++;
       continue;
     }
-    /* CAUSACION_CONTABLE. Sin extracción todavía es un documento que ya se sabe
-       que se causa acá pero del que no se leyó un solo campo: es trabajo que
-       espera, igual que un borrador de la IA sin revisar. */
-    const ec = d.extraccion?.estado_causacion;
-    if (ec === 'CAUSADO_EN_CONTABLE') c.causadas++;
-    else if (ec === 'VALIDADO_AUDITOR') c.listas++;
+    /* PRINCIPAL. El eje único dice en qué etapa va: AUDITADO es el único
+       terminal —la causación quedó cerrada—, COMPLETADO es «la IA terminó» y
+       todo lo anterior sigue siendo trabajo que espera. */
+    if (d.estado === 'AUDITADO') c.causadas++;
+    else if (d.estado === 'COMPLETADO') c.listas++;
     else c.revision++;
   }
   return c;

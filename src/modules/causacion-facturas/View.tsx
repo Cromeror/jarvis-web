@@ -7,15 +7,19 @@ import {
   descargarSoporte,
   fetchLimits,
   leerBase64,
-  listDocuments,
   uploadDocument,
-  type CausacionSoporte,
 } from '../../lib/causacion-soportes-api.js';
 import { COLUMNAS, COLUMNAS_POR_DEFECTO } from './columnas.js';
 import { Tabla, type ColumnaDeTabla } from '../../components/ui/Tabla.js';
 import { Avance } from './Avance.js';
 import { Visor } from './Visor.js';
-import { listDocumentos, type DocumentoDeAvance } from '../../lib/causacion-documentos-api.js';
+import {
+  buscarDocumentos,
+  type DocumentoContable,
+  type ArchivoDeDocumento,
+  type DocumentoDeAvance,
+  type EstadoDocumento,
+} from '../../lib/causacion-documentos-api.js';
 import type { GrupoDeMenu } from '../../components/ui/MenuContextual.js';
 import { usePublicarMedida } from '../../components/layout/medida-de-superficie.js';
 
@@ -42,13 +46,14 @@ import { usePublicarMedida } from '../../components/layout/medida-de-superficie.
  * cifra, y una fecha a medias tampoco».
  */
 const ANCHOS: Record<string, number> = {
-  archivo: 220,
+  archivos: 220,
   tipo_documento: 150,
   fecha: 120,
   tercero_nombre: 240,
   numero_documento: 140,
   valor_total: 130,
-  procesamiento_estado: 120,
+  estado: 120,
+  clasificacion: 150,
 };
 
 function aColumnaDeTabla(c: (typeof COLUMNAS)[number]): ColumnaDeTabla {
@@ -59,7 +64,7 @@ function aColumnaDeTabla(c: (typeof COLUMNAS)[number]): ColumnaDeTabla {
     w: ANCHOS[c.key] ?? 140,
     al: c.numerica ? 'der' : undefined,
     // El globo sólo donde puede haber recorte de verdad.
-    tip: !c.numerica && c.key !== 'procesamiento_estado',
+    tip: !c.numerica && c.key !== 'estado',
     elastica: c.key === 'tercero_nombre',
   };
 }
@@ -82,10 +87,10 @@ const COLUMNAS_MAS: ColumnaDeTabla[] = COLUMNAS.filter(
 ).map(aColumnaDeTabla);
 
 /** El dominio pinta la celda; la tabla arma la grilla. */
-function celdaDeSoporte(
-  doc: CausacionSoporte,
+function celdaDeDocumento(
+  doc: DocumentoContable,
   col: ColumnaDeTabla,
-  abrir: (d: CausacionSoporte) => void,
+  abrir: (d: DocumentoContable) => void,
 ): React.ReactNode {
   const def = COLUMNAS.find((c) => c.key === col.id);
   const valor = def ? def.leer(doc) : '';
@@ -94,7 +99,7 @@ function celdaDeSoporte(
      Había un `—` con clase propia, que era UI inventada — y además, con
      veinticuatro columnas, una pantalla de guiones pesa más que el hueco. */
   if (!valor) return null;
-  if (col.id === 'archivo') {
+  if (col.id === 'archivos') {
     /* UN BOTÓN Y NO UN ENLACE, y el cambio no es de estilo: el `href` iba a la
        URL de descarga, que es una NAVEGACIÓN —sin el `Authorization` que pone
        el interceptor de `fetch`—, así que devolvía 401. Y además lo que hace
@@ -104,13 +109,13 @@ function celdaDeSoporte(
         type="button"
         className="sw-soportes__archivo"
         onClick={() => abrir(doc)}
-        title={`${doc.kind} · ${formatearTamano(doc.size_bytes)}`}
+        title={doc.archivos.length === 1 ? 'Abrir' : `${doc.archivos.length} páginas`}
       >
         {valor}
       </button>
     );
   }
-  if (col.id === 'procesamiento_estado') return <Estado estado={doc.procesamiento_estado} />;
+  if (col.id === 'estado') return <Estado estado={doc.estado} />;
   // Las clases tipográficas son del template: `sw-mono` para un consecutivo,
   // `sw-tabular` para que las fechas y las cifras alineen dígito con dígito.
   if (col.id === 'numero_documento' || col.id === 'cufe_cude') {
@@ -134,18 +139,29 @@ function celdaDeSoporte(
  * eso está bien. Y lleva `role="img"` con su etiqueta, porque un punto de 9px
  * sin nombre accesible no dice nada.
  */
-const DICHO: Record<CausacionSoporte['procesamiento_estado'], string> = {
-  listo: 'Procesado',
-  pendiente: 'Todavía sin procesar',
-  fallo: 'El procesamiento falló',
+const DICHO: Record<EstadoDocumento, string> = {
+  PENDIENTE_PROCESAR: 'Todavía sin procesar',
+  PENDIENTE_AUDITAR: 'Esperando al contador',
+  COMPLETADO: 'Válido ante la DIAN',
+  AUDITADO: 'Causación cerrada',
 };
 
-function Estado({ estado }: { estado: CausacionSoporte['procesamiento_estado'] }): React.ReactElement {
-  const tono = estado === 'listo' ? 'ok' : estado === 'fallo' ? 'falta' : 'espera';
+/**
+ * El eje único, con el PUNTO del template.
+ *
+ * Antes eran dos columnas —el estado del procesamiento del archivo y el de
+ * trazabilidad—, que contestaban lo mismo con distinto vocabulario.
+ *
+ * `data-lleno` dice si el hecho ocurrió; `data-tono`, si eso está bien. Sólo lo
+ * que espera a una persona va en naranja: un documento que la IA todavía no
+ * miró está en cola, no en problema.
+ */
+function Estado({ estado }: { estado: EstadoDocumento }): React.ReactElement {
+  const tono = estado === 'AUDITADO' || estado === 'COMPLETADO' ? 'ok' : estado === 'PENDIENTE_AUDITAR' ? 'falta' : 'espera';
   return (
     <span
       className="sw-tabla__punto"
-      data-lleno={String(estado === 'listo')}
+      data-lleno={String(estado === 'AUDITADO')}
       data-tono={tono}
       role="img"
       aria-label={DICHO[estado]}
@@ -154,19 +170,13 @@ function Estado({ estado }: { estado: CausacionSoporte['procesamiento_estado'] }
   );
 }
 
-function formatearTamano(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
 interface Rechazo {
   filename: string;
   motivo: string;
 }
 
 export function View({ projectId }: ModuleViewProps): React.ReactElement {
-  const [documentos, setDocumentos] = useState<CausacionSoporte[]>([]);
+  const [documentos, setDocumentos] = useState<DocumentoContable[]>([]);
   const [total, setTotal] = useState(0);
 
   /* EL SEGUNDO RENGLÓN DEL TÍTULO. El template lo arma con
@@ -188,14 +198,21 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
      los archivos que lo componen (§2.2). Los cuenta la tarjeta de avance; la
      tabla de abajo sigue listando archivos. */
   const [avance, setAvance] = useState<DocumentoDeAvance[]>([]);
-  /** El soporte que se está mirando. `null` = el visor está cerrado. */
-  const [mirando, setMirando] = useState<CausacionSoporte | null>(null);
+  /**
+   * El ARCHIVO que se está mirando. `null` = el visor está cerrado.
+   *
+   * La fila es un documento y puede tener varias páginas; el visor abre la
+   * primera. Elegir cuál ver con más de una es trabajo del visor, no de acá.
+   */
+  const [mirando, setMirando] = useState<ArchivoDeDocumento | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const recargar = useCallback(async () => {
     setCargando(true);
     try {
-      const { documentos: docs, total: t } = await listDocuments(projectId, { limit: 200 });
+      /* LA TABLA LISTA DOCUMENTOS, no archivos. Es lo que se clasifica, se
+         causa y se cierra; el archivo es su evidencia y puede ser más de uno. */
+      const { documentos: docs, total: t } = await buscarDocumentos(projectId, { limit: 200 });
       setDocumentos(docs);
       setTotal(t);
       setError(null);
@@ -204,9 +221,9 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
          analizarlo—, pero borrar uno sí puede, y dos recargas desfasadas dejan
          la tarjeta contando algo que la tabla ya no muestra.
          Su falla NO voltea la pantalla: la tabla es lo que hay que ver. */
-      await listDocumentos(projectId)
-        .then((r) => setAvance(r.documentos))
-        .catch(() => setAvance([]));
+      /* La tarjeta cuenta sobre los MISMOS documentos que la tabla: dos
+         consultas desfasadas dejan la cuenta hablando de otra cosa. */
+      setAvance(docs);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudieron cargar los documentos');
     } finally {
@@ -287,11 +304,15 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
    * —«esconderlo haría creer que la función no existe»—, que es lo que hace acá
    * copiar el código cuando el extractor no lo leyó.
    */
-  function menuDeFila(doc: CausacionSoporte): {
+  function menuDeFila(doc: DocumentoContable): {
     groups: GrupoDeMenu[];
-    onSelect: (id: string, f: CausacionSoporte) => void;
+    onSelect: (id: string, f: DocumentoContable) => void;
   } {
-    const codigo = String(doc.procesamiento?.cufe_cude ?? '');
+    const codigo = doc.trazabilidad.cufe_cude ?? '';
+    /* Descargar es por ARCHIVO, y un documento puede tener varios. Se ofrece el
+       primero: con más de uno, la acción correcta es abrir el visor y elegir —
+       descargar «el documento» cuando son tres páginas no significa nada. */
+    const primero = doc.archivos[0];
     return {
       groups: [
         {
@@ -299,7 +320,12 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
             /* El endpoint fuerza `Content-Disposition: attachment` (servir un
                PDF o un SVG inline es confiar en el contenido), así que no hay
                un «abrir» distinto de un «descargar»: es una sola acción. */
-            { id: 'bajar', label: 'Descargar el original', icon: 'bajar' },
+            {
+              id: 'bajar',
+              label: doc.archivos.length > 1 ? 'Descargar la primera página' : 'Descargar el original',
+              icon: 'bajar',
+              disabled: !primero,
+            },
             {
               id: 'cufe',
               label: 'Copiar el CUFE / CUDE',
@@ -312,8 +338,11 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
       ],
       onSelect: (id, f) => {
         if (id === 'bajar') {
-          void descargarSoporte(projectId, f.id, f.filename).catch((err: unknown) =>
-            setError(err instanceof Error ? err.message : 'No se pudo descargar el documento'),
+          const archivo = f.archivos[0];
+          if (!archivo) return;
+          void descargarSoporte(projectId, archivo.soporte_id, archivo.filename ?? 'documento').catch(
+            (err: unknown) =>
+              setError(err instanceof Error ? err.message : 'No se pudo descargar el documento'),
           );
           return;
         }
@@ -326,13 +355,13 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
           // la papelera con el documento del que es evidencia. Por eso el aviso
           // dice que puede llevarse más de una página — antes borraba una sola
           // y dejaba el documento incompleto sin que nadie lo notara.
-          const documentoId = f.documento_id;
-          if (!documentoId) {
-            setError('Ese archivo todavía no pertenece a ningún documento.');
-            return;
-          }
-          if (!window.confirm(`¿Eliminar el documento de ${f.filename} y todas sus páginas?`)) return;
-          void eliminarDocumento(projectId, documentoId)
+          const cuantas = f.archivos.length;
+          const aviso =
+            cuantas > 1
+              ? `¿Eliminar este documento y sus ${cuantas} páginas?`
+              : `¿Eliminar ${f.archivos[0]?.filename ?? 'este documento'}?`;
+          if (!window.confirm(aviso)) return;
+          void eliminarDocumento(projectId, f.id)
             .then(recargar)
             .catch((err: unknown) =>
               setError(err instanceof Error ? err.message : 'No se pudo eliminar el documento'),
@@ -442,12 +471,12 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
           El vacío y el selector de columnas ya NO se dibujan acá: los trae la
           tabla. Antes había una tabla propia con clases inventadas
           (`sw-tabla__th/__td/__fila/__corte`) que no existen en el template. */}
-      <Tabla<CausacionSoporte>
-        titulo="Documentos de soporte"
+      <Tabla<DocumentoContable>
+        titulo="Documentos"
         columnas={COLUMNAS_DE_TABLA}
         filas={documentos}
         clave={(d) => d.id}
-        nombreFila={(d) => d.filename}
+        nombreFila={(d) => d.archivos[0]?.filename ?? d.id}
         seleccion={false}
         menuFila={menuDeFila}
         /* Las catorce restantes no nacen escondidas: nacen AFUERA, y se suman
@@ -456,7 +485,7 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
         columnasExtra={() => COLUMNAS_MAS}
         porPagina={100}
         opcionesPagina={[100, 150]}
-        celda={(doc, col) => celdaDeSoporte(doc, col, setMirando)}
+        celda={(doc, col) => celdaDeDocumento(doc, col, (d) => setMirando(d.archivos[0] ?? null))}
         textos={{
           vacio: 'Todavía no hay documentos',
           vacioPaso:

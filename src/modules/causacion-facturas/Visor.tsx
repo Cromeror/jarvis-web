@@ -4,8 +4,8 @@ import {
   descargarSoporte,
   fetchSoporteBlob,
   sePuedeVer,
-  type CausacionSoporte,
 } from '../../lib/causacion-soportes-api.js';
+import type { ArchivoDeDocumento as ArchivoVisible } from '../../lib/causacion-documentos-api.js';
 
 /**
  * VER EL SOPORTE SIN BAJARLO.
@@ -31,7 +31,7 @@ export function Visor({
   onCerrar,
 }: {
   projectId: string;
-  soporte: CausacionSoporte | null;
+  soporte: ArchivoVisible | null;
   onCerrar: () => void;
 }): React.ReactElement | null {
   const ref = useRef<HTMLDialogElement>(null);
@@ -49,7 +49,7 @@ export function Visor({
   }, [soporte]);
 
   useEffect(() => {
-    if (!soporte || !sePuedeVer(soporte.kind)) {
+    if (!soporte || !sePuedeVer((soporte.kind ?? ''))) {
       setUrl(null);
       return undefined;
     }
@@ -57,7 +57,7 @@ export function Visor({
     let creada: string | null = null;
     setCargando(true);
     setError(null);
-    fetchSoporteBlob(projectId, soporte.id)
+    fetchSoporteBlob(projectId, soporte.soporte_id)
       .then((blob) => {
         if (!vivo) return;
         creada = URL.createObjectURL(blob);
@@ -85,19 +85,19 @@ export function Visor({
     <dialog ref={ref} className="dialog sw-soportes__visor" onClose={onCerrar}>
       <article>
         <header>
-          <h2>{soporte.filename}</h2>
+          <h2>{(soporte.filename ?? 'documento')}</h2>
           <p>
-            {soporte.kind} · {formatearTamano(soporte.size_bytes)}
+            {(soporte.kind ?? '')} · {formatearTamano(soporte.size_bytes ?? 0)}
           </p>
         </header>
 
         <section className="sw-soportes__visorCuerpo">
-          {!sePuedeVer(soporte.kind) ? (
+          {!sePuedeVer((soporte.kind ?? '')) ? (
             /* SE DICE QUÉ ES Y QUÉ SE PUEDE HACER, no «no se puede». Un PDF o
                una planilla son soportes válidos; lo que falta es el visor, no
                el archivo. */
             <p className="sw-soportes__visorNada">
-              Un {soporte.kind} no se puede ver acá todavía. Descargalo para abrirlo.
+              Un {(soporte.kind ?? '')} no se puede ver acá todavía. Descargalo para abrirlo.
             </p>
           ) : error ? (
             <p className="sw-soportes__visorNada">{error}</p>
@@ -106,7 +106,7 @@ export function Visor({
           ) : url ? (
             /* El `alt` es el nombre del archivo: es lo único cierto que sabemos
                de la imagen. Describir el contenido sería inventarlo. */
-            <img className="sw-soportes__visorImg" src={url} alt={soporte.filename} />
+            <img className="sw-soportes__visorImg" src={url} alt={(soporte.filename ?? 'documento')} />
           ) : null}
         </section>
 
@@ -115,7 +115,7 @@ export function Visor({
             type="button"
             className="btn"
             data-variant="outline"
-            onClick={() => void descargarSoporte(projectId, soporte.id, soporte.filename)}
+            onClick={() => void descargarSoporte(projectId, soporte.soporte_id, (soporte.filename ?? 'documento'))}
           >
             <Icon name="bajar" />
             Descargar
