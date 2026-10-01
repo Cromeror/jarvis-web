@@ -93,6 +93,48 @@ describe('superficiesDe — son dos rieles disjuntos, no uno con recortes', () =
     expect(s.filter((x) => x.alPie).map((x) => x.id)).toEqual(['/catalogo', '/users']);
   });
 
+  it('sin módulos de instalación, el riel no ofrece sus pantallas', () => {
+    // Es el caso de una entrega recortada: el módulo no está compilado, el
+    // servidor no lo lista, y la pantalla no existe para nadie.
+    const ids = superficiesDe({ suites: [], projectId: 'acme', esOperador: true }).map((s) => s.id);
+    expect(ids).not.toContain('/puertos');
+  });
+
+  it('un módulo de instalación agrega su pantalla al pie, con el nombre que declara el módulo', () => {
+    const s = superficiesDe({
+      suites: [],
+      projectId: 'acme',
+      esOperador: true,
+      modulosDeInstalacion: [{ key: 'port-grants-003', name: 'Puertos' }],
+    });
+    const puertos = s.find((x) => x.id === '/puertos');
+    expect(puertos?.label).toBe('Puertos');
+    expect(puertos?.alPie).toBe(true);
+  });
+
+  it('una key desconocida se ignora en vez de romper el riel', () => {
+    // Un servidor más nuevo que este bundle: perder una entrada es mejor que
+    // dibujar un link a una ruta que no existe.
+    const s = superficiesDe({
+      suites: [],
+      projectId: 'acme',
+      esOperador: true,
+      modulosDeInstalacion: [{ key: 'lo-que-sea-999', name: 'Futuro' }],
+    });
+    expect(s.map((x) => x.id)).not.toContain('/lo-que-sea-999');
+    expect(s.map((x) => x.id)).toContain('/catalogo');
+  });
+
+  it('un cliente no ve las pantallas de instalación aunque lleguen en la lista', () => {
+    const s = superficiesDe({
+      suites: [],
+      projectId: 'acme',
+      esOperador: false,
+      modulosDeInstalacion: [{ key: 'port-grants-003', name: 'Puertos' }],
+    });
+    expect(s.map((x) => x.id)).not.toContain('/puertos');
+  });
+
   it('el riel NO lleva Chat: el chat es el panel flotante de la derecha', () => {
     const ids = superficiesDe({ suites: [], projectId: 'acme', esOperador: true }).map((s) => s.id);
     expect(ids).not.toContain('/chat');

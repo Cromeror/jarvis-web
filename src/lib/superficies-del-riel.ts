@@ -97,6 +97,21 @@ const ADMINISTRACION: Superficie[] = [
 ];
 
 /**
+ * Dónde vive la pantalla de cada módulo de INSTALACIÓN.
+ *
+ * La ruta y el ícono son de la web; el nombre sale del módulo, que es quien lo
+ * declara. Por eso el mapa lleva sólo lo primero: duplicar el label acá daría
+ * dos nombres para la misma cosa y el día que no coincidan gana el equivocado.
+ *
+ * Una `key` que el servidor devuelva y no esté acá se ignora — es un módulo más
+ * nuevo que este bundle, y perderse una entrada del riel es mejor que romperlo
+ * entero por una ruta que no existe.
+ */
+const PANTALLAS_DE_INSTALACION: Record<string, { to: string; icono: string }> = {
+  'port-grants-003': { to: '/puertos', icono: 'enchufe' },
+};
+
+/**
  * El riel que le toca a este usuario en este proyecto.
  *
  * SON DOS RIELES DISJUNTOS, no uno con recortes:
@@ -124,8 +139,18 @@ export function superficiesDe(entrada: {
   suites: CatalogSuite[];
   projectId: string | null;
   esOperador: boolean;
+  /**
+   * Los módulos de instalación de esta entrega. Omitirlo = ninguno, y entonces
+   * no se dibuja ninguna pantalla de instalación.
+   *
+   * Es opcional porque no todos los llamadores dibujan el riel —`rutaDeAterrizaje`
+   * sólo quiere a dónde mandar a alguien— y un parámetro obligatorio los
+   * obligaría a cargar algo que no usan. Quien dibuja el riel (`Sidebar`) sí lo
+   * pasa.
+   */
+  modulosDeInstalacion?: { key: string; name: string }[];
 }): Superficie[] {
-  const { suites, projectId, esOperador } = entrada;
+  const { suites, projectId, esOperador, modulosDeInstalacion = [] } = entrada;
 
   const herramientas: Superficie[] = (esOperador ? HERRAMIENTAS : []).map((h) => ({
     id: h.id,
@@ -165,7 +190,27 @@ export function superficiesDe(entrada: {
         }))
       : [];
 
-  return [...herramientas, ...deSuites, ...(esOperador ? ADMINISTRACION : [])];
+  /* Lo que la entrega trae compilado, y nada más: si el módulo no está en el
+     artefacto el servidor no lo lista, así que la pantalla no se ofrece. Ése es
+     el límite de un on-premise recortado — no una fila de configuración que el
+     superadmin del cliente pueda editar. */
+  const deInstalacion: Superficie[] = esOperador
+    ? modulosDeInstalacion.flatMap((m) => {
+        const pantalla = PANTALLAS_DE_INSTALACION[m.key];
+        if (!pantalla) return [];
+        return [{
+          id: pantalla.to,
+          to: pantalla.to,
+          match: pantalla.to,
+          icono: pantalla.icono,
+          label: m.name,
+          directa: true,
+          alPie: true,
+        }];
+      })
+    : [];
+
+  return [...herramientas, ...deSuites, ...(esOperador ? ADMINISTRACION : []), ...deInstalacion];
 }
 
 /**

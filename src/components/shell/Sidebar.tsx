@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Icon } from '../Icon.js';
 import { useActiveProject } from '../../hooks/useActiveProject.js';
 import { useAuth } from '../../hooks/useAuth.js';
+import { useInstallationModules } from '../../hooks/useInstallationModules.js';
 import {
   superficiesDe,
   superficieDeLaRuta,
@@ -62,10 +63,12 @@ export function Sidebar({ children }: { children?: React.ReactNode }): React.Rea
   const [collapsed, setCollapsed] = useState(true);
   const [query, setQuery] = useState('');
 
+  const modulosDeInstalacion = useInstallationModules();
   const superficies = superficiesDe({
     suites,
     projectId,
     esOperador: user?.account_type === 'operator',
+    modulosDeInstalacion,
   });
   /* El riel de un cliente sin suites habilitadas queda VACÍO, y entonces no
      hay superficie que describir: el panel se dibuja igual pero sin rótulo de

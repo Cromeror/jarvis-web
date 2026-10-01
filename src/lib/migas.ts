@@ -29,6 +29,7 @@ const SECCIONES: Record<string, string> = {
   environments: 'Environments',
   workspaces: 'Workspaces',
   catalogo: 'Catálogo',
+  puertos: 'Puertos',
   users: 'Usuarios',
 };
 
