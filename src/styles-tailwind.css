@@ -59,6 +59,7 @@
 
 /* Módulos de negocio — cada uno trae su hoja, con la anatomía del template. */
 @import "./theme/tabla/tabla.css";
+@import "./theme/combo/combo.css";
 @import "./theme/modulos/soportes.css";
 
 @import "./theme/basecoat-ext.css";

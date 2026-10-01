@@ -236,3 +236,97 @@
   font-size: var(--sw-t-body-sm);
   text-align: center;
 }
+
+
+/* ============================================================================
+   LA FILA DE FILTROS
+   ----------------------------------------------------------------------------
+   Port de `.sw-ctb__filtros` (`accounting.css:625-697` del template). Vive en
+   la banda de la tabla (`.sw-tabla__banda`), que es donde el template la monta.
+
+   UNA FILA DE COMBOS A LA VISTA, no un popover: son criterios que se combinan
+   todo el tiempo y esconderlos agrega un clic a cada vuelta — pero sobre todo,
+   vistos así se lee de un golpe POR QUÉ la tabla muestra lo que muestra. Un
+   filtro escondido que quedó puesto es la causa número uno de «me faltan
+   documentos».
+   ============================================================================ */
+
+.sw-soportes__filtros {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-s-3);
+  flex-wrap: wrap;
+}
+
+/* El techo sale de lo que mide su propio marcador de posición: el placeholder
+   es lo que le dice al usuario POR QUÉ COSAS se puede buscar, y con 300px queda
+   cortado justo en esa explicación. */
+.sw-soportes__busca { flex: 1 1 240px; max-width: 348px; min-width: 170px; }
+.sw-soportes__blupa svg { --sw-ico: var(--sw-ico-md); color: var(--sw-muted); }
+
+/* El buscador lleva el mismo escalón y la misma altura que el disparador de un
+   combo: dos piezas que hacen lo mismo en la misma fila no pueden medir
+   distinto. El porqué del escalón está en `theme/combo/combo.css`. */
+.sw-soportes__busca { background: var(--sw-raised); }
+.sw-soportes__busca,
+.sw-soportes__busca input { height: var(--sw-comp-h-med); }
+@media (pointer: coarse) {
+  .sw-soportes__busca,
+  .sw-soportes__busca input { height: var(--sw-comp-h-tactil); }
+}
+
+/* «QUITAR FILTROS» sólo se dibuja si hay filtros (lo decide el componente). Un
+   botón que no hace nada es peor que no tenerlo: enseña que los botones de esta
+   pantalla a veces no responden. */
+.sw-soportes__limpiar {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sw-s-1);
+  height: 30px;
+  padding: 0 var(--sw-s-2);
+  border: 0;
+  border-radius: var(--sw-r-md);
+  background: none;
+  font: inherit;
+  font-size: var(--sw-t-body-sm);
+  color: var(--sw-muted);
+  cursor: pointer;
+}
+.sw-soportes__limpiar:hover { background: var(--sw-hover); color: var(--sw-text); }
+.sw-soportes__limpiar svg { --sw-ico: var(--sw-ico-sm); }
+
+/* ---- EL NAVEGADOR DE PERÍODO --------------------------------------------
+   Port de `.sw-ctb__periodo` (`accounting.css:556-585`). VIVE EN LA TARJETA y
+   no en la barra: la tarjeta es la que narra el período, así que el control que
+   lo cambia tiene que estar donde se lee el resultado, no dos cajas más arriba.
+   ------------------------------------------------------------------------- */
+.sw-soportes__periodo {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-s-1);
+}
+.sw-soportes__pm {
+  min-width: 104px;
+  text-align: center;
+  font-size: var(--sw-t-body-sm);
+  font-weight: var(--sw-w-medium);
+  color: var(--sw-text);
+  font-variant-numeric: tabular-nums;
+}
+.sw-soportes__pb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--sw-r-sm);
+  background: none;
+  color: var(--sw-text-2);
+  cursor: pointer;
+}
+.sw-soportes__pb:hover { background: var(--sw-hover); color: var(--sw-text); }
+.sw-soportes__pb[disabled] { color: var(--sw-faint); cursor: not-allowed; }
+.sw-soportes__pb[disabled]:hover { background: none; }
+.sw-soportes__pb svg { --sw-ico: var(--sw-ico-sm); }

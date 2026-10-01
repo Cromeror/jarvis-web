@@ -1,4 +1,5 @@
 import React from 'react';
+import { Icon } from '../../components/Icon.js';
 import type { DocumentoDeAvance } from '../../lib/causacion-documentos-api.js';
 
 /**
@@ -86,7 +87,59 @@ export function contar(documentos: DocumentoDeAvance[]): Record<GrupoId, number>
   return c;
 }
 
-export function Avance({ documentos }: { documentos: DocumentoDeAvance[] }): React.ReactElement {
+/**
+ * EL NAVEGADOR DE PERÍODO — port de `periodo()` del template
+ * (`accounting.js:1033-1045`, CSS `accounting.css:556-585`).
+ *
+ * VIVE EN LA TARJETA Y NO EN LA BARRA, y el template dice por qué: la tarjeta
+ * es la que narra el período, así que el control que lo cambia tiene que estar
+ * donde se lee el resultado y no dos cajas más arriba.
+ *
+ * El botón de «siguiente» se apaga en el período más nuevo que tenga
+ * documentos: hacia adelante no hay nada que mirar, y un botón que no hace nada
+ * enseña que los botones de esta pantalla a veces no responden.
+ */
+export function Periodo({
+  etiqueta,
+  alMover,
+  haySiguiente,
+}: {
+  etiqueta: string;
+  alMover: (delta: number) => void;
+  haySiguiente: boolean;
+}): React.ReactElement {
+  return (
+    <div className="sw-soportes__periodo" role="group" aria-label="Período">
+      <button
+        type="button"
+        className="sw-soportes__pb"
+        aria-label="Mes anterior"
+        onClick={() => alMover(-1)}
+      >
+        <Icon name="left" />
+      </button>
+      <span className="sw-soportes__pm">{etiqueta}</span>
+      <button
+        type="button"
+        className="sw-soportes__pb"
+        aria-label="Mes siguiente"
+        disabled={!haySiguiente}
+        onClick={() => alMover(1)}
+      >
+        <Icon name="right" />
+      </button>
+    </div>
+  );
+}
+
+export function Avance({
+  documentos,
+  periodo,
+}: {
+  documentos: DocumentoDeAvance[];
+  /** El navegador de período. La tarjeta lo ALOJA; quién manda el mes es la vista. */
+  periodo?: React.ReactNode;
+}): React.ReactElement {
   const total = documentos.length;
   const c = contar(documentos);
   const tramos = GRUPOS.map((g) => ({ ...g, n: c[g.id] })).filter((t) => t.n > 0);
@@ -107,6 +160,10 @@ export function Avance({ documentos }: { documentos: DocumentoDeAvance[] }): Rea
       <div className="sw-soportes__avTexto">
         <p className="sw-soportes__avFrase">{frase}</p>
       </div>
+
+      {/* El navegador va en la segunda columna de la grilla, que es donde el
+          template lo pone (`'<div class=avTexto>…</div>' + periodo()`). */}
+      {periodo}
 
       {total > 0 ? (
         <>

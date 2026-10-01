@@ -81,6 +81,18 @@ export interface EspecDeTabla<F> {
   textos?: Partial<TextosDeTabla>;
   /** Franja de acciones masivas, debajo del pie y adentro de la card. */
   acciones?: React.ReactNode;
+  /**
+   * LA BANDA DE CONTROLES, arriba de todo y ADENTRO de la card.
+   *
+   * La llena quien monta la tabla —en el template son los filtros de
+   * Contabilidad— y es opcional: sin ella la banda no se dibuja, no queda una
+   * franja vacía. Va acá y no suelta sobre el lienzo por lo que el template
+   * tiene medido: los filtros gobiernan ESTA tabla, así que tienen que estar
+   * pegados a ella, y sueltos sobre la grilla punteada no tenían fondo contra
+   * el cual leerse (su filete daba 1,073:1 contra el lienzo en claro, o sea
+   * nada) ni decían de quién eran.
+   */
+  encabezado?: React.ReactNode;
 }
 
 const COL_MARCA: ColumnaDeTabla = { id: ID_MARCA, w: 44, orden: false };
@@ -108,6 +120,7 @@ export function Tabla<F>({
   onColumnas,
   textos,
   acciones,
+  encabezado,
 }: EspecDeTabla<F>): React.ReactElement {
   const T = useMemo(() => ({ ...TEXTOS_TABLA, ...textos }), [textos]);
   const nombreDe = nombreFila ?? ((f: F) => String(clave(f)));
@@ -348,6 +361,10 @@ export function Tabla<F>({
        de 1px, y ya está escrita una vez. Sin ella la tabla no tiene card — se le
        ve la grilla punteada del lienzo a través de las filas. */
     <div className="sw-raised sw-tabla">
+      {/* La banda sólo existe si hay con qué llenarla — `if (o.encabezado)` en
+          `table.js`. Dibujarla vacía deja una franja con su filete separando
+          la cabecera de nada. */}
+      {encabezado ? <div className="sw-tabla__banda">{encabezado}</div> : null}
       <div className="table-container sw-tabla__cont" ref={contRef}>
         <table
           className="table sw-tabla__t"

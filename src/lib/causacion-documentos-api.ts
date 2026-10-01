@@ -147,11 +147,62 @@ export async function listDocumentos(
 
 export interface ConsultaDeDocumentos {
   periodo?: string;
+  /**
+   * Suma al recorte del período los documentos que TODAVÍA no tienen uno.
+   *
+   * La pantalla lo manda siempre que filtra por período, y es la única
+   * diferencia con el template: allá el período sale de la fecha de la factura
+   * y toda factura tiene una, acá `period` lo escribe la IA al analizar. Sin
+   * esto, subir veinte documentos y mirar el mes corriente da una tabla vacía —
+   * justo el trabajo que acaba de entrar.
+   */
+  incluir_sin_periodo?: boolean;
   estado?: EstadoDocumento;
   clasificacion?: Clasificacion;
+  /** El NIT es la clave del tercero; el nombre es sólo la etiqueta del combo. */
+  tercero_nit_cc?: string;
+  tipo_documento?: string;
   texto?: string;
   limit?: number;
   offset?: number;
+}
+
+/** Un período con documentos, para el navegador de la tarjeta de avance. */
+export interface PeriodoConDocumentos {
+  periodo: string;
+  estado: string;
+  documentos: number;
+}
+
+/**
+ * CON QUÉ SE POBLAN LOS COMBOS de tercero y de tipo.
+ *
+ * El template deriva su lista de proveedores recorriendo las facturas que tiene
+ * en memoria, que allá son todas. Acá la tabla pagina, así que hacer lo mismo
+ * daría las opciones de UNA página: el combo ofrecería menos valores de los que
+ * hay, y por el resto no se podría filtrar nunca. Las cuenta el servidor sobre
+ * el mismo recorte que la tabla.
+ */
+export interface FacetasDeDocumentos {
+  terceros: { nit: string | null; nombre: string | null; documentos: number }[];
+  tipos: { tipo: string; documentos: number }[];
+}
+
+export async function listarPeriodos(projectId: string): Promise<PeriodoConDocumentos[]> {
+  const res = await fetch(`${base(projectId)}/periodos`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return ((await res.json()) as { periodos: PeriodoConDocumentos[] }).periodos;
+}
+
+export async function facetasDeDocumentos(
+  projectId: string,
+  q: { periodo?: string; incluir_sin_periodo?: boolean } = {},
+): Promise<FacetasDeDocumentos> {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(q)) if (v !== undefined && v !== '') params.set(k, String(v));
+  const res = await fetch(`${base(projectId)}/documentos/facetas?${params.toString()}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()) as FacetasDeDocumentos;
 }
 
 /** Los documentos para la tabla, con su asiento y su trazabilidad. */

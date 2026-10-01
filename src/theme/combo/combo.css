@@ -1,0 +1,62 @@
+/* ============================================================================
+   EL COMBO DE UN FILTRO — `.sw-ctb__campo`
+   ----------------------------------------------------------------------------
+   Port de `accounting.css:36-91` del template. Encima de `.select` de Basecoat,
+   que da el disparador, el popover y los ítems; acá va lo que la librería no
+   sabe: que es un filtro con su rótulo al lado, y cuánto mide.
+
+   CONSERVA EL NOMBRE `ctb` DEL TEMPLATE y no se renombra a `soportes` como el
+   resto del módulo, porque allá tampoco es de Contabilidad: el template usa
+   `.sw-ctb__campo` también en `.sw-ctb__que` y en `.sw-asis__campos`. Es un
+   componente compartido con el nombre del lugar donde nació — la misma
+   situación que `.sw-tabla`, que vive en su propia hoja por lo mismo.
+   ============================================================================ */
+
+.sw-ctb__campo {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-s-2);
+  min-width: 0;
+}
+
+/* EL RÓTULO DE UN FILTRO va al lado de su control y en tinta de texto, no en
+   `muted`: son las etiquetas que dicen qué filtra cada combo, y tan apagadas la
+   fila se lee como cuatro controles sin nombre. */
+.sw-ctb__lab {
+  font-size: var(--sw-t-caption);
+  color: var(--sw-text-2);
+  white-space: nowrap;
+}
+
+/* 128 Y NO 150: los combos más el buscador tienen que entrar en UNA fila. Con
+   150 la fila cae a dos renglones y el último queda solo abajo, leyéndose como
+   si fuera de otra cosa. */
+.sw-ctb__sel { min-width: 128px; }
+
+/* Y SU BOTÓN LO LLENA. El `min-width` estira el contenedor del combo, pero su
+   disparador mide lo que mide su texto: sin esto queda una franja muerta a la
+   derecha del control. */
+.sw-ctb__sel > button { width: 100%; }
+
+/* UN CONTROL LLEVA SU PROPIO VALOR. Basecoat deja el disparador con fondo
+   transparente, así que queda del mismo valor que lo que tenga detrás y lo
+   único que lo separa es su filete —medido en el template: 1,026:1 en oscuro
+   sobre la card—. Se le da el escalón de arriba, y el filete pasa a ser lo que
+   TERMINA el control en vez de lo único que lo dibuja (regla 3).
+
+   Acotado a este combo y no al `.select` de la librería: los mismos combos
+   viven en otras cajas, sobre otros escalones, y ahí el suyo es otro. */
+.sw-ctb__sel button { background: var(--sw-raised); }
+
+/* LA ALTURA MEDIA, NO LA TÁCTIL. Basecoat trae el disparador en 36px —la
+   táctil— y en una fila de cuatro filtros eso se lee como un formulario y no
+   como un panel de instrumento. Es literalmente el caso para el que
+   `--sw-comp-h-med` entró al sistema.
+
+   La regla 9 pide 44px de área sensible, y acá los controles NO son contiguos
+   —van separados— así que lo que corresponde es agrandar el control con el
+   puntero grueso, no meterle un área que se pise con la del vecino. */
+.sw-ctb__sel button { height: var(--sw-comp-h-med); }
+@media (pointer: coarse) {
+  .sw-ctb__sel button { height: var(--sw-comp-h-tactil); }
+}

@@ -292,6 +292,24 @@
 .select:not(select):has(> [data-popover][aria-hidden="false"]) > button {
   border-color: var(--sw-accent-line);
 }
+/* LA MISMA MARCA, PERO CUANDO EL COMBO LO MANEJA RADIX.
+
+   El selector de arriba lee `aria-hidden` sobre el popover, que es como el JS
+   de Basecoat dice abierto/cerrado. Acá ese JS no corre —de la librería entra
+   sólo el CSS, y el comportamiento lo pone Radix (ver
+   `theme/__tests__/basecoat-solo-css.spec.ts`)—: Radix ni siquiera deja el
+   popover en el DOM mientras está cerrado, así que el `:has` nunca encuentra
+   nada y el combo abierto se veía exactamente igual que uno cerrado. Con cuatro
+   en una fila, eso es no saber cuál está desplegado — que es el defecto que la
+   sección 5-bis vino a arreglar, reaparecido por el otro lado.
+
+   Radix lo dice en el disparador y no en el popover: `data-state="open"`. Son
+   dos reglas y no una porque son dos mecanismos distintos para el mismo estado;
+   juntas en un selector, el día que una fuente cambie se cae la otra sin que se
+   note. */
+.select:not(select) > button[data-state="open"] {
+  border-color: var(--sw-accent-line);
+}
 
 
 /* ---------------------------------------------------------------
