@@ -6,7 +6,6 @@ import {
   eliminarDocumento,
   descargarSoporte,
   fetchLimits,
-  leerBase64,
   uploadDocument,
 } from '../../lib/causacion-soportes-api.js';
 import { COLUMNAS, COLUMNAS_POR_DEFECTO } from './columnas.js';
@@ -375,8 +374,11 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
 
     for (const [i, file] of files.entries()) {
       try {
-        const content_base64 = await leerBase64(file);
-        await uploadDocument(projectId, { filename: file.name, content_base64 });
+        /* El `File` viaja entero: lo sube `FormData` en multipart y el browser
+           hace el streaming. Antes había un paso previo —leerlo a base64 con un
+           `FileReader`— que tenía el archivo dos veces en memoria sólo para
+           poder meterlo en un JSON. */
+        await uploadDocument(projectId, { file });
       } catch (err) {
         const motivo = err instanceof SoporteApiError || err instanceof Error ? err.message : 'no se pudo subir';
         fallidos.push({ filename: file.name, motivo });

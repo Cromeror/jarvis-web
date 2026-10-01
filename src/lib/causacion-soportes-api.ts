@@ -109,28 +109,10 @@ export async function fetchLimits(projectId: string): Promise<{ extensiones: str
   return handle(await fetch(`${base(projectId)}/limits`));
 }
 
-/**
- * Los bytes del archivo en base64, SIN el prefijo `data:…;base64,` que agrega
- * `readAsDataURL`. El servidor espera base64 puro, y mandar el prefijo hace que
- * la validación de firma falle con un mensaje que no se parece a la causa.
- */
-export function leerBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error(`No se pudo leer «${file.name}»`));
-    reader.onload = () => {
-      const resultado = String(reader.result ?? '');
-      const coma = resultado.indexOf(',');
-      resolve(coma === -1 ? resultado : resultado.slice(coma + 1));
-    };
-    reader.readAsDataURL(file);
-  });
-}
-
 export interface UploadInput {
-  filename: string;
-  content_base64: string;
-  carpeta?: string;
+  file: File;
+  /** Sólo para el multi-hoja: la página se cuelga de ese documento. */
+  documento_id?: string;
 }
 
 /**
@@ -143,12 +125,32 @@ export interface UploadInput {
  *
  * Es exactamente lo mismo que hace la tool del chat; lo único que cambia es que
  * acá los bytes suben por la red.
+ *
+ * ## VA EN MULTIPART, y el `File` viaja entero
+ *
+ * Hasta el 1-oct-2026 esto leía el archivo a base64 con un `FileReader` y lo
+ * mandaba adentro de un JSON. Se cambió por lo que cuesta: base64 infla un 33%,
+ * obliga a tener el archivo entero en memoria —del lado del browser como string
+ * y del lado del servidor dos veces— y pasa por el parser de JSON, que no sabe
+ * de topes por archivo. Con `FormData` el browser hace el streaming solo.
+ *
+ * **Sin `Content-Type` a mano**: el header de multipart lleva un `boundary` que
+ * genera el browser, y declararlo uno mismo manda un boundary que no existe —el
+ * servidor no encuentra ninguna parte y rechaza un form que está bien armado.
+ * Por eso esto no usa el helper `send()`, que siempre pone `application/json`.
+ *
+ * El campo se llama `file` porque es el que nombra el `FileInterceptor` del
+ * controller; el nombre del archivo viaja solo, dentro del `FormData`.
  */
 export async function uploadDocument(
   projectId: string,
   input: UploadInput,
 ): Promise<{ archivo: CausacionSoporte; documento: { id: string } }> {
-  return send('POST', base(projectId), input);
+  const form = new FormData();
+  form.append('file', input.file, input.file.name);
+  if (input.documento_id) form.append('documento_id', input.documento_id);
+
+  return handle(await fetch(base(projectId), { method: 'POST', body: form }));
 }
 
 /**
