@@ -95,6 +95,15 @@ export interface Trazabilidad {
  * se clasifica, se causa y se cierra es el documento; el archivo es su
  * evidencia, y puede ser más de uno.
  */
+/** Un vínculo entre dos documentos. No es jerarquía: siguen siendo independientes. */
+export interface RelacionDeDocumento {
+  id: string;
+  documento_id: string;
+  documento_relacionado_id: string;
+  tipo_relacion: 'remision_factura' | 'pago_factura' | 'otro';
+  evidencia: string | null;
+}
+
 export interface DocumentoContable {
   id: string;
   periodo: string | null;
@@ -105,6 +114,14 @@ export interface DocumentoContable {
   clasificacion: { clasificacion: Clasificacion | null; operacion_destino: string | null };
   extraccion: Extraccion | null;
   trazabilidad: Trazabilidad;
+  /**
+   * Con qué otros documentos está relacionado.
+   *
+   * Viene en la lista para que la vista pueda AGRUPAR —una factura con sus
+   * soportes— sin pedir las relaciones de cada fila. La causación es un proceso
+   * de agrupación: todo nace suelto y los vínculos van apareciendo.
+   */
+  relaciones: RelacionDeDocumento[];
   created_at: string;
 }
 
