@@ -1,6 +1,7 @@
 import React from 'react';
 import { Icon } from '../../components/Icon.js';
 import { Combo, type OpcionDeCombo } from '../../components/ui/Combo.js';
+import { TIPOS_DE_DOCUMENTO } from '../../lib/causacion-documentos-api.js';
 import type { Clasificacion, EstadoDocumento, FacetasDeDocumentos } from '../../lib/causacion-documentos-api.js';
 
 /**
@@ -25,10 +26,10 @@ import type { Clasificacion, EstadoDocumento, FacetasDeDocumentos } from '../../
  *   pregunta de quien causa.
  * - **«Proveedor» se llama «Tercero»**: el campo es `tercero_nombre` y puede ser
  *   un cliente. Llamarlo proveedor sería decir algo que el dato no dice.
- * - **El tipo de documento no sale de un catálogo cerrado.** Allá es
- *   `PAIS().documentos`; acá lo escribe el extractor como texto libre, así que
- *   las opciones son los valores que REALMENTE hay (las cuenta el servidor).
- *   Mientras eso siga así, dos variantes de la misma palabra son dos opciones.
+ * - **El tipo de documento sale de un catálogo cerrado**, igual que allá
+ *   (`PAIS().documentos`): son los cinco de `TIPOS_DE_DOCUMENTO`, que la base
+ *   garantiza con un `CHECK`. Los combos de catálogo se declaran; sólo el de
+ *   terceros se consulta, porque un tercero es un universo abierto.
  *
  * El resto es el template al pie: el orden de los controles, el buscador que se
  * estira, los rótulos al lado de cada combo y «Quitar filtros» que SÓLO EXISTE
@@ -98,9 +99,13 @@ export function Filtros({
       .filter((t) => t.nit)
       .map((t) => ({ id: t.nit as string, label: t.nombre ?? (t.nit as string) })),
   );
+  /* El catálogo entero, no sólo los tipos presentes: un combo que se recorta a
+     lo que hay cambia de opciones al cambiar de mes, y entonces el filtro que
+     se usó en mayo desaparece en junio. El template ofrece los documentos de su
+     país estén o no en pantalla, y por eso la lista es estable. */
   const tipos = todos(
     'Todos los tipos',
-    facetas.tipos.map((t) => ({ id: t.tipo, label: t.tipo })),
+    TIPOS_DE_DOCUMENTO.map((t) => ({ id: t, label: t })),
   );
 
   return (

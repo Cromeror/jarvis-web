@@ -252,7 +252,7 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
   /** Desplazamiento en meses desde el más nuevo con documentos. 0 = ése. */
   const [mes, setMes] = useState(0);
   const [filtros, setFiltros] = useState<EstadoDeFiltros>(FILTROS_VACIOS);
-  const [facetas, setFacetas] = useState<FacetasDeDocumentos>({ terceros: [], tipos: [] });
+  const [facetas, setFacetas] = useState<FacetasDeDocumentos>({ terceros: [] });
 
   const base = periodos?.[0] ?? null;
   const periodo = base ? moverPeriodo(base, mes) : null;
@@ -347,16 +347,18 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
     return () => clearTimeout(t);
   }, [periodos, recargar]);
 
-  /* Los combos se pueblan con lo que hay EN EL PERÍODO que se está mirando, no
-     con todo el histórico: una opción sin documentos en el mes abierto lleva a
-     una tabla vacía, y eso se lee como que el filtro se rompió. Por eso depende
-     del período y NO de los filtros — un combo que se recorta a sí mismo deja
-     sin forma de volver atrás. */
+  /* El combo de TERCEROS se puebla con lo que hay en el período que se está
+     mirando, no con todo el histórico: una opción sin documentos en el mes
+     abierto lleva a una tabla vacía, y eso se lee como que el filtro se rompió.
+     Depende del período y NO de los filtros — un combo que se recorta a sí mismo
+     deja sin forma de volver atrás.
+
+     Los otros cuatro no se consultan: son catálogos cerrados y se declaran. */
   useEffect(() => {
     if (periodos === null) return;
     void facetasDeDocumentos(projectId, recorte)
       .then(setFacetas)
-      .catch(() => setFacetas({ terceros: [], tipos: [] }));
+      .catch(() => setFacetas({ terceros: [] }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, periodos, periodo]);
 

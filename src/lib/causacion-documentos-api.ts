@@ -33,6 +33,32 @@ export type EstadoDocumento = 'PENDIENTE_PROCESAR' | 'PENDIENTE_AUDITAR' | 'COMP
 export type Clasificacion = 'PRINCIPAL' | 'COMPLEMENTARIO';
 
 /**
+ * EL VOCABULARIO CERRADO de `tipo_documento`, espejo de
+ * `CAUSACION_TIPOS_DOCUMENTO` en `@jarvis/storage`.
+ *
+ * Está duplicado porque son dos repos, igual que `EstadoDocumento` y
+ * `Clasificacion` acá arriba. Lo que lo hace sostenible es que del otro lado NO
+ * es una convención: la columna tiene un `CHECK` (migración
+ * `TipoDocumentoCerrado`) y el repositorio valida antes de escribir, así que un
+ * valor que no esté en esta lista **no puede existir en la base**. Si algún día
+ * se agrega uno, el síntoma acá es una fila cuyo tipo no matchea ninguna opción
+ * del combo — no datos corruptos.
+ *
+ * Por eso el combo se arma con esto y no preguntándole a los datos qué valores
+ * hay: es lo que hace el template con los documentos de su país, y es lo que
+ * evita que dos formas de la misma palabra sean dos opciones.
+ */
+export const TIPOS_DE_DOCUMENTO = [
+  'Factura electronica',
+  'Documento equivalente',
+  'Comprobante de transferencia',
+  'Remision',
+  'Otro',
+] as const;
+
+export type TipoDeDocumento = (typeof TIPOS_DE_DOCUMENTO)[number];
+
+/**
  * Lo que la tarjeta lee de cada documento, y nada más.
  *
  * El `CausacionDocumento` del servidor trae también los archivos, las quince
@@ -175,17 +201,21 @@ export interface PeriodoConDocumentos {
 }
 
 /**
- * CON QUÉ SE POBLAN LOS COMBOS de tercero y de tipo.
+ * CON QUÉ SE POBLA EL COMBO DE TERCEROS.
  *
  * El template deriva su lista de proveedores recorriendo las facturas que tiene
  * en memoria, que allá son todas. Acá la tabla pagina, así que hacer lo mismo
  * daría las opciones de UNA página: el combo ofrecería menos valores de los que
- * hay, y por el resto no se podría filtrar nunca. Las cuenta el servidor sobre
+ * hay, y por el resto no se podría filtrar nunca. Los cuenta el servidor sobre
  * el mismo recorte que la tabla.
+ *
+ * SÓLO TERCEROS. El tipo de documento no se consulta: su vocabulario es cerrado
+ * (`TIPOS_DE_DOCUMENTO`, con `CHECK` en la base), así que la lista se sabe sin
+ * preguntar. Un tercero, en cambio, es un universo abierto — aparece uno nuevo
+ * con cada proveedor.
  */
 export interface FacetasDeDocumentos {
   terceros: { nit: string | null; nombre: string | null; documentos: number }[];
-  tipos: { tipo: string; documentos: number }[];
 }
 
 export async function listarPeriodos(projectId: string): Promise<PeriodoConDocumentos[]> {
