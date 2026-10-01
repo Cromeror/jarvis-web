@@ -220,11 +220,7 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
   const [subiendo, setSubiendo] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rechazos, setRechazos] = useState<Rechazo[]>([]);
-  /* CANCELAR LA SUBIDA. Elegir veinte archivos y darse cuenta de que eran los
-     del mes equivocado no puede obligar a esperar a que entren los veinte. */
-  const cancelarSubida = useRef(false);
   const [progreso, setProgreso] = useState<{ hecho: number; total: number } | null>(null);
-  const [cancelados, setCancelados] = useState(0);
   const [extensiones, setExtensiones] = useState<string[]>([]);
   /* Los DOCUMENTOS son otra población que los soportes: un documento agrupa
      los archivos que lo componen (§2.2). Los cuenta la tarjeta de avance; la
@@ -372,23 +368,12 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
    */
   async function subir(files: File[]): Promise<void> {
     if (files.length === 0) return;
-    cancelarSubida.current = false;
     setSubiendo(true);
     setProgreso({ hecho: 0, total: files.length });
-    setCancelados(0);
     setError(null);
     const fallidos: Rechazo[] = [];
-    let sinHacer = 0;
 
     for (const [i, file] of files.entries()) {
-      /* SE CORTA ENTRE ARCHIVOS, NO EN MEDIO DE UNO. Abortar un POST a mitad de
-         camino deja al servidor decidiendo qué hacer con medio archivo; entre
-         uno y otro, en cambio, el estado es exacto: los de antes entraron, los
-         de después no se intentaron, y eso es lo que se reporta. */
-      if (cancelarSubida.current) {
-        sinHacer = files.length - i;
-        break;
-      }
       try {
         const content_base64 = await leerBase64(file);
         await uploadDocument(projectId, { filename: file.name, content_base64 });
@@ -400,7 +385,6 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
     }
 
     setRechazos(fallidos);
-    setCancelados(sinHacer);
     setProgreso(null);
     setSubiendo(false);
     // Se recarga aunque haya fallidos: los que sí entraron tienen que verse.
@@ -549,34 +533,10 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
                 ? 'Subiendo…'
                 : 'Subir documentos'}
           </button>
-          {/* EL CANCELAR APARECE SÓLO MIENTRAS HAY ALGO QUE CANCELAR. Un botón
-              permanente y apagado el 99% del tiempo ocupa el lugar de la acción
-              que sí se usa. Frena la tanda entre un archivo y el siguiente: los
-              que ya entraron se quedan, y eso se dice. */}
-          {subiendo ? (
-            <button
-              type="button"
-              className="btn"
-              data-variant="outline"
-              onClick={() => {
-                cancelarSubida.current = true;
-              }}
-            >
-              <Icon name="x" />
-              Cancelar
-            </button>
-          ) : null}
         </div>
       </div>
 
       {error ? <p className="sw-soportes__aviso sw-soportes__aviso--error">{error}</p> : null}
-
-      {cancelados > 0 ? (
-        <p className="sw-soportes__aviso sw-soportes__aviso--parcial">
-          Subida cancelada: {cancelados} archivo{cancelados === 1 ? '' : 's'} sin subir. Los que ya
-          habían entrado se quedaron.
-        </p>
-      ) : null}
 
       {rechazos.length > 0 ? (
         <div className="sw-soportes__aviso sw-soportes__aviso--parcial">
