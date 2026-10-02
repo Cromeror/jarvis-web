@@ -1,11 +1,16 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Icon } from '../Icon.js';
 
 /**
  * LA COLUMNA DERECHA — la caja de herramientas.
  *
- * Hospeda DOS inquilinos que no conviven: la conversación y las herramientas
- * (decisión 43 del template). El conmutador elige cuál ocupa la columna.
+ * El template le da DOS inquilinos que se turnan (decisión 43): la
+ * conversación y las herramientas. Acá queda uno solo: **el chat está siempre
+ * desanclado**, en su tarjeta sobre el área de trabajo, así que la columna es
+ * la caja de herramientas y nada más. Es lo mismo que hace el template cuando
+ * el chat está afuera —`side-column.js` esconde su pestaña en vez de
+ * deshabilitarla, porque deshabilitada diría «esto existe y no podés» cuando la
+ * verdad es que no está en la columna—, sólo que acá ese estado es permanente.
  *
  * El `role="tablist"` va en un contenedor INTERNO y no en la fila: un tablist
  * sólo puede contener tabs, y un botón suelto adentro rompe la navegación por
@@ -16,77 +21,60 @@ import { Icon } from '../Icon.js';
  * accesible — y `title` traería el globo nativo encima del nuestro.
  */
 
-type Inquilino = 'chat' | 'tools';
-
-const PESTANAS: { id: Inquilino; icono: string; label: string }[] = [
-  { id: 'chat', icono: 'mensajes', label: 'Conversación' },
-  { id: 'tools', icono: 'wrench', label: 'Herramientas' },
-];
-
 export function SideColumn({
-  chatHostRef,
-  chatAnclado,
   herramientas,
   riel,
   onAbrir,
 }: {
-  /** Dónde se cuelga el chat cuando está anclado. Lo llena un portal desde el
-      shell: el nodo se muda de padre entre acá y `.sw-flota`, y con un portal
-      React no lo remonta — la conversación no se pierde al desanclar. */
-  chatHostRef: React.Ref<HTMLDivElement>;
-  chatAnclado: boolean;
   herramientas?: React.ReactNode;
   /** Colapsada a riel. Son DOS estados, no tres: abierta y riel. */
   riel: boolean;
   onAbrir: () => void;
 }): React.ReactElement {
-  const [activo, setActivo] = useState<Inquilino>('chat');
-
-  /* Elegir un inquilino con la columna colapsada LA ABRE: el clic dice qué
-     querés ver, y dejarla en riel sería contestar que no. */
-  const elegir = (id: Inquilino): void => {
-    if (riel) onAbrir();
-    else setActivo(id);
-  };
-
   return (
     <div className={`sw-side-col${riel ? ' is-riel' : ''}`}>
       <div className="sw-side-col__switch">
         <div className="sw-side-col__tabs" role="tablist" aria-label="Qué ocupa la columna">
-          {PESTANAS.map((t) => (
-            <button
-              key={t.id}
-              className="sw-side-col__tab"
-              type="button"
-              role="tab"
-              id={`side-col-tab-${t.id}`}
-              data-id={t.id}
-              data-n={t.label}
-              aria-label={t.label}
-              aria-selected={activo === t.id}
-              tabIndex={activo === t.id ? 0 : -1}
-              onClick={() => elegir(t.id)}
-            >
-              <Icon name={t.icono} />
-              <span className="sw-side-col__label">{t.label}</span>
-            </button>
-          ))}
+          {/* Con la columna colapsada el clic LA ABRE: dice qué querés ver, y
+              dejarla en riel sería contestar que no. Abierta ya está mostrando
+              lo único que hospeda, así que no tiene nada más que hacer. */}
+          <button
+            className="sw-side-col__tab"
+            type="button"
+            role="tab"
+            id="side-col-tab-tools"
+            data-id="tools"
+            data-n="Herramientas"
+            aria-label="Herramientas"
+            aria-selected
+            onClick={() => riel && onAbrir()}
+          >
+            <Icon name="wrench" />
+            <span className="sw-side-col__label">Herramientas</span>
+          </button>
         </div>
       </div>
 
+      {/*
+        EL INQUILINO QUE NO SE VE SE APAGA CON `data-tenant-off`, no con
+        `hidden`. Es el contrato del CSS del template
+        (`.sw-side-col__body > [data-tenant-off] { display: none }`), y no es
+        intercambiable: estas cajas llevan `display` por clase, y una regla de
+        autor le gana al `[hidden] { display: none }` del navegador. Con
+        `hidden` las dos zonas se dibujaban a la vez, apiladas.
+
+        Eso cubre además la regla 3 de §11 —la zona que no se ve sale del orden
+        de tabulación—: `display: none` no es focusable. `side-column.js` suma
+        `inert` porque también apaga zonas que siguen a la vista (la tarjeta
+        plegada); acá no hay ninguna en ese estado.
+      */}
       <div className="sw-side-col__body">
-        <div className="sw-chat" ref={chatHostRef} hidden={activo !== 'chat'} />
-        {/* Con el chat afuera no queda nada en esta pestaña: la columna lo dice
-            en vez de mostrar un hueco. */}
-        <p className="sw-side-col__vacio" hidden={activo !== 'chat' || chatAnclado}>
-          La conversación está flotando sobre el área de trabajo
-        </p>
-        <div className="sw-inspector-slot" hidden={activo !== 'tools' || !herramientas}>
+        <div className="sw-inspector-slot" data-tenant-off={herramientas ? undefined : ''}>
           {herramientas}
         </div>
         {/* Un hueco mudo se lee como que algo se rompió: cuando la superficie no
             trae herramientas, la columna lo dice. */}
-        <p className="sw-side-col__vacio" hidden={activo !== 'tools' || !!herramientas}>
+        <p className="sw-side-col__vacio" data-tenant-off={herramientas ? '' : undefined}>
           Esta superficie no trae caja de herramientas
         </p>
       </div>

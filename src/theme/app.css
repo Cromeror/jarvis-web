@@ -193,3 +193,97 @@
   min-height: 0;
   overflow-y: auto;
 }
+
+/* RENOMBRAR LA CONVERSACIÓN SE EDITA EN EL RÓTULO de la tarjeta flotante.
+
+   El template no tiene esta acción —su rótulo es texto fijo, «Conversación»—,
+   así que la regla es nuestra y vive acá. El campo reusa `.sw-flota__t`: hereda
+   su tipografía, su color y su recorte, y lo único propio es decir que ahora se
+   escribe adentro. Un `<input>` sin esto sale con el borde del navegador, que
+   no es de ninguno de los dos temas.
+
+   Es el mismo escalón y el mismo filete que el campo del composer: editar un
+   título y escribir un mensaje son la misma clase de gesto, y usar otra caja
+   para cada uno los haría parecer cosas distintas. */
+.sw-flota__t[data-editando] {
+  padding: 2px var(--sw-s-1);
+  background: var(--sw-raised-2);
+  border: var(--sw-border) solid var(--sw-line);
+  border-radius: var(--sw-r-sm);
+  outline: none;
+}
+.sw-flota__t[data-editando]:focus-visible { border-color: var(--sw-accent); }
+
+/* PLEGADA, LA PASTILLA ENTERA ES EL BOTÓN DE ABRIR (ver FloatingChat).
+
+   El template no necesita esta regla: allá la barra es la MANIJA de arrastre y
+   su cursor dice eso (`cursor: grab` en chat.css). Ese arrastre todavía no está
+   portado, así que plegada el cursor prometía un gesto que no existe mientras
+   escondía el que sí: el clic. */
+.sw-flota[data-min="true"] .sw-flota__barra[data-plegada] { cursor: pointer; }
+
+/* ============================================================================
+   EL CUERPO DE UN MENSAJE — lo que el template no tiene que escribir.
+
+   `chat.css` viste `.sw-msg__body` para prosa: párrafo, negrita y la pastilla
+   del código en línea. Alcanza para el contenido de la demo del template, que
+   son frases. Lo nuestro lo escribe un modelo: listas, títulos, tablas y
+   bloques de código.
+
+   Esos elementos salían PELADOS, y pelados acá no es «el default del
+   navegador»: `sidebar.css` resetea todo margen adentro de `.sw-side`
+   (`.sw-side *`), así que una lista quedaba sin sangría y sin aire, pegada al
+   párrafo anterior. Lo que lo tapaba era `prose` de Tailwind, que traía su
+   propia tipografía entera — y con ella la respuesta se leía más grande que lo
+   que el usuario acababa de escribir en el composer.
+
+   Todo sale de tokens del tema, y las medidas salen de las que ya usa
+   `.sw-msg__body p`: esto completa esa regla, no abre un sistema paralelo.
+   ========================================================================== */
+
+/* Lo que el usuario escribió va tal cual, saltos de línea incluidos: es su
+   texto, no markdown. */
+.sw-msg__literal { margin: 0; white-space: pre-wrap; }
+
+.sw-msg__body ul,
+.sw-msg__body ol { margin: 0 0 var(--sw-s-2); padding-left: var(--sw-s-5); }
+.sw-msg__body ul { list-style: disc; }
+.sw-msg__body ol { list-style: decimal; }
+.sw-msg__body li { margin: 0 0 var(--sw-s-1); }
+.sw-msg__body li::marker { color: var(--sw-muted); }
+.sw-msg__body :is(ul, ol, li):last-child { margin-bottom: 0; }
+
+/* Los títulos NO escalan: adentro de un mensaje de chat un h1 a 32px es un
+   grito. Pesan más que la prosa y nada más — el salto de jerarquía lo da el
+   espacio de arriba, que es lo que de verdad separa secciones. */
+.sw-msg__body :is(h1, h2, h3, h4, h5, h6) {
+  margin: var(--sw-s-3) 0 var(--sw-s-1);
+  font-size: var(--sw-t-body);
+  font-weight: var(--sw-w-semibold);
+  color: var(--sw-text);
+}
+.sw-msg__body :is(h1, h2, h3, h4, h5, h6):first-child { margin-top: 0; }
+
+.sw-msg__body a { color: var(--sw-accent-text); text-decoration: underline; }
+.sw-msg__body blockquote {
+  margin: 0 0 var(--sw-s-2);
+  padding-left: var(--sw-s-3);
+  border-left: 2px solid var(--sw-line);
+  color: var(--sw-muted);
+}
+.sw-msg__body hr { margin: var(--sw-s-3) 0; border: 0; border-top: var(--sw-border) solid var(--sw-line); }
+
+/* La tabla se recorta antes de ensanchar la tarjeta: 420px de ancho y una
+   tabla de seis columnas, o scrollea ella o scrollea el chat entero. */
+.sw-msg__body table { width: 100%; border-collapse: collapse; margin: 0 0 var(--sw-s-2); font-size: var(--sw-t-body-sm); }
+.sw-msg__body :is(th, td) { padding: var(--sw-s-1) var(--sw-s-2); border: var(--sw-border) solid var(--sw-line); text-align: left; }
+.sw-msg__body th { color: var(--sw-text); font-weight: var(--sw-w-semibold); }
+
+/* La línea de métricas del turno —tokens, contexto, duración—. No es del
+   template: es nuestra, y por eso va al pie y en el registro más chico que hay.
+   Se lee cuando se la busca y no compite con la respuesta. */
+.sw-msg__metricas {
+  margin: 0;
+  font-size: var(--sw-t-overline);
+  color: var(--sw-muted);
+}

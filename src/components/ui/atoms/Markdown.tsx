@@ -10,6 +10,16 @@ interface MarkdownProps {
    * `prose` limita el ancho a 65ch y romperia el ancho de la burbuja/panel.
    */
   invert?: boolean;
+  /**
+   * `prose` de Tailwind, prendido por default (es el que viste al panel de
+   * planes y a todo lo que no tiene estilos propios).
+   *
+   * **Apagado en el chat**: ahí el markdown cae dentro de `.sw-msg__body`, que
+   * ya decide cuerpo, interlínea y la pastilla del código en línea. Con los dos
+   * puestos gana `prose` —tiene su propia escala tipográfica— y la respuesta se
+   * lee más grande que el resto del chat, que es exactamente el síntoma.
+   */
+  prosa?: boolean;
   className?: string;
 }
 
@@ -65,8 +75,8 @@ function CodeBlock({
  * bloque -> `CodeBlock`, para el boton Copiar. `remark-gfm` habilita tablas,
  * tachado, listas de tareas y autolinks.
  */
-export function Markdown({ children, invert = true, className }: MarkdownProps): React.ReactElement {
-  const classes = ['prose', invert && 'prose-invert', 'max-w-none', className]
+export function Markdown({ children, invert = true, prosa = true, className }: MarkdownProps): React.ReactElement {
+  const classes = [prosa && 'prose', prosa && invert && 'prose-invert', prosa && 'max-w-none', className]
     .filter(Boolean)
     .join(' ');
 

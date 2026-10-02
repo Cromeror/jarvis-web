@@ -1,7 +1,7 @@
 import React from 'react';
-import { Avatar } from '../atoms/Avatar.js';
 import { Markdown } from '../atoms/Markdown.js';
-import { Spinner } from '../atoms/Spinner.js';
+import { Icon } from '../../Icon.js';
+import { useAuth } from '../../../hooks/useAuth.js';
 
 interface MessageBubbleProps {
   role: string;
@@ -42,6 +42,42 @@ function formatDuration(ms: number): string {
   return `${hours.toFixed(1)}h`;
 }
 
+/** Las iniciales del avatar, como las arma el template: hasta dos, en mayúscula. */
+function initials(name: string): string {
+  return name
+    .split(/[\s._-]+/)
+    .map((w) => w[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+}
+
+const ESTADO_EN_COLA: Record<string, string> = {
+  sending: 'Enviando…',
+  queued: 'En cola',
+  started: 'Respondiendo…',
+};
+
+/**
+ * UN TURNO DEL HILO — `.sw-msg` del template (`chat.js`, `message()`).
+ *
+ * LOS DOS ROLES SE DIBUJAN IGUAL: fila de nombre arriba, cuerpo abajo, mismo
+ * cuerpo de letra. No hay burbuja ni alineación a la derecha. Quién habla se
+ * distingue por el nodo del carril —relleno en la IA, anillo en el usuario— y
+ * por el avatar, que son dos trabajos distintos: el nodo dice DÓNDE cae el
+ * turno en el hilo, el avatar dice QUIÉN habla.
+ *
+ * Antes esto eran dos diseños: una burbuja azul a la derecha para el usuario y
+ * texto suelto con `prose` de Tailwind para la IA. De ahí salía lo que se veía
+ * mal — `prose` trae su propia escala tipográfica, así que la respuesta se leía
+ * más grande que lo que el usuario acababa de escribir, y ninguno de los dos
+ * tenía que ver con el chat que los rodea.
+ *
+ * Por eso el markdown va SIN `prose`: los elementos salen pelados y los viste
+ * `.sw-msg__body`, que es donde el tema ya tiene decidido el cuerpo, la
+ * interlínea y la pastilla del código en línea.
+ */
 export function MessageBubble({
   role,
   content,
@@ -52,59 +88,59 @@ export function MessageBubble({
   attachments,
   queueState,
 }: MessageBubbleProps): React.ReactElement {
+  const { user } = useAuth();
   const isUser = role === 'user';
+  const nombre = isUser ? user?.username ?? 'Vos' : 'Jarvis';
 
-  if (isUser) {
-    const attachmentNames = parseAttachmentNames(attachments);
-    return (
-      <div className="flex justify-end">
-        <div className="max-w-[75%] whitespace-pre-wrap rounded-2xl bg-[var(--sidebar2-accent-default)] px-4 py-2.5 text-[17px] leading-relaxed text-white md:text-sm md:leading-normal">
-          {queueState === 'sending' && <div className="mb-1 text-xs text-white/70">Enviando…</div>}
-          {queueState === 'queued' && <div className="mb-1 text-xs text-white/70">En cola</div>}
-          {queueState === 'started' && <div className="mb-1 flex items-center gap-1.5 text-xs text-white/70"><Spinner />Respondiendo…</div>}
-          {attachmentNames.length > 0 && (
-            <div className="mb-1.5 flex flex-wrap gap-1.5">
-              {attachmentNames.map((name, i) => (
-                <span
-                  key={`${name}-${i}`}
-                  className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs text-white/90"
-                >
-                  {name}
-                </span>
-              ))}
-            </div>
-          )}
-          {content}
-        </div>
-      </div>
-    );
-  }
-
+  const attachmentNames = parseAttachmentNames(attachments);
   const hasTokens = inputTokens != null || outputTokens != null;
-  const hasContextPercent = contextUsedPercent != null;
-  const hasDuration = durationMs != null;
+  const metricas = !isUser && (hasTokens || contextUsedPercent != null || durationMs != null);
 
   return (
-    <div className="flex gap-3">
-      <Avatar role="assistant" />
-      <div className="min-w-0 max-w-[85%] flex-1 text-[17px] leading-relaxed text-[var(--messagelist-text-assistant)] md:text-sm md:leading-relaxed">
-        <Markdown>{content}</Markdown>
-        {(hasTokens || hasContextPercent || hasDuration) && (
-          <div className="mt-1 flex items-center justify-between text-xs text-[var(--messagelist-text-meta)]">
-            <span>
-              {hasTokens && (
-                <>
-                  {inputTokens ?? 0} in · {outputTokens ?? 0} out
-                </>
-              )}
-              {hasContextPercent && (
-                <>{hasTokens ? ' · ' : ''}{contextUsedPercent}% de contexto usado</>
-              )}
-            </span>
-            {hasDuration && <span>{formatDuration(durationMs!)}</span>}
-          </div>
+    <div className={`sw-msg sw-msg--${isUser ? 'user' : 'ai'}`}>
+      <div className="sw-msg__who">
+        {isUser ? (
+          /* El MISMO componente que el avatar del topbar (la primitiva `avatar`
+             de Basecoat) con las mismas iniciales: es la misma persona, y dos
+             dibujos distintos para una identidad se leen como dos identidades. */
+          <span className="avatar sw-msg__av" data-size="sm" aria-hidden="true">
+            <span>{initials(nombre)}</span>
+          </span>
+        ) : (
+          <Icon name="audioLines" />
         )}
+        <span className="sw-msg__nombre">{nombre}</span>
+        {queueState && <span>{ESTADO_EN_COLA[queueState]}</span>}
       </div>
+
+      {attachmentNames.length > 0 && (
+        /* Los mismos chips que el composer: es el mismo objeto —un archivo con
+           su ícono y su nombre— en otro momento de su vida. Acá sin el ✕: ya se
+           mandó, no hay nada que sacar. */
+        <div className="sw-comp__adj">
+          {attachmentNames.map((name, i) => (
+            <span key={`${name}-${i}`} className="sw-comp__adjunto">
+              <Icon name="doc" />
+              <span className="sw-comp__an">{name}</span>
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="sw-msg__body">
+        {/* Lo del usuario va TAL CUAL lo escribió: interpretarle el markdown le
+            cambiaría el texto que tiene delante —un `*` se convertiría en
+            bastardilla— y no es lo que tipeó. */}
+        {isUser ? <p className="sw-msg__literal">{content}</p> : <Markdown prosa={false}>{content}</Markdown>}
+      </div>
+
+      {metricas && (
+        <p className="sw-msg__metricas">
+          {hasTokens && `${inputTokens ?? 0} in · ${outputTokens ?? 0} out`}
+          {contextUsedPercent != null && `${hasTokens ? ' · ' : ''}${contextUsedPercent}% de contexto`}
+          {durationMs != null && ` · ${formatDuration(durationMs)}`}
+        </p>
+      )}
     </div>
   );
 }

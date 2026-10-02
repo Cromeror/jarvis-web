@@ -3,8 +3,8 @@ import type { ChatMessage } from '../../../lib/chat-api.js';
 import { groupByAnsweredQuestion, countWaiting, type QueueState } from '../../../lib/chat-queue.js';
 import { MessageBubble } from './MessageBubble.js';
 import { QueuePanel, type QueuedMessageView } from './QueuePanel.js';
-import { Spinner } from '../atoms/Spinner.js';
-import { Icons } from '../atoms/Icons.js';
+import { Markdown } from '../atoms/Markdown.js';
+import { Icon } from '../../Icon.js';
 
 interface MessageListProps {
   /**
@@ -89,19 +89,19 @@ export function MessageList({
   }, [messages.length, pending, sessionId]);
 
   return (
-    <div
-      className={`mx-auto flex min-h-full max-w-3xl flex-col space-y-6 px-6 py-6 ${isEmpty ? 'justify-center' : 'justify-end'}`}
-    >
-      {isEmpty && (
-        <div className="flex flex-col items-center justify-center gap-2 text-center">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--chatcontent-surface-subtle)] text-[var(--tab-text-hover)]">
-            <Icons icon="Chat" style="Outline" size={20} />
-          </div>
-          <p className="text-sm text-[var(--chatcontent-text-muted)]">Escribí un mensaje para empezar la conversación.</p>
-        </div>
-      )}
+    /* EL CARRIL DEL HILO. `.sw-chat__msgs` no es un contenedor cualquiera: su
+       `padding-left: var(--sw-hilo-w)` es el lugar donde cada `.sw-msg` dibuja
+       su nodo y su tramo de línea, que van en negativo. Sin él los nodos caen
+       fuera de la caja y el hilo no se ve.
+
+       Acá no hay `space-y`: el hueco entre turnos lo pone el `gap` del carril,
+       y tiene que ser el mismo con el que `.sw-msg::after` calcula hasta dónde
+       baja su tramo de línea. Dos fuentes para esa medida = la línea cortada
+       antes del nodo siguiente. */
+    <div className="sw-chat__msgs">
+      {isEmpty && <p className="sw-msg__metricas">Escribí un mensaje para empezar la conversación.</p>}
       {groups.map((group) => (
-        <div key={group.key} className="space-y-6">
+        <React.Fragment key={group.key}>
           {group.questions.map((m) => (
             <MessageBubble
               key={m.id}
@@ -114,7 +114,7 @@ export function MessageList({
           {group.answer && (
             <>
               {group.questions.length > 1 && (
-                <p className="text-xs text-[var(--chatcontent-text-muted)]">
+                <p className="sw-msg__metricas">
                   Una sola respuesta para esos {group.questions.length} mensajes
                 </p>
               )}
@@ -130,56 +130,51 @@ export function MessageList({
               />
             </>
           )}
-        </div>
+        </React.Fragment>
       ))}
+
       {pending && (
-        <div className="space-y-2">
-          {liveText && <MessageBubble role="assistant" content={liveText} />}
-          <div className="flex items-center gap-2 text-sm text-[var(--chatcontent-text-muted)]">
-            <Spinner />
-            Jarvis está pensando...
+        /* LA FILA DE «PENSANDO» ES UN TURNO MÁS DEL HILO (`.sw-msg--pensando`
+           en el template), no un aviso suelto al pie: aparece donde va a
+           aparecer la respuesta, así que el ojo ya está mirando el lugar
+           correcto cuando el texto empieza a llegar. */
+        <div className="sw-msg sw-msg--ai">
+          <div className="sw-msg__who">
+            <Icon name="audioLines" />
+            <span className="sw-msg__nombre">Jarvis</span>
             {queuedCount > 0 && (
-              // "esperando", no "en cola": el otro contador de la pantalla es el
-              // de tareas en background, y las dos cosas se confunden leídas al
-              // pasar.
-              <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs">
-                {queuedCount} esperando
-              </span>
+              // "esperando", no "en cola": el otro contador de la pantalla es
+              // el de tareas en background, y las dos cosas se confunden
+              // leídas al pasar.
+              <span>{queuedCount} esperando</span>
             )}
             {onStop && (
-              <button
-                type="button"
-                onClick={onStop}
-                title="Detener el turno en curso"
-                className="ml-2 rounded-full border border-[var(--chatcontent-border-subtle)] px-3 py-1 text-xs font-medium text-[var(--tab-text-hover)] hover:bg-white/10"
-              >
-                Detener
+              <button type="button" className="sw-msg__tool" onClick={onStop} aria-label="Detener el turno en curso" title="Detener el turno en curso">
+                <Icon name="stop" />
               </button>
             )}
           </div>
-          {queuedCount > 0 && (
-            <QueuePanel messages={queuedMessages} onRemove={onRemoveQueued} onClearAll={onClearQueue} />
-          )}
+          <div className="sw-msg__body">
+            {liveText ? (
+              <Markdown prosa={false}>{liveText}</Markdown>
+            ) : (
+              <span role="status">Pensando…</span>
+            )}
+          </div>
         </div>
       )}
-      {/*
-        Fuera del bloque `pending` a propósito: una tarea en background sobrevive
-        al turno que la lanzó, así que la barra tiene que seguir visible con el
-        turno ya cerrado.
-      */}
-      {!pending && queuedCount > 0 && (
+
+      {queuedCount > 0 && (
+        /* Fuera del bloque `pending` a propósito: una tarea en background
+           sobrevive al turno que la lanzó, así que el panel tiene que seguir
+           visible con el turno ya cerrado. */
         <QueuePanel messages={queuedMessages} onRemove={onRemoveQueued} onClearAll={onClearQueue} />
       )}
+
       {proposedPlanIds?.map((planId) => (
-        <button
-          key={planId}
-          type="button"
-          onClick={() => onOpenPlan?.(planId)}
-          className="flex w-full items-center gap-2 rounded-xl border border-indigo-400/30 bg-indigo-500/10 px-4 py-3 text-left text-sm text-indigo-200 hover:bg-indigo-500/20"
-        >
-          <i className="pi pi-list-check text-sm" />
-          Plan propuesto — ver en el panel
-          <i className="pi pi-arrow-right ml-auto text-xs" />
+        <button key={planId} type="button" className="sw-msg__act" onClick={() => onOpenPlan?.(planId)}>
+          <Icon name="check" />
+          <span>Plan propuesto — ver en el panel</span>
         </button>
       ))}
       <div ref={bottomRef} />

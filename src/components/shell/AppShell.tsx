@@ -1,10 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Icon } from '../Icon.js';
 import { Sidebar } from './Sidebar.js';
 import { Topbar } from './Topbar.js';
 import { SideColumn } from './SideColumn.js';
 import { useMedidaDeSuperficie } from '../layout/medida-de-superficie.js';
+import { MIN_KEY, TarjetaDelChatProvider } from './chat-card.js';
 
 /**
  * EL CHASIS — el layout de la app después de entrar.
@@ -57,33 +57,69 @@ export function AppShell({
   children?: React.ReactNode;
   contentRef?: React.Ref<HTMLDivElement>;
 }): React.ReactElement {
-  /* DOS ESTADOS, NO TRES: abierta y riel. No se cierra del todo porque el chat
-     es del shell y nunca se va — a lo sumo queda a un clic.
+  /* DOS ESTADOS, NO TRES: abierta y riel.
+
+     ARRANCA EN RIEL. Con el chat permanentemente afuera, lo único que le queda
+     a la columna es la caja de herramientas —que no todas las superficies
+     traen—, así que abierta por defecto le come ancho al trabajo para mostrar
+     un panel que muchas veces está vacío. Se abre con la pestaña o con el botón
+     del topbar: sigue a un clic.
 
      El estado vive acá y no en la columna porque el botón que lo alterna está en
      la barra superior: son dos piezas separadas en el DOM mirando el mismo dato. */
-  const [columnaAbierta, setColumnaAbierta] = useState(true);
+  const [columnaAbierta, setColumnaAbierta] = useState(false);
 
   /* El segundo renglón del título lo publica la SUPERFICIE, no el shell: el
      shell no sabe cuántos documentos hay. Mismo canal que la corrida de una
      herramienta, y por la misma razón. */
   const { medida } = useMedidaDeSuperficie();
 
-  /* EL CHAT TIENE DOS UBICACIONES y el usuario elige: inquilino de la columna
-     —como arranca— o tarjeta que flota sobre el área de trabajo.
+  /* EL CHAT ESTÁ SIEMPRE DESANCLADO: tarjeta que flota sobre el área de
+     trabajo, nunca inquilino de la columna. El template ofrece las dos
+     ubicaciones (decisión 43) y acá la elección ya está tomada, así que no hay
+     botón de acoplar ni de sacar — un control que devuelve al estado que no
+     queremos es una forma de romperlo sin querer.
 
-     El nodo SE MUDA DE PADRE, que es lo que hace el template. Acá va por portal
-     y no re-renderizando en dos lugares: con un portal React conserva el mismo
-     árbol, así que la conversación, el scroll y lo escrito a medias sobreviven
-     al viaje. Remontarlo los perdería en cada clic. */
-  const [chatFuera, setChatFuera] = useState(false);
-  const anclaRef = useRef<HTMLDivElement>(null);
-  const flotaRef = useRef<HTMLElement>(null);
-  /* Los refs no existen en el primer render: hasta que el shell esté pintado no
+     Va por portal y no renderizando el chat acá adentro porque el destino es un
+     nodo que este mismo componente pinta: el portal deja que `FloatingChat` viva
+     en el árbol del shell (su estado sobrevive a cualquier re-render del
+     layout) y aterrice adentro de la tarjeta. */
+  const chatHostRef = useRef<HTMLElement>(null);
+  /* El ref no existe en el primer render: hasta que el shell esté pintado no
      hay dónde portalar. */
   const [pintado, setPintado] = useState(false);
   useEffect(() => setPintado(true), []);
-  const destino = chatFuera ? flotaRef.current : anclaRef.current;
+
+  /* PLEGADA O ABIERTA, Y SE RECUERDA. Sin persistir, plegarla no sirve de
+     nada: la tarjeta vuelve a abrirse en la siguiente recarga y hay que
+     cerrarla otra vez. Es una preferencia de cómo querés trabajar, no estado
+     de una pantalla.
+
+     Se lee una sola vez, en el inicializador: `localStorage` es sincrónico y
+     leerlo en cada render sería tocar disco por render. Fail-soft —un
+     navegador sin storage abre la tarjeta, que es el estado completo. */
+  const [minimizada, setMinimizada] = useState(() => {
+    try {
+      return localStorage.getItem(MIN_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const tarjeta = useMemo(
+    () => ({
+      minimizada,
+      alternar: () =>
+        setMinimizada((v) => {
+          try {
+            localStorage.setItem(MIN_KEY, String(!v));
+          } catch {
+            /* sin storage la elección vale para esta sesión y nada más */
+          }
+          return !v;
+        }),
+    }),
+    [minimizada],
+  );
 
   return (
     <Sidebar>
@@ -106,57 +142,37 @@ export function AppShell({
           <div className="sw-surface-slot sw-grid-surface" ref={contentRef}>
             <div className="sw-vista-zona">{children}</div>
           </div>
-          {/* El chat tiene DOS ubicaciones y el usuario elige: inquilino de la
-              columna, o tarjeta que flota sobre el área de trabajo. */}
-          <aside className="sw-flota" ref={flotaRef} aria-label="Conversación" hidden={!chatFuera}>
-            {/* La barra de la tarjeta hace lo que adentro hace el conmutador:
-                decir qué es esto, y ofrecer la puerta de vuelta. */}
-            <header className="sw-flota__barra">
-              <Icon name="message" />
-              <span className="sw-flota__t">Conversación</span>
-              <button
-                className="sw-flota__btn"
-                type="button"
-                aria-label="Volver a la columna"
-                title="Volver a la columna"
-                onClick={() => setChatFuera(false)}
-              >
-                <Icon name="entrar" />
-              </button>
-            </header>
-          </aside>
+          {/*
+            LA TARJETA DEL CHAT, siempre a la vista sobre el área de trabajo.
+
+            Va VACÍA: sus dos hijos —la barra `.sw-flota__barra` y el envoltorio
+            `.sw-chat`— los pinta `FloatingChat`, que es quien tiene la
+            conversación. La barra dejó de ser decorativa (elegir conversación,
+            crear, renombrar, borrar), y esos controles necesitan el mismo
+            estado que el hilo: partirlos entre dos componentes obligaría a
+            subir la sesión al shell, que no tiene por qué saber de sesiones.
+
+            El `.sw-chat` no es decoración tampoco: es de él que cuelga
+            `.sw-chat > :not(.sw-chat__thread) { flex: 0 0 auto }`, la regla que
+            mantiene rígido al composer. En el template el nodo que se muda de
+            padre ES `.sw-chat` (`flota.appendChild(chatEl)` en
+            `side-column.js`), así que la tarjeta siempre lo contiene.
+          */}
+          <aside
+            className="sw-flota"
+            ref={chatHostRef}
+            aria-label="Conversación"
+            data-min={minimizada ? 'true' : 'false'}
+          />
           <SideColumn
-            chatHostRef={anclaRef}
-            chatAnclado={!chatFuera}
             herramientas={herramientas}
             riel={!columnaAbierta}
             onAbrir={() => setColumnaAbierta(true)}
           />
         </div>
 
-        {/* EL BOTÓN DE SACAR VIVE ADENTRO DEL CHAT, no en la fila del
-            conmutador: al lado de las pestañas se leía como una tercera — dos
-            controles del mismo tamaño en la misma fila se leen como una serie,
-            aunque uno elija vista y el otro ejecute una acción. Y como el nodo
-            se muda de padre, el botón viaja con él. */}
-        {pintado && destino
-          ? createPortal(
-              <>
-                {chat}
-                {!chatFuera && (
-                  <button
-                    className="sw-chat__sacar"
-                    type="button"
-                    aria-label="Sacar la conversación de la caja"
-                    title="Sacar la conversación de la caja"
-                    onClick={() => setChatFuera(true)}
-                  >
-                    <Icon name="salir" />
-                  </button>
-                )}
-              </>,
-              destino,
-            )
+        {pintado && chatHostRef.current
+          ? createPortal(<TarjetaDelChatProvider value={tarjeta}>{chat}</TarjetaDelChatProvider>, chatHostRef.current)
           : null}
 
         <div className="sw-dock-slot" />
