@@ -286,6 +286,12 @@
 .sw-tabla__punto[data-tono="ok"]    { color: var(--sw-success); }
 .sw-tabla__punto[data-tono="falta"] { color: var(--sw-warning); }
 .sw-tabla__punto[data-tono="espera"] { color: var(--sw-faint); }
+/* `error` NO es un quinto estado del documento: es la fila que no pudo quedar
+   bien formada —el import falló y se quedó sin archivo—. Rojo y no el naranja
+   de `falta` porque no espera a una persona que la revise: espera que alguien
+   la vuelva a subir. El token es el mismo que ya usa `field.css` en su nota de
+   error, así que no se duplica vocabulario de color. */
+.sw-tabla__punto[data-tono="error"] { color: var(--sw-error); }
 
 /* ---------------------------------------------------------------
    EL VACÍO

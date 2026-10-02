@@ -125,7 +125,7 @@ function celdaDeDocumento(
       </button>
     );
   }
-  if (col.id === 'estado') return <Estado estado={doc.estado} />;
+  if (col.id === 'estado') return <Estado estado={doc.estado} errorDeImport={doc.importacion_error} />;
   // Las clases tipográficas son del template: `sw-mono` para un consecutivo,
   // `sw-tabular` para que las fechas y las cifras alineen dígito con dígito.
   if (col.id === 'numero_documento' || col.id === 'cufe_cude') {
@@ -166,7 +166,40 @@ const DICHO: Record<EstadoDocumento, string> = {
  * que espera a una persona va en naranja: un documento que la IA todavía no
  * miró está en cola, no en problema.
  */
-function Estado({ estado }: { estado: EstadoDocumento }): React.ReactElement {
+function Estado({
+  estado,
+  errorDeImport,
+}: {
+  estado: EstadoDocumento;
+  /**
+   * El import dejó el documento SIN archivo (`importacion_error` del backend).
+   *
+   * Le gana al estado y no es un estado más: el documento sigue estando en
+   * `PENDIENTE_PROCESAR` —es lo que la base dice, y el dominio tiene cuatro
+   * valores, no cinco—, pero no hay nada que procesar porque la evidencia nunca
+   * llegó. Sin esto, una fila rota se pinta igual que una sana en cola: el dato
+   * viajaba desde el backend y se descartaba al pintar, y así quedaron 173
+   * documentos que parecían pendientes y estaban muertos.
+   */
+  errorDeImport: string | null;
+}): React.ReactElement {
+  if (errorDeImport) {
+    const dicho = 'No se pudo subir su archivo — volvé a subirlo';
+    return (
+      <span
+        className="sw-tabla__punto"
+        data-lleno="true"
+        data-tono="error"
+        role="img"
+        aria-label={dicho}
+        /* El motivo crudo va en el `title` y no en la etiqueta accesible: es
+           texto de base de datos (un constraint, un ENOENT), útil para quien
+           investiga e ilegible para quien sólo quiere saber que hay que
+           reintentar. */
+        title={`${dicho}\n\n${errorDeImport}`}
+      />
+    );
+  }
   const tono = estado === 'AUDITADO' || estado === 'COMPLETADO' ? 'ok' : estado === 'PENDIENTE_AUDITAR' ? 'falta' : 'espera';
   return (
     <span
