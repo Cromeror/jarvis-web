@@ -38,7 +38,13 @@ function ProjectAccessBadges({
   return (
     <div className="flex flex-wrap gap-1">
       {user.project_roles.map((a) => (
-        <StatusBadge key={a.project_id} label={`${nombreDe(a.project_id)} · ${a.role_name}`} tone="neutral" />
+        /* La clave lleva el rol: un proyecto puede aparecer varias veces, una
+           por rol, y con la clave sólo del proyecto React las colapsa. */
+        <StatusBadge
+          key={`${a.project_id}:${a.role_id}`}
+          label={`${nombreDe(a.project_id)} · ${a.role_name}`}
+          tone="neutral"
+        />
       ))}
       {porOrganizacion.map((id) => (
         <StatusBadge key={id} label={`${nombreDe(id)} · por organización`} tone="info" />
@@ -174,6 +180,7 @@ function UserFormModal({
   function toggleProject(project: ProjectSummary): void {
     setForm((f) => {
       if (f.project_roles.some((a) => a.project_id === project.id)) {
+        // Destildar el proyecto se lleva TODOS sus roles, no sólo uno.
         return { ...f, project_roles: f.project_roles.filter((a) => a.project_id !== project.id) };
       }
       // Al tildar se preselecciona el rol de MENOR privilegio disponible (el
@@ -186,11 +193,24 @@ function UserFormModal({
     });
   }
 
-  function cambiarRol(projectId: string, roleId: string): void {
-    setForm((f) => ({
-      ...f,
-      project_roles: f.project_roles.map((a) => (a.project_id === projectId ? { ...a, role_id: roleId } : a)),
-    }));
+  /**
+   * Alterna UN rol dentro de un proyecto. Varios conviven: los permisos sobre
+   * el proyecto son la unión de todos sus roles.
+   *
+   * Sacar el último no desasigna el proyecto — queda tildado y sin roles, que
+   * es un estado legítimo y distinto (pertenece, no puede nada). Desasignarlo
+   * es destildar el proyecto.
+   */
+  function alternarRolDeProyecto(projectId: string, roleId: string): void {
+    setForm((f) => {
+      const tiene = f.project_roles.some((a) => a.project_id === projectId && a.role_id === roleId);
+      return {
+        ...f,
+        project_roles: tiene
+          ? f.project_roles.filter((a) => !(a.project_id === projectId && a.role_id === roleId))
+          : [...f.project_roles, { project_id: projectId, role_id: roleId }],
+      };
+    });
   }
 
   async function handleSubmit(e: React.FormEvent): Promise<void> {
@@ -321,7 +341,8 @@ function UserFormModal({
             </label>
             <div className="mb-4 max-h-52 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
               {projects.map((p) => {
-                const asignado = form.project_roles.find((a) => a.project_id === p.id);
+                const deEsteProyecto = form.project_roles.filter((a) => a.project_id === p.id);
+                const asignado = deEsteProyecto.length > 0;
                 const disponibles = rolesAsignables(p, rolesPorOrg);
                 // Un proyecto cuya organización no tiene ningún rol de proyecto
                 // no se puede asignar: se deshabilita y se dice por qué, en vez
@@ -331,23 +352,39 @@ function UserFormModal({
                   <div key={p.id} className="flex items-center gap-2 rounded px-1 py-1 text-sm text-slate-700 hover:bg-slate-50">
                     <input
                       type="checkbox"
-                      checked={!!asignado}
+                      checked={asignado}
                       disabled={sinRoles || !rolesListos}
                       onChange={() => toggleProject(p)}
                     />
                     <span className="flex-1 truncate">{p.name}</span>
+                    {/* VARIOS ROLES POR PROYECTO, no un select. Los permisos son
+                        la unión, así que «Contable» + «Colaborador» en el mismo
+                        proyecto es el caso normal — y con un select había que
+                        fabricar un rol que fuera los dos. */}
                     {asignado && (
-                      <select
-                        value={asignado.role_id}
-                        onChange={(e) => cambiarRol(p.id, e.target.value)}
-                        className="max-w-[45%] rounded border border-slate-200 px-2 py-1 text-xs text-slate-700 outline-none focus:border-indigo-400"
-                      >
-                        {disponibles.map((r) => (
-                          <option key={r.id} value={r.id}>
-                            {r.name}
-                          </option>
-                        ))}
-                      </select>
+                      <span className="flex flex-wrap justify-end gap-1">
+                        {disponibles.map((r) => {
+                          const activo = deEsteProyecto.some((a) => a.role_id === r.id);
+                          return (
+                            <button
+                              key={r.id}
+                              type="button"
+                              onClick={() => alternarRolDeProyecto(p.id, r.id)}
+                              aria-pressed={activo}
+                              className={`rounded-full border px-2 py-0.5 text-[11px] ${
+                                activo
+                                  ? 'border-transparent bg-indigo-600 text-white'
+                                  : 'border-slate-300 text-slate-500 hover:border-slate-400'
+                              }`}
+                            >
+                              {r.name}
+                            </button>
+                          );
+                        })}
+                        {deEsteProyecto.length === 0 ? (
+                          <span className="text-[11px] text-amber-600">sin roles — no podrá entrar</span>
+                        ) : null}
+                      </span>
                     )}
                     {sinRoles && (
                       <span className="text-xs text-slate-400" title="Creá un rol de scope 'proyecto' en la pestaña «Roles por organización»">

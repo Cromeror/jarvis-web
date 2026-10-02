@@ -428,6 +428,14 @@ export function OrganizationRolesPanel({
          vistazo es cuáles tiene — y un multi-select nativo esconde eso detrás
          de un scroll y de un Ctrl+clic que nadie descubre. Acá cada rol es un
          chip: encendido = lo tiene. */
+      /* SÓLO LOS DE ORGANIZACIÓN. Este eje no otorga nada sobre proyectos, así
+         que ofrecer acá un rol `scope: project` es ofrecer algo que se guarda
+         bien y no hace nada — el chip queda encendido y la persona sigue sin
+         poder entrar al proyecto. Pasó: «Colaborador» (que lleva `project:read`)
+         puesto acá en vez de en el proyecto, y la suite nunca apareció.
+         La API lo rechaza también (`RoleNotForOrganizationAxisError`); esto es
+         para que no se pueda ni intentar. */
+      const deOrganizacion = roles.filter((r) => r.scope === 'org');
       const asignados = new Set(m.roles.map((r) => r.role_id));
       const alternar = (roleId: string): void => {
         if (!selectedId) return;
@@ -440,12 +448,14 @@ export function OrganizationRolesPanel({
           true,
         );
       };
-      /* Un rol borrado por debajo se muestra igual y apagado: desaparecer sin
-         decirlo haría que el miembro se vea con menos permisos de los que tiene. */
-      const fantasmas = m.roles.filter((r) => !roles.some((x) => x.id === r.role_id));
+      /* Lo que está asignado pero NO se ofrece: un rol borrado por debajo, o
+         uno de proyecto que quedó colgado de acá antes de que esto se
+         filtrara. Se muestra igual —desaparecer sin decirlo dejaría una fila
+         que nadie puede limpiar— y se puede sacar con un clic. */
+      const colgados = m.roles.filter((r) => !deOrganizacion.some((x) => x.id === r.role_id));
       return (
         <div className="flex flex-wrap gap-1">
-          {roles.map((r) => {
+          {deOrganizacion.map((r) => {
             const activo = asignados.has(r.id);
             return (
               <button
@@ -465,14 +475,33 @@ export function OrganizationRolesPanel({
               </button>
             );
           })}
-          {fantasmas.map((r) => (
-            <span key={r.role_id} className="rounded-full border border-amber-500/40 px-2 py-0.5 text-[11px] text-amber-300">
-              {r.role_name ?? '(rol desconocido)'}
-            </span>
-          ))}
+          {colgados.map((r) => {
+            const deProyecto = roles.find((x) => x.id === r.role_id);
+            return (
+              <button
+                key={r.role_id}
+                type="button"
+                disabled={!puedeMiembros}
+                onClick={() => alternar(r.role_id)}
+                title={
+                  deProyecto
+                    ? `«${deProyecto.name}» es un rol de proyecto: acá no otorga nada. Sacalo y asignalo en el proyecto.`
+                    : 'Este rol ya no existe. Clic para sacarlo.'
+                }
+                className="rounded-full border border-amber-500/40 px-2 py-0.5 text-[11px] text-amber-300 disabled:opacity-40"
+              >
+                {r.role_name ?? '(rol desconocido)'} ✕
+              </button>
+            );
+          })}
           {/* Pertenecer sin roles es un estado real y el que más confunde: la
               persona entra y no puede nada. Se dice, no se deja en blanco. */}
           {m.roles.length === 0 ? <span className="text-[11px] opacity-60">Sin roles — no puede nada</span> : null}
+          {/* Sin roles de organización no hay nada que ofrecer, y el vacío se
+              lee como un bug de la pantalla si no se dice por qué. */}
+          {deOrganizacion.length === 0 ? (
+            <span className="text-[11px] opacity-60">Esta organización no tiene roles de organización</span>
+          ) : null}
         </div>
       );
     }
