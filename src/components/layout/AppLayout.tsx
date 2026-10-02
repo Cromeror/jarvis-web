@@ -8,6 +8,7 @@ import { ModuleTools } from '../shell/ModuleTools.js';
 import { HerramientaCorridaProvider } from './herramienta-corrida.js';
 import { WorkspaceAnchorProvider, useShellAnchorRef } from './workspace-anchor.js';
 import { MedidaDeSuperficieProvider } from './medida-de-superficie.js';
+import { SeleccionDeSuperficieProvider } from './seleccion-de-superficie.js';
 import { ActiveProjectProvider, useActiveProject } from '../../hooks/useActiveProject.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { rutaDeAterrizaje, superficiesDe } from '../../lib/superficies-del-riel.js';
@@ -93,7 +94,11 @@ export function AppLayout(): React.ReactElement {
           {/* La cuenta del segundo renglón del título: la publica la superficie
               y la dibuja el topbar, que son dos componentes distintos. */}
           <MedidaDeSuperficieProvider>
-            <ShellConAnchor />
+            {/* Lo que el usuario tiene marcado en la superficie: lo publica el
+                módulo y lo manda el chat, que tampoco son el mismo componente. */}
+            <SeleccionDeSuperficieProvider>
+              <ShellConAnchor />
+            </SeleccionDeSuperficieProvider>
           </MedidaDeSuperficieProvider>
         </WorkspaceAnchorProvider>
       </HerramientaCorridaProvider>

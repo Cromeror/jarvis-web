@@ -1,3 +1,4 @@
+import type { UbicacionDelChat } from './ubicacion-del-chat.js';
 /**
  * API client for chat endpoints (packages/mcp/src/api/chat.ts).
  */
@@ -117,6 +118,14 @@ export async function sendChatMessage(
   sessionId: string,
   message: string,
   attachments?: ChatAttachmentInput[],
+  /**
+   * Dónde estaba el usuario al mandar (`ubicacion-del-chat.ts`).
+   *
+   * Se estampa acá y no se streamea: el servidor sólo antepone una línea
+   * cuando cambió respecto del turno anterior, así que mandarla siempre no
+   * cuesta nada y omitirla deja al chat sin saber en qué pantalla está.
+   */
+  ubicacion?: UbicacionDelChat | null,
 ): Promise<{ queued: boolean; session_id: string; command_uuid: string | null }> {
   const res = await fetch(`/api/chat/sessions/${encodeURIComponent(sessionId)}/messages`, {
     method: 'POST',
@@ -124,6 +133,7 @@ export async function sendChatMessage(
     body: JSON.stringify({
       message,
       ...(attachments?.length ? { attachments } : {}),
+      ...(ubicacion ? { ubicacion } : {}),
     }),
   });
   return handleResponse<{ queued: boolean; session_id: string; command_uuid: string | null }>(res);
