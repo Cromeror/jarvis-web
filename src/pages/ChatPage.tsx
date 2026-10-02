@@ -14,7 +14,8 @@ import {
   cancelQueuedMessage,
   stopBackgroundTask,
 } from '../lib/chat-api.js';
-import type { ChatSession, ChatMessage, ChatAttachmentInput } from '../lib/chat-api.js';
+import type { ChatSession, ChatMessage } from '../lib/chat-api.js';
+import { filesToAttachmentInputs } from '../lib/chat-attachments.js';
 import { sessionOwnerMark } from '../lib/session-owner.js';
 import { resolveQueueStates } from '../lib/chat-queue.js';
 import type { QueuedMessageView } from '../components/ui/molecules/QueuePanel.js';
@@ -108,19 +109,6 @@ function sameSessionList(a: ChatSession[], b: ChatSession[]): boolean {
       (session.propia ?? null) === (other.propia ?? null) &&
       (session.owner_username ?? null) === (other.owner_username ?? null)
     );
-  });
-}
-
-/** Reads a File as a base64 string (without the data: URL prefix) for sending over JSON. */
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolvePromise, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      resolvePromise(result.slice(result.indexOf(',') + 1));
-    };
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
   });
 }
 
@@ -459,15 +447,7 @@ export function ChatPage(): React.ReactElement {
       });
       patchSession(activeSessionIdForSend, { pending: true });
       try {
-        let attachments: ChatAttachmentInput[] | undefined;
-        if (attachmentFiles?.length) {
-          attachments = await Promise.all(
-            attachmentFiles.map(async (file) => ({
-              filename: file.name,
-              content_base64: await fileToBase64(file),
-            })),
-          );
-        }
+        const attachments = await filesToAttachmentInputs(attachmentFiles);
         // Returns as soon as the message is queued — the reply arrives over
         // the conversation's SSE stream, so nothing here waits for the turn
         // and the user can send the next message right away.

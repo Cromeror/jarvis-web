@@ -1,20 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Spinner } from '../atoms/Spinner.js';
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-/**
- * Los formatos que el chat puede procesar. Tiene que decir lo mismo que
- * `ALLOWED_ATTACHMENT_EXTENSIONS` en packages/core/src/chat-attachment-types.ts:
- * esto es comodidad (filtrar antes de subir 10 MB al vacío), no el control —
- * el servidor valida extensión Y firma de bytes, y `POST /api/chat/sessions/:id/messages`
- * es invocable sin pasar por esta pantalla.
- */
-const ADJUNTOS_ACEPTADOS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.pdf', '.md', '.markdown'];
+import {
+  ACCEPTED_ATTACHMENT_EXTENSIONS as ADJUNTOS_ACEPTADOS,
+  formatAttachmentSize as formatFileSize,
+  splitByAcceptedFormat,
+} from '../../../lib/chat-attachments.js';
 
 interface ChatInputBarProps {
   disabled?: boolean;
@@ -73,14 +63,11 @@ export function ChatInputBar({
   }, [expanded]);
 
   const addFiles = (files: FileList | File[]): void => {
-    const entrantes = Array.from(files);
-    const permitido = (file: File): boolean =>
-      ADJUNTOS_ACEPTADOS.some((ext) => file.name.toLowerCase().endsWith(ext));
-    const aceptados = entrantes.filter(permitido);
+    const { accepted, rejected } = splitByAcceptedFormat(files);
     // Se avisa cuáles quedaron afuera: descartarlos en silencio es el mismo
     // problema que tenía el backend, sólo que del lado del usuario.
-    setRechazados(entrantes.filter((f) => !permitido(f)).map((f) => f.name));
-    if (aceptados.length) setAttachments((prev) => [...prev, ...aceptados]);
+    setRechazados(rejected);
+    if (accepted.length) setAttachments((prev) => [...prev, ...accepted]);
   };
 
   const removeAttachment = (index: number): void => {
