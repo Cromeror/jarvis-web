@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ModuleViewProps } from '../registry.js';
 import { Icon } from '../../components/Icon.js';
 import {
@@ -9,6 +9,7 @@ import {
   uploadDocument,
 } from '../../lib/causacion-soportes-api.js';
 import { COLUMNAS, COLUMNAS_POR_DEFECTO } from './columnas.js';
+import { repartirColumnas } from './reparto-de-columnas.js';
 import { Tabla, type ColumnaDeTabla } from '../../components/ui/Tabla.js';
 import { Avance, Periodo } from './Avance.js';
 import { Visor } from './Visor.js';
@@ -24,6 +25,8 @@ import {
 } from '../../lib/causacion-documentos-api.js';
 import { Filtros, FILTROS_VACIOS, hayFiltro, type EstadoDeFiltros } from './Filtros.js';
 import type { GrupoDeMenu } from '../../components/ui/MenuContextual.js';
+import { usePublicarSeleccion } from '../../components/layout/seleccion-de-superficie.js';
+import { usePreferenciasDeModulo } from '../../hooks/usePreferenciasDeModulo.js';
 import { usePublicarMedida } from '../../components/layout/medida-de-superficie.js';
 
 /**
@@ -88,6 +91,10 @@ const COLUMNAS_DE_TABLA: ColumnaDeTabla[] = COLUMNAS.filter((c) =>
 const COLUMNAS_MAS: ColumnaDeTabla[] = COLUMNAS.filter(
   (c) => !COLUMNAS_POR_DEFECTO.includes(c.key),
 ).map(aColumnaDeTabla);
+
+/** La `key` del módulo — la misma que nombra sus permisos y sus tablas. */
+const MODULE_KEY = 'causacion-facturas-001';
+
 
 /** El dominio pinta la celda; la tabla arma la grilla. */
 function celdaDeDocumento(
@@ -214,6 +221,37 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
      `[mod.sub, val].filter(Boolean)`: la descripción la declara el módulo, la
      CUENTA la publica la superficie viva. Una cuenta sin sujeto no dice nada
      —«17» no se sabe de qué— y por eso va debajo de la descripción, no sola. */
+  const [marcados, setMarcados] = useState<string[]>([]);
+
+  /* LAS COLUMNAS QUE ESTA PERSONA DEJÓ LA ÚLTIMA VEZ.
+     Veintiuna columnas y siete por default: quien trabaja todos los días acá
+     arma su juego una vez y no tiene por qué rearmarlo en cada recarga. El
+     mecanismo es transversal (`usePreferenciasDeModulo`) — este módulo sólo
+     elige qué guarda y con qué clave. */
+  const { prefs, listas: prefsListas, guardar: guardarPrefs } = usePreferenciasDeModulo(MODULE_KEY);
+  const columnasGuardadas = Array.isArray(prefs.columnas) ? (prefs.columnas as string[]) : null;
+  const { columnasDeTabla, columnasExtra } = useMemo(
+    () => repartirColumnas(columnasGuardadas, COLUMNAS.map(aColumnaDeTabla), COLUMNAS_DE_TABLA, COLUMNAS_MAS),
+    [columnasGuardadas],
+  );
+  /* QUÉ SE PUBLICA, y por qué tan poco: esto termina en el prompt del chat.
+     Van los ids y —sólo si son pocos— cómo se llaman, para que puedas decir
+     «causá éste». El contenido no: si el modelo lo necesita, lo trae con una
+     tool. Es la misma economía que hace que el contrato de un BC se lea con
+     `bc_get` en vez de inyectarse en cada turno. */
+  const seleccion = useMemo(() => {
+    if (marcados.length === 0) return null;
+    const nombres = marcados
+      .map((id) => documentos.find((d) => d.id === id)?.archivos[0]?.filename)
+      .filter((n): n is string => !!n);
+    return {
+      kind: 'documento',
+      ids: marcados,
+      label: marcados.length <= 3 && nombres.length === marcados.length ? nombres.join(', ') : undefined,
+    };
+  }, [marcados, documentos]);
+  usePublicarSeleccion(seleccion);
+
   usePublicarMedida(total ? `${total} ${total === 1 ? 'documento' : 'documentos'}` : null);
   const [cargando, setCargando] = useState(true);
   const [subiendo, setSubiendo] = useState(false);
@@ -573,16 +611,30 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
           (`sw-tabla__th/__td/__fila/__corte`) que no existen en el template. */}
       <Tabla<DocumentoContable>
         titulo="Documentos"
-        columnas={COLUMNAS_DE_TABLA}
+        /* El `key` fuerza a remontar cuando llegan las preferencias: las
+           columnas visibles son estado interno de la tabla, y sin esto la
+           lista guardada no se aplicaría hasta que el usuario tocara el menú.
+           Con el caché local ya listo en el primer render esto no dispara —
+           queda para la primera visita desde un browser nuevo, que es el único
+           caso en que el salto es inevitable. */
+        key={prefsListas ? 'con-prefs' : 'sin-prefs'}
+        columnas={columnasDeTabla}
         filas={documentos}
         clave={(d) => d.id}
         nombreFila={(d) => d.archivos[0]?.filename ?? d.id}
-        seleccion={false}
+        /* LA CASILLA DEL TEMPLATE. No es adorno: lo marcado se publica para
+           que el chat sepa de qué documentos le estás hablando, y así podés
+           decirle «causá éstos» en vez de pegarle ids. */
+        seleccion
+        onSeleccionar={({ claves }) => setMarcados(claves)}
         menuFila={menuDeFila}
         /* Las catorce restantes no nacen escondidas: nacen AFUERA, y se suman
            con «Agregar una columna…». Es la distinción del template entre lo
            que la tabla dibuja y lo que el dato además tiene. */
-        columnasExtra={() => COLUMNAS_MAS}
+        columnasExtra={() => columnasExtra}
+        /* Se guarda lo que quedó visible, no el diff. Si el usuario vuelve a
+           los defaults, eso también es su preferencia. */
+        onColumnas={(visibles) => guardarPrefs({ ...prefs, columnas: visibles })}
         porPagina={100}
         opcionesPagina={[100, 150]}
         celda={(doc, col) => celdaDeDocumento(doc, col, (d) => setMirando(d.archivos[0] ?? null))}

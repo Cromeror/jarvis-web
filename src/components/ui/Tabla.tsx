@@ -8,6 +8,7 @@ import {
   repartirAnchos,
   type ColumnaDeTabla,
 } from './anchos-de-tabla.js';
+import { alternarOculta, idsVisibles, unirColumnas } from './visibilidad-de-columnas.js';
 import { TEXTOS_TABLA, rell, ventana, type TextosDeTabla } from './tabla-textos.js';
 
 /**
@@ -150,10 +151,19 @@ export function Tabla<F>({
   const contRef = useRef<HTMLDivElement>(null);
   const maestraRef = useRef<HTMLInputElement>(null);
 
-  const declaradas = useMemo(() => [...columnasDeclaradas.filter(Boolean), ...agregadas], [
-    columnasDeclaradas,
-    agregadas,
-  ]);
+  /**
+   * Las declaradas más las que el usuario agregó, **sin repetir**.
+   *
+   * El dedupe no es defensivo: es necesario desde que el consumidor puede
+   * persistir qué columnas se ven. Al guardar una agregada, vuelve por
+   * `columnas` en el render siguiente mientras sigue en `agregadas`, y la
+   * columna aparecía dos veces. Gana la declarada —es la que trae el orden que
+   * el consumidor decidió— y la copia de `agregadas` se descarta.
+   */
+  const declaradas = useMemo(
+    () => unirColumnas(columnasDeclaradas, agregadas),
+    [columnasDeclaradas, agregadas],
+  );
 
   const cols = useMemo(
     () => [...(seleccion ? [COL_MARCA] : []), ...declaradas, ...(menuFila ? [COL_MENU] : [])],
@@ -285,14 +295,9 @@ export function Tabla<F>({
       return;
     }
     const cid = id.slice(4);
-    const s = new Set(ocultas);
-    if (s.has(cid)) s.delete(cid);
-    else s.add(cid);
-    /* NUNCA TODAS ESCONDIDAS: una tabla sin columnas son cien filas vacías y no
-       hay forma de volver desde adentro de ella. */
-    if (s.size === declaradas.length) s.delete(cid);
+    const s = alternarOculta(ocultas, cid, declaradas.length);
     setOcultas(s);
-    onColumnas?.(declaradas.filter((c) => !s.has(c.id)).map((c) => c.id));
+    onColumnas?.(idsVisibles(declaradas, s));
     /* Se vuelve a abrir en el mismo lugar: la tilde que se acaba de poner tiene
        que quedar a la vista para poder seguir. */
     setMenu({ ...ancla, de: 'ajustes' });
@@ -611,6 +616,13 @@ export function Tabla<F>({
               if (col) {
                 setAgregadas((a) => [...a, col]);
                 onAgregarColumna?.(col);
+                /* AGREGAR TAMBIÉN CAMBIA QUÉ SE VE, y `onColumnas` promete
+                   justamente eso. Faltaba: se avisaba sólo al tildar en el
+                   menú de ajustes, así que quien persistía las columnas
+                   guardaba los destildes y perdía los agregados. La lista se
+                   arma a mano porque `declaradas` todavía no incluye la nueva
+                   —`setAgregadas` recién se aplica en el render siguiente. */
+                onColumnas?.(idsVisibles(unirColumnas(declaradas, [col]), ocultas));
               }
             } else if (menu.fila !== undefined) {
               menuDeFila?.onSelect?.(id, menu.fila);
