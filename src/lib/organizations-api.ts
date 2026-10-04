@@ -185,3 +185,70 @@ export async function removeMember(organizationId: string, userId: string): Prom
   );
   if (!res.ok) throw new ApiError(res.status, await readError(res));
 }
+
+/**
+ * El bloque de puertos que el superadmin le concedió a la organización
+ * (`/api/installation/port-grants`). Acá es de sólo lectura: la organización lo
+ * reparte, no lo agranda.
+ */
+export interface OrganizationPortBlock {
+  id: string;
+  organization_id: string;
+  start_port: number;
+  end_port: number;
+  note: string | null;
+  created_at: string;
+}
+
+/** Un tramo del bloque asignado a un proyecto. `organization_grant_id` dice de qué bloque sale. */
+export interface ProjectPortGrant {
+  id: string;
+  project_id: string;
+  organization_grant_id: string;
+  start_port: number;
+  end_port: number;
+  note: string | null;
+  created_at: string;
+}
+
+/** Todo lo que hace falta para dibujar el reparto sin otra consulta: bloques, tramos y a quién se les puede dar. */
+export interface OrganizationPortGrantsResponse {
+  blocks: OrganizationPortBlock[];
+  project_grants: ProjectPortGrant[];
+  projects: Array<{ id: string; name: string }>;
+}
+
+export async function listOrganizationPortGrants(organizationId: string): Promise<OrganizationPortGrantsResponse> {
+  return handleResponse<OrganizationPortGrantsResponse>(
+    await fetch(`/api/organizations/${encodeURIComponent(organizationId)}/port-grants`),
+  );
+}
+
+/**
+ * Le asigna a un proyecto un tramo del bloque de la organización.
+ *
+ * `start_port` es opcional: sin él el servidor toma el primer hueco del tamaño
+ * pedido. Un 400 (no cabe, se pisa con otro tramo, la organización no tiene
+ * bloque) trae un mensaje pensado para mostrarse tal cual.
+ */
+export async function assignProjectPortGrant(
+  organizationId: string,
+  input: { project_id: string; size: number; start_port?: number; note?: string | null },
+): Promise<ProjectPortGrant> {
+  return handleResponse<ProjectPortGrant>(
+    await fetch(`/api/organizations/${encodeURIComponent(organizationId)}/port-grants`, {
+      method: 'POST',
+      headers: jsonHeaders,
+      body: JSON.stringify(input),
+    }),
+  );
+}
+
+/** Devuelve el tramo al bloque de la organización. */
+export async function revokeProjectPortGrant(organizationId: string, grantId: string): Promise<void> {
+  const res = await fetch(
+    `/api/organizations/${encodeURIComponent(organizationId)}/port-grants/${encodeURIComponent(grantId)}`,
+    { method: 'DELETE' },
+  );
+  if (!res.ok) throw new ApiError(res.status, await readError(res));
+}
