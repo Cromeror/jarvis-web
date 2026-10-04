@@ -4,7 +4,6 @@ import { AppShell } from '../shell/AppShell.js';
 import { EnvironmentsMenu } from './EnvironmentsMenu.js';
 import { PipelinesMenu } from './PipelinesMenu.js';
 import { FloatingChat } from '../Chat/FloatingChat.js';
-import { ModuleTools } from '../shell/ModuleTools.js';
 import { HerramientaCorridaProvider } from './herramienta-corrida.js';
 import { WorkspaceAnchorProvider, useShellAnchorRef } from './workspace-anchor.js';
 import { MedidaDeSuperficieProvider } from './medida-de-superficie.js';
@@ -163,10 +162,9 @@ function ShellConAnchor(): React.ReactElement {
       }
       contentRef={contentRef}
       chat={<FloatingChat />}
-      /* La caja de herramientas de la superficie: las herramientas del módulo
-         abierto. Devuelve `null` cuando no hay módulo, y la columna se encarga
-         de decirlo — el hueco lo maneja quien sabe qué pestaña está activa. */
-      herramientas={<ModuleTools />}
+      /* SIN `herramientas`: la columna derecha salió del chasis. La caja de
+         herramientas es del MÓDULO y va a vivir adentro de su espacio, no en el
+         shell — `ModuleTools` sigue en el repo esperando eso. */
     >
       <Outlet />
     </AppShell>

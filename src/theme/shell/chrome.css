@@ -51,14 +51,16 @@
 /* EL BLOQUE DE TRABAJO — design/brief-bloque-de-trabajo.md: el lienzo y
    la caja de herramientas no son dos zonas hermanas, son un bloque con
    dos adentro, y la toolbar es del bloque entero (decisión 31, la caja
-   empuja). `.sw-container` es ese bloque en el DOM: toolbar arriba, y
-   abajo DOS columnas — el lienzo y la caja. Antes había una sola columna
-   implícita en `.sw-side__canvas` y `.sw-surface-slot`/`.sw-inspector-
-   slot` compartían fila sin grid-column propio, así que se pisaban — la
-   caja nunca se vio, no porque faltara el slot. */
+   empuja). `.sw-container` es ese bloque en el DOM.
+
+   UNA SOLA COLUMNA DESDE EL 1-oct-2026. Eran dos —el lienzo y la caja de
+   herramientas— y la caja salió del chasis: es del MÓDULO y va a vivir adentro
+   de su espacio. La segunda pista (`auto`) sin hijo no ocupaba ancho, pero
+   declararla seguía diciendo que el bloque tiene dos zonas, y eso ya no es
+   cierto. Vuelve con la caja. */
 .sw-container {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   /* Sin borde ARRIBA y sin radio arriba: el topbar se apoya encima y los dos
      forman UN panel. El filete que los separa lo pone el topbar (su

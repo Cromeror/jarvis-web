@@ -10,7 +10,7 @@ import type { Miga } from '../../lib/migas.js';
  * Del template (`shell/chrome.css` + el chasis de `index.html`). La disposición
  * de la primera franja está fijada contra referencia:
  *
- *   [ Nombre de sección ][ ←— buscador —→ ][ vistas · acciones ]
+ *   [ Nombre de sección ][ ←— buscador —→ ][ vistas · avatar ]
  *
  * EL BUSCADOR NO ES UN CAJÓN AL LADO DEL TÍTULO: es la fila. Crece hasta chocar
  * con los controles de la derecha. Con un ancho fijo quedaba como un resto entre
@@ -25,25 +25,16 @@ export function Topbar({
   titulo,
   sub,
   medida,
-  acciones,
-  columnaAbierta,
-  onAlternarColumna,
   migas = [],
   onIrA,
-  sinLeer = 0,
 }: {
   titulo: string;
   sub?: string;
-  acciones?: React.ReactNode;
   /** Dónde estás. Vacío = la franja no se muestra. */
   migas?: Miga[];
   onIrA?: (to: string) => void;
-  columnaAbierta: boolean;
-  onAlternarColumna: () => void;
   /** El segundo renglón: la CUENTA de lo que la superficie muestra. */
   medida?: string | null;
-  /** Avisos sin leer. Todavía no hay de dónde sacarlos: queda en 0, mockeado. */
-  sinLeer?: number;
 }): React.ReactElement {
   return (
     <div className="sw-topbar">
@@ -91,38 +82,24 @@ export function Topbar({
 
         <nav className="sw-topbar__nav" aria-label="Vistas" />
 
+        {/* EL EXTREMO DERECHO ES SÓLO EL AVATAR.
+
+            Tuvo tres inquilinos más —Environments, Pipelines y una campana de
+            avisos— y los tres se fueron juntos. Los dos menús son atajos a
+            superficies que YA están en el riel (`/environments`, `/plans`), o
+            sea un segundo lugar para llegar al mismo lado; la campana nunca
+            tuvo de dónde sacar un número ni adónde llevar, así que era un botón
+            que no hacía nada.
+
+            Lo que los volvió un problema fue el ancho chico: la franja no
+            encoge —el nombre de la sección no tiene reemplazo y el buscador ya
+            se va solo por debajo de 620px— así que cuatro controles más el
+            avatar se salían del canto y se recortaban sin aviso. Con uno solo,
+            la fila entra.
+
+            El avatar va pegado al borde: es donde el ojo lo busca. Adentro
+            viven el tema y cerrar sesión. */}
         <div className="sw-topbar__acciones">
-          {acciones}
-
-          {/* AVISOS. La referencia del header los pone justo antes del avatar.
-              El globo va montado sobre la esquina de la campana y es
-              `aria-hidden` porque visualmente ya está dicho — el número va
-              TAMBIÉN en la etiqueta accesible: un lector que sólo oiga
-              «Notificaciones» pierde el dato entero.
-
-              Tope en 9+: la cápsula está medida para un dígito, y un 12 la
-              deforma. */}
-          <button
-            className="sw-topbar__aviso"
-            type="button"
-            aria-label={`Notificaciones${sinLeer ? `, ${sinLeer} sin leer` : ''}`}
-          >
-            <Icon name="bell" />
-            {sinLeer > 0 && (
-              <span className="badge sw-topbar__globo" aria-hidden="true">
-                {sinLeer > 9 ? '9+' : sinLeer}
-              </span>
-            )}
-          </button>
-
-          {/* EL TEMA NO VA SUELTO ACÁ: vive adentro del menú de usuario, que es
-              donde lo puso el template. El segmentado de tres posiciones quedó
-              para la pantalla de entrar, que no carga el header y es su único
-              lugar suelto. Tenerlo en los dos sitios daría dos controles para
-              el mismo dato en la misma pantalla.
-
-              El avatar va ÚLTIMO, pegado al borde: es donde el ojo lo busca.
-              Adentro vive cerrar sesión. */}
           <UserMenu />
         </div>
       </div>
@@ -155,33 +132,23 @@ export function Topbar({
         ))}
       </nav>
       <div className="sw-topbar__fila sw-topbar__kpis" hidden />
-      <div className="sw-topbar__fila sw-topbar__barra">
-        <div className="sw-topbar__contexto" hidden />
-        <div className="sw-toolbar-slot" />
-        {/* EL BOTÓN DE LA COLUMNA VIVE ACÁ, en la caja del header, y no en la
-            columna. Lo pone el shell una vez y para todas las superficies: el
-            template lo tuvo pegado a cada toolbar y era olvidable — una
-            superficie se lo olvidó y el botón desapareció justo ahí, sin un
-            error en ningún lado. Una barra a la que le falta un botón se ve
-            igual de bien que una completa.
+      {/* LA FILA DE LA TOOLBAR SE FUE (1-oct-2026), y con ella el botón de la
+          columna derecha que era su único habitante visible.
 
-            ALTERNA ABIERTA/RIEL, nunca cierra del todo: la columna hospeda el
-            chat, que es del shell y no se va — a lo sumo queda a un clic. */}
-        <div className="sw-topbar__caja">
-          <div className="sw-toolbar__aside">
-            <button
-              className="sw-toolbar__btn sw-toolbar__btn--der"
-              type="button"
-              title="Columna lateral"
-              aria-label="Abrir o colapsar la columna"
-              aria-expanded={columnaAbierta}
-              onClick={onAlternarColumna}
-            >
-              <Icon name="panelRight" />
-            </button>
-          </div>
-        </div>
-      </div>
+          Medía su alto en TODAS las pantallas para no mostrar nada: el slot de
+          acciones del bloque (`.sw-toolbar-slot`) está vacío en cada superficie
+          de hoy —ninguna publica acciones— y el contexto de al lado nace
+          `hidden`. Lo único que quedaba era el botón que abría la caja de
+          herramientas, y esa caja salió del chasis: es del módulo, va a vivir
+          adentro de su espacio.
+
+          Es alto caro: en una pantalla baja, el header entero más esta fila
+          dejaban la tabla del módulo fuera de la vista. El shell no puede
+          cobrarle espacio permanente a todas las superficies por una pieza que
+          ninguna usa.
+
+          Las clases (`.sw-toolbar`, `.sw-toolbar__aside`, `.sw-topbar__caja`)
+          siguen en `shell/chrome.css`: vuelven con la caja. */}
     </div>
   );
 }

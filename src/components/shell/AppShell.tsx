@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Sidebar } from './Sidebar.js';
 import { Topbar } from './Topbar.js';
-import { SideColumn } from './SideColumn.js';
 import { useMedidaDeSuperficie } from '../layout/medida-de-superficie.js';
 import { MIN_KEY, TarjetaDelChatProvider } from './chat-card.js';
 
@@ -38,36 +37,36 @@ import { MIN_KEY, TarjetaDelChatProvider } from './chat-card.js';
 export function AppShell({
   titulo,
   sub,
-  acciones,
   migas,
   onIrA,
   chat,
-  herramientas,
   children,
   contentRef,
 }: {
   titulo: string;
   sub?: string;
-  acciones?: React.ReactNode;
   /** Dónde estás — la franja 2 del topbar. Vacío = no se muestra. */
   migas?: import('../../lib/migas.js').Miga[];
   onIrA?: (to: string) => void;
   chat?: React.ReactNode;
-  herramientas?: React.ReactNode;
   children?: React.ReactNode;
   contentRef?: React.Ref<HTMLDivElement>;
 }): React.ReactElement {
-  /* DOS ESTADOS, NO TRES: abierta y riel.
+  /* LA COLUMNA DERECHA SE SACÓ DEL CHASIS (1-oct-2026), con el botón que la
+     abría y la fila del topbar que lo alojaba.
 
-     ARRANCA EN RIEL. Con el chat permanentemente afuera, lo único que le queda
-     a la columna es la caja de herramientas —que no todas las superficies
-     traen—, así que abierta por defecto le come ancho al trabajo para mostrar
-     un panel que muchas veces está vacío. Se abre con la pestaña o con el botón
-     del topbar: sigue a un clic.
+     Lo único que hospedaba era la CAJA DE HERRAMIENTAS DEL MÓDULO, y ése es el
+     punto: es del módulo, no del shell. El plan es que viva adentro de su
+     espacio y sea dominio suyo, así que tenerla acá la ponía en el lugar
+     equivocado y además cobraba su precio en toda pantalla — la fila que la
+     gobernaba ocupaba su alto aunque el módulo no publicara una sola acción,
+     que es el caso de todas las superficies de hoy.
 
-     El estado vive acá y no en la columna porque el botón que lo alterna está en
-     la barra superior: son dos piezas separadas en el DOM mirando el mismo dato. */
-  const [columnaAbierta, setColumnaAbierta] = useState(false);
+     NO SE BORRÓ NADA: `SideColumn`, `ModuleTools` y sus hojas siguen en el
+     repo, desconectados a propósito. Vuelven cuando el módulo los reclame.
+
+     El chat NO estaba acá —vive en `.sw-flota`, flotando sobre el área de
+     trabajo— así que esto no lo toca. */
 
   /* El segundo renglón del título lo publica la SUPERFICIE, no el shell: el
      shell no sabe cuántos documentos hay. Mismo canal que la corrida de una
@@ -124,16 +123,7 @@ export function AppShell({
   return (
     <Sidebar>
       <main className="sw-side__canvas">
-        <Topbar
-          titulo={titulo}
-          sub={sub}
-          medida={medida}
-          acciones={acciones}
-          migas={migas}
-          onIrA={onIrA}
-          columnaAbierta={columnaAbierta}
-          onAlternarColumna={() => setColumnaAbierta((v) => !v)}
-        />
+        <Topbar titulo={titulo} sub={sub} medida={medida} migas={migas} onIrA={onIrA} />
 
         <div className="sw-container">
           {/* El slot es la CAJA y no scrollea; la zona de adentro sí. Es la
@@ -163,11 +153,6 @@ export function AppShell({
             ref={chatHostRef}
             aria-label="Conversación"
             data-min={minimizada ? 'true' : 'false'}
-          />
-          <SideColumn
-            herramientas={herramientas}
-            riel={!columnaAbierta}
-            onAbrir={() => setColumnaAbierta(true)}
           />
         </div>
 
