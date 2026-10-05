@@ -330,3 +330,80 @@
 .sw-soportes__pb[disabled] { color: var(--sw-faint); cursor: not-allowed; }
 .sw-soportes__pb[disabled]:hover { background: none; }
 .sw-soportes__pb svg { --sw-ico: var(--sw-ico-sm); }
+
+
+/* ---- LOS DOCUMENTOS RELACIONADOS ----------------------------------------
+   «Con qué más va esto» es parte de mirar un documento, no una consulta aparte:
+   la causación es un proceso de AGRUPACIÓN —todo nace suelto y los vínculos van
+   apareciendo—, así que el contador de la tabla y la lista del visor son la
+   misma pregunta en dos niveles de detalle.
+   ------------------------------------------------------------------------- */
+
+/* EL CONTADOR DE LA CELDA. Va pegado al nombre del archivo pero NO se lee como
+   parte de él: lleva su propio fondo, su ícono y la tinta apagada. El `+N` del
+   nombre cuenta páginas y éste cuenta documentos, y son poblaciones distintas
+   (ver el comentario en `View.tsx`). */
+.sw-soportes__vinculos {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: var(--sw-s-2);
+  padding: 0 6px;
+  border-radius: var(--sw-r-pill);
+  background: var(--sw-surface-2);
+  color: var(--sw-muted);
+  font-size: var(--sw-t-caption);
+  font-variant-numeric: tabular-nums;
+  /* El subrayado punteado es del nombre del archivo, que es lo clickeable como
+     tal; la píldora viaja con él pero no lo imita. */
+  text-decoration: none;
+  vertical-align: baseline;
+}
+.sw-soportes__vinculos svg { --sw-ico: var(--sw-ico-sm); }
+
+/* LA LISTA, dentro del visor y debajo de la evidencia: primero se ve el papel,
+   después con qué está atado. */
+.sw-soportes__vinculosLista {
+  border-top: var(--sw-border) solid var(--sw-line);
+  padding: var(--sw-s-3) var(--sw-s-4);
+}
+.sw-soportes__vinculosLista h3 {
+  margin: 0 0 var(--sw-s-2);
+  font-size: var(--sw-t-body-sm);
+  font-weight: var(--sw-w-medium);
+  color: var(--sw-text-2);
+}
+.sw-soportes__vinculosLista ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sw-s-2);
+}
+/* Tres datos por renglón y en este orden: QUÉ tipo de vínculo —que es lo que
+   explica por qué el documento está en la lista—, cuál es, y por qué la IA los
+   ató. Sin el primero la lista es un montón de nombres sueltos. */
+.sw-soportes__vinculosLista li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px var(--sw-s-2);
+  align-items: baseline;
+  font-size: var(--sw-t-body-sm);
+}
+.sw-soportes__vinculoTipo {
+  padding: 1px 8px;
+  border-radius: var(--sw-r-pill);
+  background: var(--sw-surface-2);
+  color: var(--sw-text-2);
+  font-size: var(--sw-t-caption);
+  white-space: nowrap;
+}
+.sw-soportes__vinculoNombre { color: var(--sw-text); min-width: 0; }
+/* El argumento de la IA, en la segunda línea y apagado: es lo que el contador
+   lee para aceptar o deshacer el vínculo sin abrir los dos documentos. */
+.sw-soportes__vinculoEvidencia {
+  grid-column: 2;
+  color: var(--sw-muted);
+  font-size: var(--sw-t-caption);
+}

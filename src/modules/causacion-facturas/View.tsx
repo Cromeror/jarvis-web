@@ -18,7 +18,6 @@ import {
   facetasDeDocumentos,
   listarPeriodos,
   type DocumentoContable,
-  type ArchivoDeDocumento,
   type DocumentoDeAvance,
   type EstadoDocumento,
   type FacetasDeDocumentos,
@@ -114,14 +113,40 @@ function celdaDeDocumento(
        URL de descarga, que es una NAVEGACIÓN —sin el `Authorization` que pone
        el interceptor de `fetch`—, así que devolvía 401. Y además lo que hace
        ahora no es ir a ningún lado: abre el visor. */
+    const paginas = doc.archivos.length;
+    const vinculos = doc.relaciones.length;
     return (
       <button
         type="button"
         className="sw-soportes__archivo"
         onClick={() => abrir(doc)}
-        title={doc.archivos.length === 1 ? 'Abrir' : `${doc.archivos.length} páginas`}
+        title={[
+          paginas === 1 ? 'Abrir' : `${paginas} páginas`,
+          vinculos > 0
+            ? `${vinculos} documento${vinculos === 1 ? '' : 's'} relacionado${vinculos === 1 ? '' : 's'}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(' · ')}
       >
         {valor}
+        {/* DOS CONTADORES SEPARADOS, y es la decisión de esta celda.
+
+            El `+N` del nombre cuenta PÁGINAS —la misma factura fotografiada
+            tres veces— y éste cuenta DOCUMENTOS RELACIONADOS, que son otras
+            unidades contables. Son poblaciones distintas: tres páginas son UN
+            asiento, tres vínculos son CUATRO documentos. Un solo número para
+            las dos cosas obliga a abrir para saber de qué hablaba, y peor:
+            invita a leer «+2» como páginas cuando era un pago y una remisión.
+
+            Por eso el de vínculos lleva ícono y el de páginas no: lo que los
+            distingue no puede ser sólo la posición. */}
+        {vinculos > 0 ? (
+          <span className="sw-soportes__vinculos" aria-hidden="true">
+            <Icon name="enlace" />
+            {vinculos}
+          </span>
+        ) : null}
       </button>
     );
   }
@@ -297,12 +322,13 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
      tabla de abajo sigue listando archivos. */
   const [avance, setAvance] = useState<DocumentoDeAvance[]>([]);
   /**
-   * El ARCHIVO que se está mirando. `null` = el visor está cerrado.
+   * El DOCUMENTO que se está mirando. `null` = el visor está cerrado.
    *
-   * La fila es un documento y puede tener varias páginas; el visor abre la
-   * primera. Elegir cuál ver con más de una es trabajo del visor, no de acá.
+   * Es el documento y no uno de sus archivos, porque el visor muestra las dos
+   * cosas: la evidencia (su primera página) y CON QUÉ ESTÁ RELACIONADO. Un
+   * archivo suelto no tiene vínculos — los tiene el documento.
    */
-  const [mirando, setMirando] = useState<ArchivoDeDocumento | null>(null);
+  const [mirando, setMirando] = useState<DocumentoContable | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   /* ---- EL PRIMER RECORTE: el período ----------------------------------- */
@@ -670,7 +696,7 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
         onColumnas={(visibles) => guardarPrefs({ ...prefs, columnas: visibles })}
         porPagina={100}
         opcionesPagina={[100, 150]}
-        celda={(doc, col) => celdaDeDocumento(doc, col, (d) => setMirando(d.archivos[0] ?? null))}
+        celda={(doc, col) => celdaDeDocumento(doc, col, setMirando)}
         /* LA BANDA DE LA TABLA, que es donde el template monta los filtros
            (`encabezado: filaDeFiltros()`): gobiernan ESTA tabla, así que van
            pegados a ella y no sueltos sobre el lienzo. */
@@ -697,7 +723,7 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
       />
       </div>
 
-      <Visor projectId={projectId} soporte={mirando} onCerrar={() => setMirando(null)} />
+      <Visor projectId={projectId} documento={mirando} onCerrar={() => setMirando(null)} />
     </div>
   );
 }

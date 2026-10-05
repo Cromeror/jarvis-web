@@ -246,3 +246,18 @@ export async function buscarDocumentos(
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as { documentos: DocumentoContable[]; total: number };
 }
+
+/**
+ * UN documento por id, con su asiento y su trazabilidad.
+ *
+ * Lo usa el visor para resolver un documento RELACIONADO que la tabla no tiene
+ * cargado: los vínculos cruzan períodos y páginas —una factura de marzo puede
+ * estar pagada por un comprobante de abril— así que buscarlos sólo entre las
+ * filas visibles los mostraría a veces sí y a veces no, según dónde estuviera
+ * parado el usuario. Un vínculo que aparece y desaparece es peor que no tenerlo.
+ */
+export async function getDocumento(projectId: string, documentoId: string): Promise<DocumentoContable> {
+  const res = await fetch(`${base(projectId)}/documentos/${encodeURIComponent(documentoId)}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return ((await res.json()) as { documento: DocumentoContable }).documento;
+}
