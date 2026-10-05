@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { login } from '../lib/auth-api.js';
 import { notifyAuthChanged } from '../hooks/useAuth.js';
 import { Icon } from '../components/Icon.js';
 import { ThemeSwitch } from '../components/ThemeSwitch.js';
 import { useTipeo } from '../hooks/useTipeo.js';
+import { rutaDeVueltaSegura } from '../lib/ruta-de-vuelta.js';
 import '../theme/islas/ambience.js';
 
 /**
@@ -48,6 +49,17 @@ function ahorraDatos(): boolean {
 
 export function LoginPage(): React.ReactElement {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  /* A DÓNDE SE VUELVE al entrar: `?next=` (lo pone el interceptor ante un 401,
+     que recarga) o el `state.from` de `RequireAuth` (navegación dentro de la
+     SPA). Los dos pasan por el mismo filtro — `next` lo puede escribir
+     cualquiera en un enlace, y sin filtro esto sería un redirector abierto. */
+  const from = (location.state as { from?: { pathname?: string; search?: string; hash?: string } } | null)?.from;
+  const destino =
+    rutaDeVueltaSegura(searchParams.get('next')) ??
+    rutaDeVueltaSegura(from ? `${from.pathname ?? ''}${from.search ?? ''}${from.hash ?? ''}` : null) ??
+    '/';
   const hostRef = useRef<HTMLElement>(null);
   const ambienteRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -217,7 +229,7 @@ export function LoginPage(): React.ReactElement {
       await explotar();
       llegar(quieto ? 'quieta' : 'zoom');
       notifyAuthChanged();
-      navigate('/', { replace: true });
+      navigate(destino, { replace: true });
     } catch (err) {
       setFase(undefined);
       setError(err instanceof Error ? err.message : 'Error al iniciar sesión');

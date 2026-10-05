@@ -127,7 +127,8 @@ describe('despliegue-web-desacoplado — origen de la API', () => {
     await (globalThis as unknown as { window: { fetch: typeof fetch } }).window.fetch('/api/plans');
 
     expect(limpiada).toBe(true);
-    expect(win.location.href).toBe('/login');
+    // Con la vuelta puesta (`ruta-de-vuelta.ts`): al entrar, de nuevo a /plans.
+    expect(win.location.href).toBe('/login?next=%2Fplans');
     vi.doUnmock('../auth-api.js');
   });
 

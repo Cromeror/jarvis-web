@@ -12,6 +12,7 @@ import { CatalogPage } from './pages/CatalogPage.js';
 import { PortGrantsPage } from './pages/PortGrantsPage.js';
 import { SuitePage } from './pages/SuitePage.js';
 import { UsersPage } from './pages/UsersPage.js';
+import { PreviewLoginPage } from './pages/PreviewLoginPage.js';
 import { AppLayout } from './components/layout/AppLayout.js';
 import { RequireAuth } from './components/layout/RequireAuth.js';
 import { PipelineRunView } from './components/Pipeline/PipelineRunView.js';
@@ -49,6 +50,9 @@ import { PlanRunView } from './components/Plan/PlanRunView.js';
  *                              not a route, just which file is open)
  *   /pipeline/:runId         → AppLayout > PipelineRunView (real-time pipeline progress)
  *   /plan-runs/:runId        → AppLayout > PlanRunView (real-time plan progress, parallel by layer)
+ *   /preview-login?rd=<url>  → PreviewLoginPage: la puerta de los previews de los
+ *                              proyectos (la manda Traefik). Detrás del gate pero
+ *                              sin AppLayout — sin sesión, el login vuelve acá.
  */
 export default function App(): React.ReactElement {
   return (
@@ -80,6 +84,7 @@ export default function App(): React.ReactElement {
         </Route>
         <Route path="/project/:projectId" element={<ProjectMapPage />} />
         <Route path="/editor" element={<EditorPage />} />
+        <Route path="/preview-login" element={<PreviewLoginPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

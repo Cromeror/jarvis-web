@@ -1,5 +1,6 @@
 import { getToken, clearSession, replaceToken } from './auth-api.js';
 import { API_URL, apiUrl, apiRequestPath } from './api-origin.js';
+import { loginConVuelta } from './ruta-de-vuelta.js';
 
 /**
  * El header por el que el server manda un token renovado. Mismo string que
@@ -80,7 +81,10 @@ export function installAuthFetchInterceptor(): void {
     if (isApi && !isLogin && res.status === 401) {
       clearSession();
       if (!window.location.pathname.startsWith('/login')) {
-        window.location.href = '/login';
+        // Con la vuelta puesta: un token vencido no puede costarle al usuario
+        // dónde estaba — en `/preview-login?rd=…` costaba el enlace entero.
+        const { pathname, search = '', hash = '' } = window.location;
+        window.location.href = loginConVuelta(`${pathname}${search}${hash}`);
       }
     }
 
