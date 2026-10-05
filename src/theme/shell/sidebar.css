@@ -53,6 +53,28 @@
   border-radius: var(--sw-r-xl);
 }
 
+/* EN PANTALLA ANGOSTA EL CHASIS LLEGA AL CANTO.
+
+   El marco —8px de margen a cada lado, 1px de filete y las cuatro esquinas
+   redondeadas— dice «esto es una pieza apoyada sobre la ventana», y eso sólo
+   se lee cuando hay ventana alrededor. En un teléfono no la hay: lo único que
+   hace es gastar 18px de los 390 que existen, justo donde cada píxel se nota,
+   y dibujar un borde contra el borde de la pantalla.
+
+   El `height` se recalcula porque estaba descontando ese margen (`100% - gap*2`)
+   y sin margen que descontar quedaría corto. Y el radio del riel se va con el
+   resto: es el único del chasis, y existe por el marco — sin marco, deja una
+   muesca del fondo del body contra el canto. */
+@media (max-width: 767px) {
+  .sw-side {
+    margin: 0;
+    height: 100%;
+    border: 0;
+    border-radius: 0;
+  }
+  .sw-side__rail { border-radius: 0; }
+}
+
 /* ── nivel 1 · riel ──────────────────────────────────────────────────
    Decisión 29: sólo íconos, 44px, sin palabra debajo. z-index 5 — por
    encima del panel y el detalle en TODO su recorrido, no sólo en reposo:

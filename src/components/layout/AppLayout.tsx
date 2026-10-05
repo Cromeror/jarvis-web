@@ -1,8 +1,6 @@
 import React, { useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AppShell } from '../shell/AppShell.js';
-import { EnvironmentsMenu } from './EnvironmentsMenu.js';
-import { PipelinesMenu } from './PipelinesMenu.js';
 import { FloatingChat } from '../Chat/FloatingChat.js';
 import { HerramientaCorridaProvider } from './herramienta-corrida.js';
 import { WorkspaceAnchorProvider, useShellAnchorRef } from './workspace-anchor.js';
@@ -154,12 +152,12 @@ function ShellConAnchor(): React.ReactElement {
       sub={sub}
       migas={migas}
       onIrA={(to) => navigate(to)}
-      acciones={
-        <>
-          <EnvironmentsMenu />
-          <PipelinesMenu />
-        </>
-      }
+      /* EL HEADER NO LLEVA ACCIONES: a la derecha va el avatar y nada más.
+         `EnvironmentsMenu` y `PipelinesMenu` colgaban acá y eran un segundo
+         camino a dos superficies que el riel ya ofrece —`/environments` y
+         `/plans`—; en pantalla angosta, además, empujaban al avatar fuera del
+         canto. Los componentes siguen en `layout/`: lo que se sacó es el
+         atajo, no la pantalla. */
       contentRef={contentRef}
       chat={<FloatingChat />}
       /* SIN `herramientas`: la columna derecha salió del chasis. La caja de

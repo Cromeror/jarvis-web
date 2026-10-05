@@ -158,6 +158,32 @@
 .sw-herr__desc { font-size: var(--sw-t-caption); color: var(--sw-muted); }
 
 
+/* ── LO QUE SE ABRE DESDE EL HEADER VA ARRIBA DE LA TARJETA DEL CHAT ─────────
+   El menú del avatar se abría DEBAJO de la tarjeta flotante: quedaba visible
+   sólo la franja que la tarjeta no tapa, o sea el menú cortado por una caja
+   que no tiene nada que ver con él.
+
+   No era una pelea de orden en el DOM —el header viene antes que el bloque de
+   trabajo, así que por DOM perdería igual—: `.sw-flota` lleva
+   `z-index: var(--sw-z-panels)` (50) y el popover no llevaba ninguno. Un
+   elemento posicionado sin `z-index` se pinta en el nivel 0, y cualquier
+   z-index positivo le gana sin importar quién vino primero.
+
+   La capa correcta ya existe en la escala: `--sw-z-popover` (60) está
+   justamente un escalón arriba de `panels`, que es lo que la escala quiere
+   decir —un menú flota sobre los paneles—. Acá sólo faltaba usarla.
+
+   VA SOBRE EL CONTENT Y FUNCIONA EN EL WRAPPER, que es el detalle que hace
+   falta saber para no escribirlo en el lugar equivocado: quien se posiciona es
+   el wrapper del popper de Radix, no el `[data-popover]`. Radix lo resuelve
+   leyendo el `z-index` COMPUTADO del content y copiándolo al wrapper
+   (`react-popper`), así que declararlo acá llega a donde tiene que llegar.
+
+   Y va por el HEADER y no por `#sw-user`: el problema es de cualquier cosa que
+   se abra desde la franja de arriba sobre un bloque de trabajo que tiene una
+   tarjeta flotando. Hoy el único es el avatar. */
+.sw-topbar [data-popover] { z-index: var(--sw-z-popover); }
+
 /* ── EL MENÚ DE USUARIO CABE EN LA PANTALLA ──────────────────────────────────
    Con muchos proyectos asignados la lista los dibujaba todos y el popover
    crecía con ella: pasaba el borde inferior de la ventana y «Cerrar sesión»

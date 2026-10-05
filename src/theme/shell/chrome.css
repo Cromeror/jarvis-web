@@ -1399,10 +1399,17 @@
    panel del sidebar; el nombre no tiene reemplazo. */
 @media (max-width: 620px) {
   .sw-topbar__buscador { display: none; }
-  /* Sin buscador que se coma el espacio libre, algo tiene que empujar las
-     acciones al borde. Otra vez con flex y no con margen, por el reset
-     universal de sidebar.css. */
-  .sw-topbar__seccion { flex: 1 1 auto; }
+  /* Acá hubo un `.sw-topbar__seccion { flex: 1 1 auto }` que NO HACÍA NADA, y
+     vale anotar por qué: `.sw-topbar__seccion` es el `<h1>` de adentro de
+     `.sw-topbar__ident`, que es `display:grid` — las propiedades de flex sobre
+     el hijo de una grilla se ignoran. El ítem flexible de la franja es el
+     `ident`, no el título.
+
+     Y lo que la regla quería —empujar el avatar al canto cuando el buscador se
+     va— ya lo hace `.sw-topbar__nav` con su `flex: 1 1 auto`. Lo que SÍ
+     faltaba era dejar encoger al `ident`, y eso vive ahora en su propia regla,
+     sin breakpoint: desbordar por un título largo no es un problema de
+     pantallas chicas. */
 }
 
 /* Por qué la columna está vacía. Aparece cuando Herramientas es el único
@@ -1809,10 +1816,23 @@
 /* EL TITULO Y SU SUBTITULO. El subtítulo no es un dato más: dice de qué es el
    título que tiene encima — «Contabilidad» / «13 accesos» — y estaba una franja
    más abajo, suelto, donde se leía como si fuera de otra cosa. */
+/* ENCOGE, PERO NO CRECE — `0 1 auto`.
+
+   Tuvo `0 0 auto`, o sea shrink cero, y eso en una fila que no envuelve
+   significa desbordar: el título va en `display` (28px) y con el buscador, el
+   nav y el avatar al lado, la franja pedía más ancho del que la columna tiene.
+   Con `overflow:hidden` en el body eso no se ve como desborde — se ve como que
+   al header le faltan cosas del lado derecho, que es justo lo que no se puede
+   diagnosticar mirando.
+
+   Shrink 1 le devuelve la elipsis al título, que ya la tenía declarada y no
+   podía usarla nunca. El `grow` sigue en 0 a propósito: lo que sobra se lo
+   lleva el nav (ver más abajo), que es lo que mantiene al avatar contra el
+   canto. */
 .sw-topbar__ident {
   display: grid;
   gap: 2px;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   min-width: 0;
 }
 /* EL TITULO VA EN `display`, Y ESTA MEDIDO. La altura de mayúscula de
@@ -2153,4 +2173,38 @@
    riel, que es donde el usuario lo va a buscar para volver a abrirlo. */
 .sw-side__canvas:has(.sw-side-col.is-riel) .sw-topbar__caja {
   width: var(--sw-tools-nav-w);
+}
+
+
+/* ---------------------------------------------------------------
+   PANTALLA ANGOSTA — el header entra, no se recorta
+
+   768px es el corte que el repo ya usa para «mobile» (base.css D7,
+   menus.css). Acá no se esconde nada nuevo: lo que cambia es la
+   MEDIDA de lo que ya hay, porque a 390px de ventana la franja 1
+   tiene ~260px útiles —el riel se queda 60 y el avatar 36— y con el
+   título en 28px no entra ni el nombre de un módulo.
+
+   El buscador no aparece en esta lista: se va solo a los 620px, que
+   es un corte distinto y anterior (arriba, con su motivo).
+   --------------------------------------------------------------- */
+@media (max-width: 767px) {
+  /* El relleno lateral del header es de CADA franja, no de la pila (ver el
+     comentario de `.sw-topbar__fila`), así que se achica acá. 24px a cada lado
+     son 48 de los 260 que hay: casi un quinto de la franja en aire. */
+  .sw-topbar__fila { padding-inline: var(--sw-s-3); }
+  /* Y LA FRANJA 4 VUELVE A LLEGAR AL CANTO. No es redundante: la regla de
+     arriba es `padding-inline` y pisa el `padding-right: 0` de `.sw-topbar__barra`
+     por venir después con la misma especificidad. Sin esto, la caja de la
+     columna deja de caer sobre el filete de la columna de abajo. */
+  .sw-topbar__barra { padding-right: 0; }
+
+  .sw-topbar { padding-top: var(--sw-s-3); }
+  .sw-topbar__cab { gap: var(--sw-s-3); min-height: 48px; }
+
+  /* EL TÍTULO BAJA UN ESCALÓN DE LA ESCALA, no a un valor inventado: de
+     `display` (28px) a `h1` (20px). Sigue siendo lo más grande de la pantalla
+     —que es su trabajo— y «Causación de facturas» pasa a entrar entero en vez
+     de cortarse a la mitad con elipsis. */
+  .sw-topbar__seccion { font-size: var(--sw-t-h1); }
 }
