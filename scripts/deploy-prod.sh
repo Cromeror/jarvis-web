@@ -33,7 +33,12 @@ DIST_DIR="$REPO_DIR/dist"
 # Build a un directorio aparte y recién después publicar: si el build revienta,
 # prod sigue sirviendo el bundle anterior.
 STAGE_DIR="$REPO_DIR/.dist-stage"
-BASE_URL="http://localhost"
+# Se verifica contra el nginx que sirve la web, desde adentro de su container, y no
+# por el :80: desde oct-2026 Traefik sólo atiende a Jarvis si la conexión viene de
+# Cloudflare (`solo-cloudflare` en jarvis-infra), así que `http://localhost` da 403
+# aunque todo esté sano. La ruta pública completa se prueba aparte, como aviso.
+WEB_CONTAINER="jarvis-web-static"
+PUBLIC_URL="https://jarvis.gdomgroup.com"
 
 DO_PULL=1
 DO_TESTS=0
@@ -99,19 +104,23 @@ rm -rf "$STAGE_DIR"
 ok "publicado en $DIST_DIR"
 
 step "[7] Verificación"
-code_for() { curl -s -o /dev/null -w '%{http_code}' "$BASE_URL$1"; }
+code_for() { docker exec "$WEB_CONTAINER" wget -q --spider -S "http://127.0.0.1$1" 2>&1 | awk '/HTTP\//{c=$2} END{print c+0}'; }
 asset="$(grep -o '/assets/index-[A-Za-z0-9_-]*\.js' "$DIST_DIR/index.html" | head -1)"
 
-[[ "$(code_for /)" == "200" ]]            || die "el :80 no devuelve la web (raíz)"
+[[ "$(code_for /)" == "200" ]]            || die "el nginx de la web no devuelve la raíz"
 ok "raíz 200"
 [[ "$(code_for /plans/123)" == "200" ]]   || die "deep link 404 — se perdió el fallback SPA"
 ok "deep link 200 (fallback SPA)"
-[[ -n "$asset" && "$(code_for "$asset")" == "200" ]] || die "el :80 no sirve $asset"
+[[ -n "$asset" && "$(code_for "$asset")" == "200" ]] || die "el nginx no sirve $asset"
 ok "assets 200 ($asset — el bundle recién publicado)"
 # La API tiene que seguir contestando por su cuenta: si el catch-all se comiera
 # /api, el front cargaría y ninguna llamada funcionaría.
-[[ "$(code_for /api/version)" =~ ^(200|401)$ ]] || die "/api/* no llega a la API"
-ok "/api/* sigue yendo a la API"
+# Eso pasa por Traefik, así que se prueba por la URL pública. Es un AVISO y no un
+# corte: el desafío de bots de Cloudflare puede rebotar a curl aunque todo esté bien.
+UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Safari/537.36"
+pub_api="$(curl -s -o /dev/null -m 10 -A "$UA" -w '%{http_code}' "$PUBLIC_URL/api/version")"
+if [[ "$pub_api" =~ ^(200|401)$ ]]; then ok "/api/* sigue yendo a la API ($PUBLIC_URL → $pub_api)"
+else echo "  ! $PUBLIC_URL/api/version devolvió $pub_api — si es 403 puede ser el desafío de bots de Cloudflare; abrilo en un navegador"; fi
 
 echo
 echo "${C_OK}✓ Web deployada${C_OFF} — $(git rev-parse --short HEAD)"
