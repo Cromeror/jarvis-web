@@ -1,6 +1,6 @@
 import React from 'react';
 import { Icon } from '../../components/Icon.js';
-import type { DocumentoDeAvance } from '../../lib/causacion-documentos-api.js';
+import type { EtapaDeGrupo, ResumenDePeriodo } from '../../lib/causacion-documentos-api.js';
 
 /**
  * LA TARJETA DE AVANCE — port de `tarjetaDeAvance()` / `pintarAvance()` del
@@ -45,47 +45,13 @@ import type { DocumentoDeAvance } from '../../lib/causacion-documentos-api.js';
  * que dice «otro destino», no «un problema»; pintarlo de naranja inventaría uno
  * que no hay.
  */
-const GRUPOS = [
+const GRUPOS: { id: EtapaDeGrupo; rot: string }[] = [
   { id: 'causadas', rot: 'Ya causadas' },
   { id: 'listas', rot: 'Listas para causar' },
   { id: 'revision', rot: 'Esperando al contador' },
   { id: 'sin_clasificar', rot: 'Sin analizar' },
   { id: 'otra_operacion', rot: 'Soportes' },
-] as const;
-
-type GrupoId = (typeof GRUPOS)[number]['id'];
-
-export function contar(documentos: DocumentoDeAvance[]): Record<GrupoId, number> {
-  const c: Record<GrupoId, number> = {
-    causadas: 0,
-    listas: 0,
-    revision: 0,
-    sin_clasificar: 0,
-    otra_operacion: 0,
-  };
-  for (const d of documentos) {
-    const cl = d.clasificacion?.clasificacion;
-    /* Un COMPLEMENTARIO respalda un asiento pero no genera uno propio, así que
-       no entra en la cuenta de lo que falta causar. */
-    if (cl === 'COMPLEMENTARIO') {
-      c.otra_operacion++;
-      continue;
-    }
-    /* `null` = todavía no se clasificó. No hay un valor para eso: la ausencia
-       es el dato, y por eso acá se pregunta por `null` y no por un literal. */
-    if (!cl) {
-      c.sin_clasificar++;
-      continue;
-    }
-    /* PRINCIPAL. El eje único dice en qué etapa va: AUDITADO es el único
-       terminal —la causación quedó cerrada—, COMPLETADO es «la IA terminó» y
-       todo lo anterior sigue siendo trabajo que espera. */
-    if (d.estado === 'AUDITADO') c.causadas++;
-    else if (d.estado === 'COMPLETADO') c.listas++;
-    else c.revision++;
-  }
-  return c;
-}
+];
 
 /**
  * EL NAVEGADOR DE PERÍODO — port de `periodo()` del template
@@ -133,32 +99,60 @@ export function Periodo({
 }
 
 export function Avance({
-  documentos,
+  resumen,
   periodo,
 }: {
-  documentos: DocumentoDeAvance[];
+  /**
+   * EL RESUMEN LO CUENTA EL SERVIDOR, sobre TODO el período.
+   *
+   * La tarjeta contaba acá, recorriendo los documentos que la tabla había
+   * traído, y eso estaba mal dos veces: contaba una PÁGINA como si fuera el
+   * período —con 800 documentos en el mes y 200 cargados, decía que falta un
+   * cuarto de lo que falta— y contaba DOCUMENTOS SUELTOS, así que una factura
+   * con su remisión y su pago figuraban como tres cosas por hacer cuando son
+   * un asiento.
+   *
+   * Ahora cuenta GRUPOS, que es la unidad de trabajo, y lo hace el endpoint
+   * `documentos/resumen` (ver `causacion-agrupacion.ts` en storage).
+   */
+  resumen: ResumenDePeriodo | null;
   /** El navegador de período. La tarjeta lo ALOJA; quién manda el mes es la vista. */
   periodo?: React.ReactNode;
 }): React.ReactElement {
-  const total = documentos.length;
-  const c = contar(documentos);
-  const tramos = GRUPOS.map((g) => ({ ...g, n: c[g.id] })).filter((t) => t.n > 0);
+  const total = resumen?.total ?? 0;
+  const tramos = GRUPOS.map((g) => ({ ...g, n: resumen?.por_etapa[g.id] ?? 0 })).filter((t) => t.n > 0);
+  const causadas = resumen?.por_etapa.causadas ?? 0;
 
   /* LA FRASE DICE EL ESTADO, no el porcentaje. Tres variantes, como el
      template: no hay nada, está todo, o falta esto. */
+  /* LA FRASE CUENTA ASIENTOS, NO PAPELES, y por eso dice «documentos a causar»
+     y no «documentos»: una factura con su remisión y su pago es UNA cosa por
+     hacer. El total de papeles está en `resumen.documentos` y se dice aparte —
+     son dos cuentas ciertas de cosas distintas, y elegir una sola escondía la
+     otra. */
   const frase =
     total === 0
       ? 'Todavía no hay documentos analizados.'
-      : c.causadas === total
-        ? `Los ${total} documentos del período ya están causados.`
-        : `${c.causadas} de ${total} documentos ya están causados.`;
+      : causadas === total
+        ? `Los ${total} documentos a causar del período ya están causados.`
+        : `${causadas} de ${total} documentos a causar ya están causados.`;
 
-  const pct = total ? Math.round((c.causadas / total) * 100) : 0;
+  const papeles = resumen?.documentos ?? 0;
+  const pct = total ? Math.round((causadas / total) * 100) : 0;
 
   return (
     <section className="sw-raised sw-soportes__avance">
       <div className="sw-soportes__avTexto">
         <p className="sw-soportes__avFrase">{frase}</p>
+        {/* Los papeles, sólo cuando son más que los asientos: con uno por
+            documento la aclaración no agrega nada y repetir el mismo número
+            con dos nombres hace dudar de cuál se está leyendo. */}
+        {papeles > total ? (
+          <p className="sw-soportes__avPapeles">
+            {papeles} documentos en total — algunos van agrupados con los que están
+            relacionados.
+          </p>
+        ) : null}
       </div>
 
       {/* El navegador va en la segunda columna de la grilla, que es donde el

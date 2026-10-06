@@ -261,3 +261,65 @@ export async function getDocumento(projectId: string, documentoId: string): Prom
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return ((await res.json()) as { documento: DocumentoContable }).documento;
 }
+
+/**
+ * **UNA FILA DE LA TABLA: un grupo de documentos relacionados.**
+ *
+ * La agrupación la hace el SERVIDOR (`causacion-agrupacion.ts` en storage) y no
+ * la pantalla, por dos razones que están escritas allá y que conviene conocer
+ * desde acá: el resumen de la tarjeta cuenta sobre TODO el período y la tabla
+ * muestra una página —agrupado en el cliente, la tarjeta sólo podía contar lo
+ * cargado—, y la agrupación es del dominio: contesta cuántos asientos quedan
+ * por auditar, que es la misma pregunta que haría una tool.
+ */
+export interface GrupoDeDocumentos {
+  /** El que ocupa la fila: el `PRINCIPAL`, o el primero si el grupo no tiene. */
+  duenio: DocumentoContable;
+  /** Todos los del grupo, el dueño incluido y primero. */
+  miembros: DocumentoContable[];
+}
+
+/** En qué etapa está un grupo. Espejo de `CausacionEtapaDeGrupo` en storage. */
+export type EtapaDeGrupo = 'causadas' | 'listas' | 'revision' | 'sin_clasificar' | 'otra_operacion';
+
+/**
+ * Lo que muestra la tarjeta de avance: **grupos**, no documentos.
+ *
+ * `documentos` viaja aparte para no tener que elegir una sola verdad — son dos
+ * cuentas ciertas de cosas distintas, y la tarjeta narra el trabajo (grupos).
+ */
+export interface ResumenDePeriodo {
+  total: number;
+  documentos: number;
+  por_etapa: Record<EtapaDeGrupo, number>;
+}
+
+/**
+ * LA TABLA. Paginada POR GRUPOS: `total` son grupos, porque es lo que el
+ * paginador cuenta.
+ */
+export async function buscarGrupos(
+  projectId: string,
+  q: ConsultaDeDocumentos = {},
+): Promise<{ grupos: GrupoDeDocumentos[]; total: number; documentos: number }> {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(q)) if (v !== undefined && v !== '') params.set(k, String(v));
+  const res = await fetch(`${base(projectId)}/documentos/grupos?${params.toString()}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()) as { grupos: GrupoDeDocumentos[]; total: number; documentos: number };
+}
+
+/**
+ * LA TARJETA. Sobre TODO el recorte, sin paginar — y se le manda el período
+ * SIN los filtros: narra el período, no lo que se está mirando.
+ */
+export async function resumenDePeriodo(
+  projectId: string,
+  q: { periodo?: string; incluir_sin_periodo?: boolean } = {},
+): Promise<ResumenDePeriodo> {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(q)) if (v !== undefined && v !== '') params.set(k, String(v));
+  const res = await fetch(`${base(projectId)}/documentos/resumen?${params.toString()}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()) as ResumenDePeriodo;
+}

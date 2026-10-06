@@ -14,16 +14,18 @@ import { Tabla, type ColumnaDeTabla } from '../../components/ui/Tabla.js';
 import { Avance, Periodo } from './Avance.js';
 import { Visor } from './Visor.js';
 import {
-  buscarDocumentos,
+  buscarGrupos,
   facetasDeDocumentos,
   listarPeriodos,
+  resumenDePeriodo,
   type DocumentoContable,
-  type DocumentoDeAvance,
   type EstadoDocumento,
   type FacetasDeDocumentos,
+  type GrupoDeDocumentos,
+  type ResumenDePeriodo,
 } from '../../lib/causacion-documentos-api.js';
 import { Filtros, FILTROS_VACIOS, hayFiltro, type EstadoDeFiltros } from './Filtros.js';
-import { agrupar, otrosDelGrupo, type GrupoDeDocumentos } from './agrupacion.js';
+
 import type { GrupoDeMenu } from '../../components/ui/MenuContextual.js';
 import { usePublicarSeleccion } from '../../components/layout/seleccion-de-superficie.js';
 import { usePreferenciasDeModulo } from '../../hooks/usePreferenciasDeModulo.js';
@@ -132,7 +134,7 @@ function celdaDeDocumento(
      mostraría dos. */
   const valor =
     col.id === 'archivos' && grupo
-      ? resumenDelContenido(doc, otrosDelGrupo(grupo))
+      ? resumenDelContenido(doc, grupo.miembros.length - 1)
       : def
         ? def.leer(doc)
         : '';
@@ -286,7 +288,7 @@ function nombreDePeriodo(periodo: string): string {
 }
 
 export function View({ projectId }: ModuleViewProps): React.ReactElement {
-  const [documentos, setDocumentos] = useState<DocumentoContable[]>([]);
+  const [grupos, setGrupos] = useState<GrupoDeDocumentos[]>([]);
   const [total, setTotal] = useState(0);
 
   /* EL SEGUNDO RENGLÓN DEL TÍTULO. El template lo arma con
@@ -311,28 +313,29 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
      «causá éste». El contenido no: si el modelo lo necesita, lo trae con una
      tool. Es la misma economía que hace que el contrato de un BC se lea con
      `bc_get` en vez de inyectarse en cada turno. */
-  /* UNA FILA POR GRUPO. Dos documentos atados con `relacionar` son UN trabajo
-     para quien causa, así que ocupan una línea: la del `PRINCIPAL`, o la del
-     primero si el grupo no tiene ninguno. El reparto vive en `agrupacion.ts`,
-     con sus tests — la regla tiene más casos de los que parece. */
-  const grupos = useMemo(() => agrupar(documentos), [documentos]);
+  /* UNA FILA POR GRUPO, y el reparto lo hace el SERVIDOR. Dos documentos
+     atados con `relacionar` son UN trabajo para quien causa, así que ocupan una
+     línea: la del `PRINCIPAL`, o la del primero si el grupo no tiene ninguno.
+
+     Estuvo acá y se mudó al backend porque la agrupación es del DOMINIO —
+     contesta cuántos asientos quedan, no cómo se dibuja una tabla— y porque la
+     tarjeta de arriba cuenta sobre TODO el período: agrupando en el cliente
+     sólo podía contar lo que la página trajo. */
   const filas = useMemo(() => grupos.map((g) => g.duenio), [grupos]);
-  const grupoDe = useMemo(
-    () => new Map(grupos.map((g) => [g.duenio.id, g])),
-    [grupos],
-  );
+  const grupoDe = useMemo(() => new Map(grupos.map((g) => [g.duenio.id, g])), [grupos]);
 
   const seleccion = useMemo(() => {
     if (marcados.length === 0) return null;
+    const todos = grupos.flatMap((g) => g.miembros);
     const nombres = marcados
-      .map((id) => documentos.find((d) => d.id === id)?.archivos[0]?.filename)
+      .map((id) => todos.find((d) => d.id === id)?.archivos[0]?.filename)
       .filter((n): n is string => !!n);
     return {
       kind: 'documento',
       ids: marcados,
       label: marcados.length <= 3 && nombres.length === marcados.length ? nombres.join(', ') : undefined,
     };
-  }, [marcados, documentos]);
+  }, [marcados, grupos]);
   usePublicarSeleccion(seleccion);
 
   usePublicarMedida(total ? `${total} ${total === 1 ? 'documento' : 'documentos'}` : null);
@@ -342,10 +345,6 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
   const [rechazos, setRechazos] = useState<Rechazo[]>([]);
   const [progreso, setProgreso] = useState<{ hecho: number; total: number } | null>(null);
   const [extensiones, setExtensiones] = useState<string[]>([]);
-  /* Los DOCUMENTOS son otra población que los soportes: un documento agrupa
-     los archivos que lo componen (§2.2). Los cuenta la tarjeta de avance; la
-     tabla de abajo sigue listando archivos. */
-  const [avance, setAvance] = useState<DocumentoDeAvance[]>([]);
   /**
    * El DOCUMENTO que se está mirando. `null` = el visor está cerrado.
    *
@@ -388,9 +387,9 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
   const recargar = useCallback(async () => {
     setCargando(true);
     try {
-      /* LA TABLA LISTA DOCUMENTOS, no archivos. Es lo que se clasifica, se
-         causa y se cierra; el archivo es su evidencia y puede ser más de uno. */
-      const { documentos: docs, total: t } = await buscarDocumentos(projectId, {
+      /* LA TABLA: una fila por GRUPO, con los filtros puestos y paginada. El
+         reparto lo hace el servidor — ver `causacion-agrupacion.ts`. */
+      const r = await buscarGrupos(projectId, {
         ...recorte,
         ...(filtros.texto.trim() ? { texto: filtros.texto.trim() } : {}),
         ...(filtros.estado ? { estado: filtros.estado } : {}),
@@ -399,29 +398,9 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
         ...(filtros.tipo_documento ? { tipo_documento: filtros.tipo_documento } : {}),
         limit: 200,
       });
-      setDocumentos(docs);
-      setTotal(t);
+      setGrupos(r.grupos);
+      setTotal(r.total);
       setError(null);
-
-      /* LA TARJETA NARRA EL PERÍODO, NO EL FILTRO, y por eso pide aparte.
-         Es la decisión del template, con su motivo escrito al lado: siguiendo
-         al filtro, «17 de 28» se vuelve «1 de 1» al elegir un tercero, y
-         filtrar a algo que no existe la deja diciendo «todavía no hay
-         documentos», que es falso —hay 28, no cumplen el filtro—. Quieta
-         mientras la tabla se achica, es el ancla contra la cual se lee el
-         recorte.
-
-         SIN FILTROS LAS DOS CONSULTAS SON LA MISMA, así que se reusa la que ya
-         volvió en vez de pedirla de nuevo: el caso común no paga el segundo
-         viaje. Y su falla no voltea la pantalla — la tabla es lo que hay que
-         ver. */
-      if (!hayFiltro(filtros)) {
-        setAvance(docs);
-      } else {
-        void buscarDocumentos(projectId, { ...recorte, limit: 500 })
-          .then((r) => setAvance(r.documentos))
-          .catch(() => undefined);
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudieron cargar los documentos');
     } finally {
@@ -430,6 +409,39 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
     // `recorte` se deriva de `periodo`, que ya está en las dependencias.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, periodo, filtros]);
+
+  /**
+   * LA TARJETA SE PIDE APARTE, y es la regla que ordena esta pantalla:
+   *
+   * | | alcance | paginado | filtros |
+   * |---|---|---|---|
+   * | la tabla | la página que se mira | sí | sí |
+   * | la tarjeta | **todo el período** | no | **no** |
+   *
+   * Lo primero: sacada de la misma respuesta que la tabla, la tarjeta sólo
+   * podía contar lo que la página trajo — con 800 documentos en el mes y 200
+   * cargados, decía que falta un cuarto de lo que falta.
+   *
+   * Lo segundo: **narra el período, no lo que se está mirando**. Es la decisión
+   * del template, con su motivo escrito al lado: siguiendo al filtro, «17 de
+   * 28» se vuelve «1 de 1» al elegir un tercero, y filtrar a algo que no existe
+   * la deja diciendo «todavía no hay documentos», que es falso — hay 28, no
+   * cumplen el filtro. Quieta mientras la tabla se achica, es el ancla contra
+   * la cual se lee el recorte.
+   *
+   * Por eso depende del PERÍODO y no de los filtros, y por eso se recarga
+   * también cuando la tabla cambia por una subida o un borrado.
+   */
+  const [avance, setAvance] = useState<ResumenDePeriodo | null>(null);
+  const recargarAvance = useCallback(async () => {
+    try {
+      setAvance(await resumenDePeriodo(projectId, recorte));
+    } catch {
+      /* La tarjeta que no carga no voltea la pantalla: la tabla es lo que hay
+         que ver, y un resumen viejo o ausente no impide trabajar. */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, periodo]);
 
   useEffect(() => {
     // Los períodos se piden una vez por proyecto: cambian cuando la IA le pone
@@ -464,6 +476,13 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
     const t = setTimeout(() => void recargar(), 250);
     return () => clearTimeout(t);
   }, [periodos, recargar]);
+
+  /* La tarjeta NO espera a los filtros: depende del período y nada más, así
+     que escribir en el buscador no la hace pedir de nuevo. */
+  useEffect(() => {
+    if (periodos === null) return;
+    void recargarAvance();
+  }, [periodos, recargarAvance]);
 
   /* El combo de TERCEROS se puebla con lo que hay en el período que se está
      mirando, no con todo el histórico: una opción sin documentos en el mes
@@ -613,7 +632,7 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
           entra —«¿cuánto trabajo me queda?»— y la barra de abajo es lo que se
           hace después de leerla. Cuenta DOCUMENTOS; la tabla lista ARCHIVOS. */}
       <Avance
-        documentos={avance}
+        resumen={avance}
         periodo={
           /* SIN PERÍODOS NO HAY NAVEGADOR, y no es un caso de borde: un
              proyecto que recién empieza tiene todo sin fecha, así que no hay

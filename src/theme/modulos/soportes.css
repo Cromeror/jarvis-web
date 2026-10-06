@@ -132,6 +132,14 @@
 }
 
 .sw-soportes__avTexto { min-width: 0; }
+/* La cuenta de papeles, debajo de la de asientos y apagada: es contexto de la
+   frase de arriba —por qué los números no coinciden— y no un segundo titular. */
+.sw-soportes__avPapeles {
+  margin: 2px 0 0;
+  font-size: var(--sw-t-body-sm);
+  color: var(--sw-muted);
+}
+
 .sw-soportes__avFrase {
   margin: 0;
   font-family: var(--sw-font-display);

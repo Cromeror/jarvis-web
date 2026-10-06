@@ -1,13 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Icon } from '../../components/Icon.js';
 import { descargarSoporte, fetchSoporteBlob, sePuedeVer } from '../../lib/causacion-soportes-api.js';
-import { getDocumento } from '../../lib/causacion-documentos-api.js';
 import type {
   ArchivoDeDocumento,
   DocumentoContable,
+  GrupoDeDocumentos,
   RelacionDeDocumento,
 } from '../../lib/causacion-documentos-api.js';
-import type { GrupoDeDocumentos } from './agrupacion.js';
+
 
 /**
  * VER UN DOCUMENTO Y CON QUÉ ESTÁ ATADO.
@@ -103,50 +103,6 @@ interface EnLaLista {
   relacion: RelacionDeDocumento | null;
 }
 
-/**
- * LOS DEL GRUPO QUE LA TABLA NO TENÍA CARGADOS.
- *
- * El reparto ya viene hecho de `agrupacion.ts`: la fila sabe quiénes son sus
- * miembros y qué ids quedaron afuera de la página. Acá sólo se resuelven esos
- * ausentes, que existen porque **un vínculo cruza períodos** —una factura de
- * marzo pagada en abril— y la tabla no los tenía a mano.
- *
- * Son pocos (uno, dos), así que se piden de a uno: el día que haya endpoint de
- * lote, este hook es el único lugar que cambia.
- */
-function useAusentes(projectId: string, ids: string[]): { cargando: boolean; docs: DocumentoContable[] } {
-  const [docs, setDocs] = useState<DocumentoContable[]>([]);
-  const [cargando, setCargando] = useState(false);
-  // Las dependencias de un efecto se comparan por identidad, y el arreglo se
-  // rearma en cada render: sin esto el efecto correría para siempre.
-  const clave = ids.join(',');
-
-  useEffect(() => {
-    if (ids.length === 0) {
-      setDocs([]);
-      return undefined;
-    }
-    let vivo = true;
-    setCargando(true);
-    void Promise.all(
-      /* UNO QUE NO SE PUDO TRAER NO BORRA LA LISTA: se cae esa entrada y las
-         demás se muestran. Fallar entero por una de dos esconde información
-         que sí llegó. */
-      ids.map((id) => getDocumento(projectId, id).catch(() => null)),
-    ).then((traidos) => {
-      if (!vivo) return;
-      setDocs(traidos.filter((d): d is DocumentoContable => d !== null));
-      setCargando(false);
-    });
-    return () => {
-      vivo = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, clave]);
-
-  return { cargando, docs };
-}
-
 export function Visor({
   projectId,
   grupo,
@@ -163,14 +119,15 @@ export function Visor({
 }): React.ReactElement | null {
   const ref = useRef<HTMLDialogElement>(null);
   const documento = grupo?.duenio ?? null;
-  const { cargando: cargandoGrupo, docs: ausentes } = useAusentes(projectId, grupo?.idsAusentes ?? []);
-
-  /* La lista: los que la tabla ya tenía, y detrás los que hubo que traer. El
-     dueño va primero porque es desde donde se está mirando. */
-  const lista: EnLaLista[] = [
-    ...(grupo?.miembros ?? []).map((doc, i) => ({ doc, relacion: i === 0 ? null : vinculoEntre(grupo!, doc) })),
-    ...ausentes.map((doc) => ({ doc, relacion: vinculoEntre(grupo as GrupoDeDocumentos, doc) })),
-  ];
+  /* LA LISTA VIENE RESUELTA DEL SERVIDOR. El grupo que arma el backend ya trae
+     sus miembros hidratados —cruza períodos y páginas por su cuenta—, así que
+     acá no se pide nada: antes había un hook que resolvía de a uno los que la
+     tabla no tenía cargados, y con la agrupación en el servidor eso dejó de
+     existir. El dueño va primero porque es desde donde se está mirando. */
+  const lista: EnLaLista[] = (grupo?.miembros ?? []).map((doc, i) => ({
+    doc,
+    relacion: i === 0 ? null : vinculoEntre(grupo as GrupoDeDocumentos, doc),
+  }));
 
   /** Cuál del grupo se está mirando. Arranca en el que se abrió. */
   const [verId, setVerId] = useState<string | null>(null);
@@ -185,7 +142,7 @@ export function Visor({
   /* LA LISTA SÓLO SI HAY CON QUÉ. Un panel izquierdo con una sola entrada —el
      documento que ya se está mirando— es una columna que no deja elegir nada y
      le quita ancho a la foto, que es a lo que se vino. */
-  const hayGrupo = lista.length > 1 || (grupo?.idsAusentes.length ?? 0) > 0;
+  const hayGrupo = lista.length > 1;
 
   /* LA FOTO ANTERIOR SE QUEDA HASTA QUE LA NUEVA ESTÁ LISTA.
      Antes el efecto hacía `setUrl(null)` al limpiar, así que pasar de página
@@ -300,14 +257,7 @@ export function Visor({
         <section className={hayGrupo ? 'sw-partido sw-soportes__visorPartido' : undefined}>
           {hayGrupo ? (
             <div className="sw-partido__panel sw-soportes__grupo" data-lado="izq">
-              {/* El total cuenta también los que todavía están viniendo: el
-                  número tiene que coincidir con el de la celda desde el primer
-                  frame, o el encabezado «sube» mientras cargan. */}
-              <h3>
-                {lista.length + ((grupo?.idsAusentes.length ?? 0) - ausentes.length)} documentos en el
-                grupo
-                {cargandoGrupo ? ' · cargando…' : ''}
-              </h3>
+              <h3>{lista.length} documentos en el grupo</h3>
               {/* LA LISTA ES DE BOTONES Y NO DE TEXTO: elegir uno cambia lo que
                   muestra la derecha, así que cada entrada es una acción. */}
               <ul>
