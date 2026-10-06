@@ -173,9 +173,36 @@ export function Visor({
      le quita ancho a la foto, que es a lo que se vino. */
   const hayGrupo = (documento?.relaciones.length ?? 0) > 0;
 
+  /* LA FOTO ANTERIOR SE QUEDA HASTA QUE LA NUEVA ESTÁ LISTA.
+     Antes el efecto hacía `setUrl(null)` al limpiar, así que pasar de página
+     era: foto → vacío → foto. Ese vacío es el salto —el cuerpo se queda sin
+     contenido y lo de abajo sube— y encima parpadea. Ahora la que se ve sólo
+     se reemplaza cuando hay con qué, y mientras tanto se atenúa: el cambio se
+     lee como una transición y no como un corte.
+
+     El object URL se revoca al REEMPLAZARLO y al desmontar, no en el cleanup
+     del efecto: revocarlo antes de tener la próxima es justamente lo que
+     dejaba el hueco. Sin esto cada foto queda en memoria hasta recargar la
+     pestaña, y son varios MB cada una. */
   const [url, setUrl] = useState<string | null>(null);
+  const urlRef = useRef<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
+
+  const ponerUrl = (nueva: string | null): void => {
+    if (urlRef.current && urlRef.current !== nueva) URL.revokeObjectURL(urlRef.current);
+    urlRef.current = nueva;
+    setUrl(nueva);
+  };
+
+  // El último blob, al desmontar. Va en su propio efecto sin dependencias para
+  // que corra UNA vez al final y no en cada cambio de página.
+  useEffect(() => {
+    return () => {
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+      urlRef.current = null;
+    };
+  }, []);
 
   /* `showModal()` y no el atributo `open`: sólo el método pone el backdrop y
      atrapa el foco. El atributo deja un diálogo que se ve modal y no lo es. */
@@ -194,30 +221,33 @@ export function Visor({
 
   useEffect(() => {
     if (!soporte || !sePuedeVer(soporte.kind ?? '')) {
-      setUrl(null);
+      ponerUrl(null);
       return undefined;
     }
     let vivo = true;
-    let creada: string | null = null;
     setCargando(true);
     setError(null);
     fetchSoporteBlob(projectId, soporte.soporte_id)
       .then((blob) => {
         if (!vivo) return;
-        creada = URL.createObjectURL(blob);
-        setUrl(creada);
+        ponerUrl(URL.createObjectURL(blob));
       })
       .catch((err: unknown) => {
-        if (vivo) setError(err instanceof Error ? err.message : 'No se pudo abrir el archivo');
+        if (!vivo) return;
+        setError(err instanceof Error ? err.message : 'No se pudo abrir el archivo');
+        // Con error SÍ se limpia: dejar la foto anterior debajo de un mensaje
+        // que habla de otra haría creer que lo que se ve es lo que falló.
+        ponerUrl(null);
       })
       .finally(() => {
         if (vivo) setCargando(false);
       });
     return () => {
       vivo = false;
-      if (creada) URL.revokeObjectURL(creada);
-      setUrl(null);
     };
+    // `ponerUrl` se redefine en cada render y no es una dependencia real: lo que
+    // dispara una carga nueva es el archivo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, soporte]);
 
   if (!documento) return null;
@@ -231,6 +261,13 @@ export function Visor({
       className="dialog sw-soportes__visor"
       data-ancho={hayGrupo ? 'grupo' : 'solo'}
       onClose={onCerrar}
+      /* CLIC AFUERA CIERRA. El `<dialog>` nativo no lo trae —sólo Escape— y el
+         backdrop es parte del PROPIO dialog, no un nodo aparte: por eso el
+         clic se escucha acá y se compara el target contra el elemento. Un clic
+         adentro cae en el `<article>` o en sus hijos, así que nunca iguala. */
+      onClick={(e) => {
+        if (e.target === ref.current) ref.current?.close();
+      }}
     >
       <article>
         <header>
@@ -308,12 +345,29 @@ export function Visor({
                 </p>
               ) : error ? (
                 <p className="sw-soportes__visorNada">{error}</p>
-              ) : cargando ? (
-                <p className="sw-soportes__visorNada">Cargando…</p>
               ) : url ? (
                 /* El `alt` es el nombre del archivo: es lo único cierto que
-                   sabemos de la imagen. Describir el contenido sería inventarlo. */
-                <img className="sw-soportes__visorImg" src={url} alt={soporte.filename ?? 'documento'} />
+                   sabemos de la imagen. Describir el contenido sería inventarlo.
+
+                   `data-cargando` la atenúa mientras viene la próxima: la que
+                   se ve sigue siendo la anterior, y decirlo con opacidad es lo
+                   que convierte el cambio en una transición. */
+                <img
+                  className="sw-soportes__visorImg"
+                  src={url}
+                  alt={soporte.filename ?? 'documento'}
+                  data-cargando={cargando ? 'true' : undefined}
+                />
+              ) : null}
+
+              {/* EL AVISO VA SUPERPUESTO Y NO EN LUGAR DE LA FOTO. Puesto en su
+                  lugar, el cuerpo se vacía y todo lo de abajo sube: ése era el
+                  salto. Encima, flota sobre la foto anterior, que es la pista
+                  de dónde está uno mientras llega la próxima. */}
+              {cargando ? (
+                <span className="sw-soportes__visorCarga" role="status">
+                  <Icon name="cargando" />
+                </span>
               ) : null}
             </div>
 

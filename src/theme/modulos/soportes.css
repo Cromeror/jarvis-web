@@ -211,23 +211,62 @@
    sin taparle la pantalla entera. El ancho se lo queda Basecoat. */
 .sw-soportes__visor > article { max-width: min(920px, calc(100vw - 2rem)); }
 
+/* LA CAJA DE LA FOTO LLENA LO QUE LE TOCA Y NO CRECE CON ELLA. Es la otra
+   mitad del alto fijo: con la caja midiendo lo que mide la imagen, el salto
+   vuelve aunque el diálogo esté clavado. `position: relative` es para el aviso
+   de carga, que va superpuesto. */
 .sw-soportes__visorCuerpo {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 200px;
-  /* SCROLLEA EL CUERPO, no el diálogo: la cabecera con el nombre del archivo y
-     el pie con Descargar tienen que quedar a la vista con la imagen larga. */
-  overflow: auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* `contain` y no `cover`: recortar una factura para que llene la caja es
-   esconder justo el renglón que se venía a leer. */
+   esconder justo el renglón que se venía a leer.
+
+   Y el tope son las DIMENSIONES DE SU CAJA (`100%`), no un cálculo contra la
+   ventana: el cálculo no sabía del encabezado, del pie ni del paginador, así
+   que una foto alta los empujaba fuera de la vista. */
 .sw-soportes__visorImg {
   max-width: 100%;
-  max-height: calc(100vh - 16rem);
+  max-height: 100%;
   object-fit: contain;
   border-radius: var(--sw-r-sm);
+  /* Sólo opacidad (regla 7). La foto que se va no desaparece: se apaga
+     mientras llega la próxima, y eso es lo que se lee como transición en vez
+     de como un corte. */
+  transition: opacity var(--sw-d-short) var(--sw-ease-out);
+}
+.sw-soportes__visorImg[data-cargando='true'] { opacity: 0.45; }
+
+/* EL AVISO DE CARGA, SUPERPUESTO. Centrado sobre la foto anterior y no en su
+   lugar: ocupando su lugar, el cuerpo se vacía y todo lo de abajo sube — que
+   es exactamente el salto que esto viene a sacar. */
+.sw-soportes__visorCarga {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--sw-r-pill);
+  background: var(--sw-raised-2);
+  box-shadow: var(--sw-e-modal);
+  color: var(--sw-muted);
+}
+.sw-soportes__visorCarga svg {
+  --sw-ico: var(--sw-ico-md);
+  animation: sw-soportes-gira 900ms linear infinite;
+}
+/* `rotate` y nada más: es transform, que es lo que la regla 7 permite animar.
+   El arco del ícono es incompleto a propósito —si fuera un círculo entero,
+   girando no se notaría que gira—. `prefers-reduced-motion` ya lo apaga global
+   en `basecoat-ext.css`, así que acá no se repite. */
+@keyframes sw-soportes-gira {
+  to { transform: rotate(360deg); }
 }
 
 .sw-soportes__visorNada {
@@ -351,8 +390,19 @@
    DOS ANCHOS SEGÚN QUÉ HAY QUE MOSTRAR. Con grupo hacen falta las dos columnas
    y el 90% que pidió el dueño; sin grupo es una foto sola, y estirarla a 90%
    deja una imagen chica flotando en un campo vacío. */
+/* EL ALTO ES FIJO, NO UN TOPE, y ésa es la causa del salto que había.
+
+   Con `max-height` el diálogo medía lo que midiera la foto: una apaisada daba
+   un modal bajo, la siguiente vertical lo estiraba, y pasar de página movía el
+   paginador y el botón de cerrar de lugar. Clavado al alto de la ventana, el
+   marco no se entera de qué foto hay adentro — lo único que cambia es la
+   imagen, que es lo que uno fue a ver.
+
+   El mismo motivo vale para el ancho: los dos valores de `data-ancho` son
+   fijos, así que abrir el modal no depende del contenido tampoco. */
 .sw-soportes__visor > article {
   box-shadow: var(--sw-e-modal);
+  height: calc(100vh - var(--sw-s-12));
   max-height: calc(100vh - var(--sw-s-12));
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
