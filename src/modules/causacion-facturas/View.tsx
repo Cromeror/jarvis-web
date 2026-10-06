@@ -112,41 +112,17 @@ function celdaDeDocumento(
     /* UN BOTÓN Y NO UN ENLACE, y el cambio no es de estilo: el `href` iba a la
        URL de descarga, que es una NAVEGACIÓN —sin el `Authorization` que pone
        el interceptor de `fetch`—, así que devolvía 401. Y además lo que hace
-       ahora no es ir a ningún lado: abre el visor. */
-    const paginas = doc.archivos.length;
-    const vinculos = doc.relaciones.length;
+       ahora no es ir a ningún lado: abre el visor.
+
+       SIN ÍCONO DE VÍNCULO. Lo tuvo —primero como contador, después como marca—
+       y las dos veces sobraba: el resumen de la celda ya dice «3 páginas · 2
+       documentos» con el sustantivo al lado, que es más claro que un dibujo que
+       hay que aprender. Un segundo canal para lo que el texto ya dice es ruido
+       en una columna que se recorre con la vista. */
+    if (!valor) return null;
     return (
-      <button
-        type="button"
-        className="sw-soportes__archivo"
-        onClick={() => abrir(doc)}
-        title={[
-          paginas === 1 ? 'Abrir' : `${paginas} páginas`,
-          vinculos > 0
-            ? `${vinculos} documento${vinculos === 1 ? '' : 's'} relacionado${vinculos === 1 ? '' : 's'}`
-            : null,
-        ]
-          .filter(Boolean)
-          .join(' · ')}
-      >
+      <button type="button" className="sw-soportes__archivo" onClick={() => abrir(doc)} title="Abrir">
         {valor}
-        {/* DOS CONTADORES SEPARADOS, y es la decisión de esta celda.
-
-            El `+N` del nombre cuenta PÁGINAS —la misma factura fotografiada
-            tres veces— y éste cuenta DOCUMENTOS RELACIONADOS, que son otras
-            unidades contables. Son poblaciones distintas: tres páginas son UN
-            asiento, tres vínculos son CUATRO documentos. Un solo número para
-            las dos cosas obliga a abrir para saber de qué hablaba, y peor:
-            invita a leer «+2» como páginas cuando era un pago y una remisión.
-
-            Por eso el de vínculos lleva ícono y el de páginas no: lo que los
-            distingue no puede ser sólo la posición. */}
-        {vinculos > 0 ? (
-          <span className="sw-soportes__vinculos" aria-hidden="true">
-            <Icon name="enlace" />
-            {vinculos}
-          </span>
-        ) : null}
       </button>
     );
   }

@@ -64,13 +64,35 @@ export const COLUMNAS: ColumnaDoc[] = [
      primera escondería que hay más. */
   {
     key: 'archivos',
-    header: 'Archivos',
-    leer: (d) =>
-      d.archivos.length === 0
-        ? '—'
-        : d.archivos.length === 1
-          ? (d.archivos[0]?.filename ?? '—')
-          : `${d.archivos[0]?.filename ?? '—'} +${d.archivos.length - 1}`,
+    header: 'Contenido',
+    /**
+     * UN RESUMEN, NO UNA LISTA: «3 páginas · 2 documentos».
+     *
+     * Se llamaba «Archivos» y mostraba el nombre del primero con un `+N`, que
+     * decía dos cosas mal. La primera: el nombre de archivo no identifica nada
+     * —para eso están tipo, fecha, tercero y número, que son columnas— y en
+     * cambio se lleva el ancho. La segunda y peor: con un documento RELACIONADO
+     * el `+N` se leía como una página más, y no lo es.
+     *
+     * **Las dos cuentas son poblaciones distintas y por eso se nombran las dos.**
+     * Las páginas son el MISMO papel fotografiado varias veces: un documento,
+     * un asiento (`agrupar` en el README del módulo). Los relacionados son OTROS
+     * documentos, cada uno con su clasificación, su CUFE y su estado
+     * (`relacionar`, que no toca los archivos de nadie). Tres páginas son un
+     * asiento; tres relacionados son cuatro documentos.
+     */
+    leer: (d) => {
+      const partes: string[] = [];
+      if (d.archivos.length > 0) {
+        partes.push(d.archivos.length === 1 ? '1 página' : `${d.archivos.length} páginas`);
+      }
+      if (d.relaciones.length > 0) {
+        partes.push(d.relaciones.length === 1 ? '1 documento' : `${d.relaciones.length} documentos`);
+      }
+      // Sin archivos y sin vínculos no hay nada que resumir, y la celda vacía
+      // es lo que el template hace con un dato que no existe.
+      return partes.join(' · ');
+    },
   },
   /* EL EJE ÚNICO. Antes eran dos columnas —`estado_trazabilidad` y
      `procesamiento_estado`— que contestaban lo mismo con distinto vocabulario. */

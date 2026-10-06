@@ -332,66 +332,111 @@
 .sw-soportes__pb svg { --sw-ico: var(--sw-ico-sm); }
 
 
-/* ---- LOS DOCUMENTOS RELACIONADOS ----------------------------------------
-   «Con qué más va esto» es parte de mirar un documento, no una consulta aparte:
-   la causación es un proceso de AGRUPACIÓN —todo nace suelto y los vínculos van
-   apareciendo—, así que el contador de la tabla y la lista del visor son la
-   misma pregunta en dos niveles de detalle.
+/* ---- EL GRUPO: PÁGINAS Y DOCUMENTOS RELACIONADOS ------------------------
+   Las dos cuentas que resume la columna «Contenido» son de NIVELES distintos
+   («Agrupar no es relacionar», README del módulo): las páginas son el mismo
+   papel —un documento, un asiento— y los relacionados son OTROS documentos,
+   cada uno con su clasificación y su estado. Por eso en el visor se recorren
+   con controles distintos: las páginas con flechas, los documentos con una
+   lista.
    ------------------------------------------------------------------------- */
 
-/* EL CONTADOR DE LA CELDA. Va pegado al nombre del archivo pero NO se lee como
-   parte de él: lleva su propio fondo, su ícono y la tinta apagada. El `+N` del
-   nombre cuenta páginas y éste cuenta documentos, y son poblaciones distintas
-   (ver el comentario en `View.tsx`). */
-.sw-soportes__vinculos {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  margin-left: var(--sw-s-2);
-  padding: 0 6px;
-  border-radius: var(--sw-r-pill);
-  background: var(--sw-surface-2);
-  color: var(--sw-muted);
-  font-size: var(--sw-t-caption);
-  font-variant-numeric: tabular-nums;
-  /* El subrayado punteado es del nombre del archivo, que es lo clickeable como
-     tal; la píldora viaja con él pero no lo imita. */
-  text-decoration: none;
-  vertical-align: baseline;
-}
-.sw-soportes__vinculos svg { --sw-ico: var(--sw-ico-sm); }
+/* ---- EL VISOR ANCHO ----
+   El ancho va DOS VECES y con el mismo valor: Basecoat le pone al diálogo
+   `max-width: var(--container-md)` (448px) y un `max-width` le gana siempre a
+   un `width`, sin importar especificidad ni orden. El template lo tiene medido
+   en `wizard.css` — su asistente estuvo declarado en 640 y medía 448 sin que
+   nada fallara ni avisara.
 
-/* LA LISTA, dentro del visor y debajo de la evidencia: primero se ve el papel,
-   después con qué está atado. */
-.sw-soportes__vinculosLista {
-  border-top: var(--sw-border) solid var(--sw-line);
-  padding: var(--sw-s-3) var(--sw-s-4);
+   DOS ANCHOS SEGÚN QUÉ HAY QUE MOSTRAR. Con grupo hacen falta las dos columnas
+   y el 90% que pidió el dueño; sin grupo es una foto sola, y estirarla a 90%
+   deja una imagen chica flotando en un campo vacío. */
+.sw-soportes__visor > article {
+  box-shadow: var(--sw-e-modal);
+  max-height: calc(100vh - var(--sw-s-12));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
 }
-.sw-soportes__vinculosLista h3 {
+.sw-soportes__visor[data-ancho='grupo'] > article {
+  width: min(90vw, calc(100vw - var(--sw-s-8)));
+  max-width: min(90vw, calc(100vw - var(--sw-s-8)));
+}
+.sw-soportes__visor[data-ancho='solo'] > article {
+  width: min(920px, calc(100vw - var(--sw-s-8)));
+  max-width: min(920px, calc(100vw - var(--sw-s-8)));
+}
+
+/* El reparto arranca con la lista angosta: lo que se vino a ver es el papel.
+   `.sw-partido` pone la grilla y el scroll de cada panel (shell/split.css). */
+.sw-soportes__visorPartido { --sw-partido-izq: 320px; min-height: 0; }
+/* Apilado cuando no entran dos columnas: 320 de lista + un papel legible no
+   caben bajo ~720, y una foto de factura de 300px no se lee. */
+@media (max-width: 720px) {
+  .sw-soportes__visorPartido { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* EL PANEL DE LA DERECHA es la foto más su paginador, apilados: el paginador
+   es del papel que se está mirando, así que viaja con él y no con la lista. */
+.sw-soportes__vista {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: var(--sw-s-2);
+  min-height: 0;
+}
+
+.sw-soportes__paginas {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sw-s-1);
+}
+
+/* ---- LA LISTA DEL GRUPO ---- */
+
+.sw-soportes__grupo {
+  border-right: var(--sw-border) solid var(--sw-line);
+  padding-right: var(--sw-s-3);
+}
+.sw-soportes__grupo h3 {
   margin: 0 0 var(--sw-s-2);
-  font-size: var(--sw-t-body-sm);
+  font-size: var(--sw-t-caption);
   font-weight: var(--sw-w-medium);
-  color: var(--sw-text-2);
+  letter-spacing: var(--sw-tr-overline);
+  text-transform: uppercase;
+  color: var(--sw-faint);
 }
-.sw-soportes__vinculosLista ul {
+.sw-soportes__grupo ul {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--sw-s-2);
+  gap: 2px;
 }
-/* Tres datos por renglón y en este orden: QUÉ tipo de vínculo —que es lo que
-   explica por qué el documento está en la lista—, cuál es, y por qué la IA los
-   ató. Sin el primero la lista es un montón de nombres sueltos. */
-.sw-soportes__vinculosLista li {
+
+/* CADA ENTRADA ES UN BOTÓN: elegirla cambia lo que muestra la derecha. El
+   `aria-current` marca cuál se está viendo — y el fondo lo dibuja eso mismo,
+   no una clase aparte, porque son el mismo hecho. */
+.sw-soportes__grupoItem {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 2px var(--sw-s-2);
   align-items: baseline;
-  font-size: var(--sw-t-body-sm);
+  width: 100%;
+  padding: var(--sw-s-2);
+  border: 0;
+  border-radius: var(--sw-r-md);
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
-.sw-soportes__vinculoTipo {
+.sw-soportes__grupoItem:hover { background: var(--sw-hover); }
+.sw-soportes__grupoItem[aria-current='true'] { background: var(--sw-accent-bg); }
+
+/* QUÉ ES RESPECTO DEL QUE SE ABRIÓ, y va primero: es lo que explica por qué el
+   documento está en la lista. Sin esto son nombres sueltos. */
+.sw-soportes__grupoTipo {
   padding: 1px 8px;
   border-radius: var(--sw-r-pill);
   background: var(--sw-surface-2);
@@ -399,11 +444,20 @@
   font-size: var(--sw-t-caption);
   white-space: nowrap;
 }
-.sw-soportes__vinculoNombre { color: var(--sw-text); min-width: 0; }
-/* El argumento de la IA, en la segunda línea y apagado: es lo que el contador
-   lee para aceptar o deshacer el vínculo sin abrir los dos documentos. */
-.sw-soportes__vinculoEvidencia {
-  grid-column: 2;
+.sw-soportes__grupoNombre {
+  min-width: 0;
+  color: var(--sw-text);
+  font-size: var(--sw-t-body-sm);
+  overflow-wrap: anywhere;
+}
+.sw-soportes__grupoPags {
+  color: var(--sw-muted);
+  font-size: var(--sw-t-caption);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.sw-soportes__grupoEvidencia {
+  grid-column: 2 / -1;
   color: var(--sw-muted);
   font-size: var(--sw-t-caption);
 }

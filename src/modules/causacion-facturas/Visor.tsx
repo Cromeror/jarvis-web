@@ -1,40 +1,61 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Icon } from '../../components/Icon.js';
-import {
-  descargarSoporte,
-  fetchSoporteBlob,
-  sePuedeVer,
-} from '../../lib/causacion-soportes-api.js';
+import { descargarSoporte, fetchSoporteBlob, sePuedeVer } from '../../lib/causacion-soportes-api.js';
 import { getDocumento } from '../../lib/causacion-documentos-api.js';
 import type {
-  ArchivoDeDocumento as ArchivoVisible,
+  ArchivoDeDocumento,
   DocumentoContable,
   RelacionDeDocumento,
 } from '../../lib/causacion-documentos-api.js';
 
 /**
- * VER EL SOPORTE SIN BAJARLO.
+ * VER UN DOCUMENTO Y CON QUÉ ESTÁ ATADO.
  *
- * Es `<dialog class="dialog">` de Basecoat con la anatomía que usa el template
+ * Es `<dialog class="dialog">` de Basecoat con la anatomía del template
  * (`shell/toolbox.js:232` — `<article>` con `<header>`, `<section>` y
- * `<footer>`), y **nativo a propósito**: el template lo anota en `wizard.js` —
- * el `<dialog>` del browser trae foco atrapado, Escape y backdrop de fábrica, y
- * todo eso escrito a mano es donde viven los bugs de accesibilidad.
+ * `<footer>`), y **nativo a propósito**: el `<dialog>` del browser trae foco
+ * atrapado, Escape y backdrop de fábrica, y todo eso escrito a mano es donde
+ * viven los bugs de accesibilidad.
+ *
+ * ## Las dos cosas que muestra son de NIVELES distintos
+ *
+ * Es la distinción que el README del módulo deja escrita en «Agrupar no es
+ * relacionar», y es la que gobierna el layout de acá:
+ *
+ * - **Páginas** (`agrupar`): el MISMO papel fotografiado varias veces. Un
+ *   documento, un asiento. Se recorren con las flechas, en el panel de la
+ *   derecha, porque son vistas de lo mismo.
+ * - **Documentos relacionados** (`relacionar`): OTROS documentos, cada uno con
+ *   su clasificación, su CUFE y su estado. Se eligen en la lista de la
+ *   izquierda, porque cambiar de documento es cambiar de sujeto.
+ *
+ * De ahí sale que la lista SÓLO aparezca cuando hay relacionados: sin ellos no
+ * hay nada que elegir, y una columna vacía al lado de la foto le roba ancho a lo
+ * único que importa. Las flechas, igual: sólo con más de una página.
+ *
+ * ## El ancho hay que declararlo DOS VECES
+ *
+ * Basecoat le pone al diálogo `max-width: var(--container-md)` (448px), y **un
+ * `max-width` le gana siempre a un `width`**, sin importar especificidad ni
+ * orden. El template lo tiene medido y anotado en `wizard.css`: su asistente
+ * estuvo declarado en 640 y medía 448 sin que nada fallara ni avisara. Por eso
+ * acá van los dos, con el mismo valor.
  *
  * ## La imagen no puede ir por `src`
  *
  * El token viaja en `Authorization` y lo pone el interceptor de `window.fetch`;
  * el browser no lo manda al cargar un `<img src>`. Así que los bytes se piden
- * con `fetch` —que sí pasa por el interceptor— y lo que consume el `<img>` es
- * un object URL. Se revoca al cerrar y al cambiar de archivo: un blob que no se
+ * con `fetch` —que sí pasa por el interceptor— y lo que consume el `<img>` es un
+ * object URL. Se revoca al cerrar y al cambiar de archivo: un blob que no se
  * revoca queda en memoria hasta que se recarga la pestaña, y acá son fotos de
  * facturas de varios MB.
  */
+
 /**
  * CÓMO SE LEE UN VÍNCULO. El tipo describe la relación, NO quién manda: las dos
  * puntas son documentos independientes (el dominio no da jerarquía, y hay pares
- * donde ninguno es `PRINCIPAL`). Por eso las etiquetas son sustantivos y no
- * frases con dirección — «pago de» obligaría a saber de qué lado está parado uno.
+ * donde ninguno es `PRINCIPAL`). Por eso son sustantivos y no frases con
+ * dirección — «pago de» obligaría a saber de qué lado está parado uno.
  */
 const RELACION: Record<RelacionDeDocumento['tipo_relacion'], string> = {
   remision_factura: 'Remisión',
@@ -48,7 +69,7 @@ function elOtroExtremo(r: RelacionDeDocumento, documentoId: string): string {
 }
 
 /**
- * Cómo se nombra un documento en la lista de vínculos.
+ * Cómo se nombra un documento en la lista.
  *
  * Lo que el contador reconoce es el asiento —tipo, número, tercero—, no un uuid.
  * Si la IA todavía no lo leyó, cae al nombre del archivo, que es lo único cierto
@@ -59,6 +80,13 @@ function nombrarDocumento(d: DocumentoContable): string {
   const partes = [e?.tipo_documento, e?.numero_documento, e?.tercero_nombre].filter(Boolean);
   if (partes.length > 0) return partes.join(' · ');
   return d.archivos[0]?.filename ?? d.id;
+}
+
+/** Una entrada de la lista de la izquierda: el documento y por qué está ahí. */
+interface EnLaLista {
+  doc: DocumentoContable;
+  /** `null` en el documento que se abrió: es el sujeto, no un vínculo suyo. */
+  relacion: RelacionDeDocumento | null;
 }
 
 /**
@@ -73,33 +101,40 @@ function nombrarDocumento(d: DocumentoContable): string {
  * Son pocos por documento (uno, dos), así que no hay endpoint de lote: el día
  * que los haya se agrega, y este hook es el único lugar que cambia.
  */
-function useRelacionados(
+function useGrupo(
   projectId: string,
   documento: DocumentoContable | null,
-): { cargando: boolean; items: { relacion: RelacionDeDocumento; doc: DocumentoContable | null }[] } {
-  const [items, setItems] = useState<{ relacion: RelacionDeDocumento; doc: DocumentoContable | null }[]>([]);
+): { cargando: boolean; lista: EnLaLista[] } {
+  const [lista, setLista] = useState<EnLaLista[]>([]);
   const [cargando, setCargando] = useState(false);
 
   useEffect(() => {
-    if (!documento || documento.relaciones.length === 0) {
-      setItems([]);
+    if (!documento) {
+      setLista([]);
+      return undefined;
+    }
+    // El documento abierto encabeza su grupo: es desde donde se está mirando.
+    const propio: EnLaLista = { doc: documento, relacion: null };
+    if (documento.relaciones.length === 0) {
+      setLista([propio]);
       return undefined;
     }
     let vivo = true;
+    setLista([propio]);
     setCargando(true);
     const id = documento.id;
     void Promise.all(
       documento.relaciones.map((relacion) =>
-        /* UN VÍNCULO QUE NO SE PUDO RESOLVER SE MUESTRA IGUAL, con `doc: null`:
-           que el otro documento no se haya podido traer no borra el hecho de
-           que el vínculo existe. Esconderlo sería mentir por una falla de red. */
         getDocumento(projectId, elOtroExtremo(relacion, id))
-          .then((doc) => ({ relacion, doc }))
-          .catch(() => ({ relacion, doc: null })),
+          .then((doc): EnLaLista | null => ({ doc, relacion }))
+          /* UN VÍNCULO QUE NO SE PUDO TRAER NO BORRA LA LISTA: se cae esa
+             entrada y las demás se muestran. Fallar entero por una de dos
+             esconde información que sí llegó. */
+          .catch(() => null),
       ),
-    ).then((resueltos) => {
+    ).then((otros) => {
       if (!vivo) return;
-      setItems(resueltos);
+      setLista([propio, ...otros.filter((x): x is EnLaLista => x !== null)]);
       setCargando(false);
     });
     return () => {
@@ -107,7 +142,7 @@ function useRelacionados(
     };
   }, [projectId, documento]);
 
-  return { cargando, items };
+  return { cargando, lista };
 }
 
 export function Visor({
@@ -116,16 +151,28 @@ export function Visor({
   onCerrar,
 }: {
   projectId: string;
-  /** El DOCUMENTO, no el archivo: es lo que tiene relaciones. `null` = cerrado. */
+  /** El DOCUMENTO, no el archivo: es lo que tiene páginas y vínculos. `null` = cerrado. */
   documento: DocumentoContable | null;
   onCerrar: () => void;
 }): React.ReactElement | null {
   const ref = useRef<HTMLDialogElement>(null);
-  /* La página que se está mirando. El documento puede tener varias —una factura
-     fotografiada en tres tomas— y el visor abría siempre la primera sin decir
-     que había más. */
-  const soporte: ArchivoVisible | null = documento?.archivos[0] ?? null;
-  const { cargando: cargandoVinculos, items: vinculos } = useRelacionados(projectId, documento);
+  const { cargando: cargandoGrupo, lista } = useGrupo(projectId, documento);
+
+  /** Cuál del grupo se está mirando. Arranca en el que se abrió. */
+  const [verId, setVerId] = useState<string | null>(null);
+  /** Qué página de ESE documento. Vuelve a la primera al cambiar de documento. */
+  const [pagina, setPagina] = useState(0);
+
+  const activo: DocumentoContable | null =
+    lista.find((x) => x.doc.id === verId)?.doc ?? documento ?? null;
+  const archivos: ArchivoDeDocumento[] = activo?.archivos ?? [];
+  const soporte: ArchivoDeDocumento | null = archivos[Math.min(pagina, archivos.length - 1)] ?? null;
+
+  /* LA LISTA SÓLO SI HAY CON QUÉ. Un panel izquierdo con una sola entrada —el
+     documento que ya se está mirando— es una columna que no deja elegir nada y
+     le quita ancho a la foto, que es a lo que se vino. */
+  const hayGrupo = (documento?.relaciones.length ?? 0) > 0;
+
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
@@ -139,8 +186,14 @@ export function Visor({
     if (!documento && d.open) d.close();
   }, [documento]);
 
+  // Abrir otro documento reinicia el visor: empieza por su primera página.
   useEffect(() => {
-    if (!soporte || !sePuedeVer((soporte.kind ?? ''))) {
+    setVerId(documento?.id ?? null);
+    setPagina(0);
+  }, [documento]);
+
+  useEffect(() => {
+    if (!soporte || !sePuedeVer(soporte.kind ?? '')) {
       setUrl(null);
       return undefined;
     }
@@ -173,78 +226,129 @@ export function Visor({
     /* `onClose` cubre las salidas que no pasan por nuestro botón —Escape y el
        backdrop—: sin esto el diálogo se cierra y el estado de arriba sigue
        creyendo que está abierto, así que no vuelve a abrirse. */
-    <dialog ref={ref} className="dialog sw-soportes__visor" onClose={onCerrar}>
+    <dialog
+      ref={ref}
+      className="dialog sw-soportes__visor"
+      data-ancho={hayGrupo ? 'grupo' : 'solo'}
+      onClose={onCerrar}
+    >
       <article>
         <header>
           <h2>{soporte?.filename ?? 'Documento sin archivo'}</h2>
           <p>
-            {soporte ? `${soporte.kind ?? ''} · ${formatearTamano(soporte.size_bytes ?? 0)}` : 'Sin archivo adjunto'}
-            {documento.archivos.length > 1 ? ` · página 1 de ${documento.archivos.length}` : ''}
+            {soporte
+              ? `${soporte.kind ?? ''} · ${formatearTamano(soporte.size_bytes ?? 0)}`
+              : 'Sin archivo adjunto'}
           </p>
         </header>
 
-        <section className="sw-soportes__visorCuerpo">
-          {!soporte ? (
-            <p className="sw-soportes__visorNada">Este documento no tiene ningún archivo.</p>
-          ) : !sePuedeVer(soporte.kind ?? '') ? (
-            /* SE DICE QUÉ ES Y QUÉ SE PUEDE HACER, no «no se puede». Un PDF o
-               una planilla son soportes válidos; lo que falta es el visor, no
-               el archivo. */
-            <p className="sw-soportes__visorNada">
-              Un {soporte.kind ?? ''} no se puede ver acá todavía. Descargalo para abrirlo.
-            </p>
-          ) : error ? (
-            <p className="sw-soportes__visorNada">{error}</p>
-          ) : cargando ? (
-            <p className="sw-soportes__visorNada">Cargando…</p>
-          ) : url ? (
-            /* El `alt` es el nombre del archivo: es lo único cierto que sabemos
-               de la imagen. Describir el contenido sería inventarlo. */
-            <img className="sw-soportes__visorImg" src={url} alt={soporte.filename ?? 'documento'} />
-          ) : null}
-        </section>
-
-        {/* LOS DOCUMENTOS RELACIONADOS, debajo de la evidencia y no en otra
-            pantalla. La causación es un proceso de AGRUPACIÓN —todo nace suelto
-            y los vínculos van apareciendo— así que «con qué más va esto» es
-            parte de mirar el documento, no una consulta aparte.
-
-            La sección no se dibuja cuando no hay vínculos: un encabezado que
-            dice «Relacionados» sobre una lista vacía ocupa alto para informar
-            que no hay nada, y eso ya lo dice la celda de la tabla al no mostrar
-            contador. */}
-        {documento.relaciones.length > 0 ? (
-          <section className="sw-soportes__vinculosLista">
-            <h3>
-              {documento.relaciones.length === 1
-                ? 'Un documento relacionado'
-                : `${documento.relaciones.length} documentos relacionados`}
-            </h3>
-            {cargandoVinculos ? (
-              <p className="sw-soportes__visorNada">Cargando…</p>
-            ) : (
+        {/* EL CUERPO SE PARTE EN DOS **SÓLO SI HAY GRUPO**, con `.sw-partido`
+            del template (`shell/split.css`) — el mismo componente con el que la
+            pantalla de causar separa los ítems del asiento. Sin grupo el cuerpo
+            es uno solo y la foto se lleva todo el ancho. */}
+        <section className={hayGrupo ? 'sw-partido sw-soportes__visorPartido' : undefined}>
+          {hayGrupo ? (
+            <div className="sw-partido__panel sw-soportes__grupo" data-lado="izq">
+              <h3>
+                {lista.length === 1 && cargandoGrupo
+                  ? 'Cargando los relacionados…'
+                  : `${lista.length} documentos en el grupo`}
+              </h3>
+              {/* LA LISTA ES DE BOTONES Y NO DE TEXTO: elegir uno cambia lo que
+                  muestra la derecha, así que cada entrada es una acción. */}
               <ul>
-                {vinculos.map(({ relacion, doc }) => (
-                  <li key={relacion.id}>
-                    {/* EL TIPO DE VÍNCULO PRIMERO: es lo que explica por qué
-                        este documento está acá, y sin eso la lista es un
-                        montón de nombres sueltos. */}
-                    <span className="sw-soportes__vinculoTipo">{RELACION[relacion.tipo_relacion]}</span>
-                    <span className="sw-soportes__vinculoNombre">
-                      {doc ? nombrarDocumento(doc) : 'No se pudo cargar este documento'}
-                    </span>
-                    {/* POR QUÉ la IA los vinculó. Es su argumento, y es lo que
-                        el contador necesita para aceptar o deshacer el vínculo
-                        sin abrir los dos documentos. */}
-                    {relacion.evidencia ? (
-                      <span className="sw-soportes__vinculoEvidencia">{relacion.evidencia}</span>
-                    ) : null}
+                {lista.map(({ doc, relacion }) => (
+                  <li key={doc.id}>
+                    <button
+                      type="button"
+                      className="sw-soportes__grupoItem"
+                      aria-current={doc.id === activo?.id ? 'true' : undefined}
+                      onClick={() => {
+                        setVerId(doc.id);
+                        setPagina(0);
+                      }}
+                    >
+                      {/* QUÉ ES RESPECTO DEL QUE SE ABRIÓ. El primero no es un
+                          vínculo: es el documento desde el que se está mirando,
+                          y decirlo evita leer la lista como «cuatro cosas
+                          sueltas». */}
+                      <span className="sw-soportes__grupoTipo">
+                        {relacion ? RELACION[relacion.tipo_relacion] : 'Este'}
+                      </span>
+                      <span className="sw-soportes__grupoNombre">{nombrarDocumento(doc)}</span>
+                      {doc.archivos.length > 1 ? (
+                        <span className="sw-soportes__grupoPags">{doc.archivos.length} págs.</span>
+                      ) : null}
+                      {/* El argumento de la IA para haberlos atado: es lo que el
+                          contador lee para aceptar o deshacer el vínculo sin
+                          abrir los dos documentos. */}
+                      {relacion?.evidencia ? (
+                        <span className="sw-soportes__grupoEvidencia">{relacion.evidencia}</span>
+                      ) : null}
+                    </button>
                   </li>
                 ))}
               </ul>
-            )}
-          </section>
-        ) : null}
+            </div>
+          ) : null}
+
+          <div
+            className={hayGrupo ? 'sw-partido__panel sw-soportes__vista' : 'sw-soportes__vista'}
+            data-lado={hayGrupo ? 'der' : undefined}
+          >
+            <div className="sw-soportes__visorCuerpo">
+              {!soporte ? (
+                <p className="sw-soportes__visorNada">Este documento no tiene ningún archivo.</p>
+              ) : !sePuedeVer(soporte.kind ?? '') ? (
+                /* SE DICE QUÉ ES Y QUÉ SE PUEDE HACER, no «no se puede». Un PDF
+                   o una planilla son soportes válidos; lo que falta es el visor,
+                   no el archivo. */
+                <p className="sw-soportes__visorNada">
+                  Un {soporte.kind ?? ''} no se puede ver acá todavía. Descargalo para abrirlo.
+                </p>
+              ) : error ? (
+                <p className="sw-soportes__visorNada">{error}</p>
+              ) : cargando ? (
+                <p className="sw-soportes__visorNada">Cargando…</p>
+              ) : url ? (
+                /* El `alt` es el nombre del archivo: es lo único cierto que
+                   sabemos de la imagen. Describir el contenido sería inventarlo. */
+                <img className="sw-soportes__visorImg" src={url} alt={soporte.filename ?? 'documento'} />
+              ) : null}
+            </div>
+
+            {/* PASAR PÁGINAS, con el mismo control que el navegador de período
+                (`.sw-soportes__pb/__pm`, port de `sw-ctb__pb` del template): son
+                la misma acción —moverse por una secuencia— y no puede haber dos
+                dibujos para eso. Sólo aparece con más de una página: con una,
+                dos flechas apagadas dicen que falta algo que no falta. */}
+            {archivos.length > 1 ? (
+              <div className="sw-soportes__paginas" role="group" aria-label="Páginas">
+                <button
+                  type="button"
+                  className="sw-soportes__pb"
+                  aria-label="Página anterior"
+                  disabled={pagina === 0}
+                  onClick={() => setPagina((p) => Math.max(0, p - 1))}
+                >
+                  <Icon name="left" />
+                </button>
+                <span className="sw-soportes__pm">
+                  {pagina + 1} de {archivos.length}
+                </span>
+                <button
+                  type="button"
+                  className="sw-soportes__pb"
+                  aria-label="Página siguiente"
+                  disabled={pagina >= archivos.length - 1}
+                  onClick={() => setPagina((p) => Math.min(archivos.length - 1, p + 1))}
+                >
+                  <Icon name="right" />
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </section>
 
         <footer>
           {soporte ? (
@@ -252,7 +356,9 @@ export function Visor({
               type="button"
               className="btn"
               data-variant="outline"
-              onClick={() => void descargarSoporte(projectId, soporte.soporte_id, soporte.filename ?? 'documento')}
+              onClick={() =>
+                void descargarSoporte(projectId, soporte.soporte_id, soporte.filename ?? 'documento')
+              }
             >
               <Icon name="bajar" />
               Descargar
