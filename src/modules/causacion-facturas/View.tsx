@@ -23,6 +23,7 @@ import {
   type FacetasDeDocumentos,
 } from '../../lib/causacion-documentos-api.js';
 import { Filtros, FILTROS_VACIOS, hayFiltro, type EstadoDeFiltros } from './Filtros.js';
+import { agrupar, otrosDelGrupo, type GrupoDeDocumentos } from './agrupacion.js';
 import type { GrupoDeMenu } from '../../components/ui/MenuContextual.js';
 import { usePublicarSeleccion } from '../../components/layout/seleccion-de-superficie.js';
 import { usePreferenciasDeModulo } from '../../hooks/usePreferenciasDeModulo.js';
@@ -96,13 +97,45 @@ const MODULE_KEY = 'causacion-facturas-001';
 
 
 /** El dominio pinta la celda; la tabla arma la grilla. */
+/**
+ * «3 páginas · 2 documentos» — las DOS cuentas de una fila, cada una con su
+ * sustantivo.
+ *
+ * Son poblaciones de niveles distintos y por eso se nombran las dos («Agrupar
+ * no es relacionar», README del módulo): las páginas son el mismo papel
+ * fotografiado varias veces —un documento, un asiento— y los otros son
+ * documentos propios, cada uno con su clasificación, su CUFE y su estado. Tres
+ * páginas son un asiento; tres documentos, cuatro papeles distintos.
+ */
+function resumenDelContenido(doc: DocumentoContable, otros: number): string {
+  const partes: string[] = [];
+  if (doc.archivos.length > 0) {
+    partes.push(doc.archivos.length === 1 ? '1 página' : `${doc.archivos.length} páginas`);
+  }
+  if (otros > 0) partes.push(otros === 1 ? '1 documento' : `${otros} documentos`);
+  // Sin archivos y sin grupo no hay nada que resumir, y la celda vacía es lo
+  // que el template hace con un dato que no existe.
+  return partes.join(' · ');
+}
+
 function celdaDeDocumento(
   doc: DocumentoContable,
   col: ColumnaDeTabla,
-  abrir: (d: DocumentoContable) => void,
+  abrir: (g: GrupoDeDocumentos) => void,
+  grupo: GrupoDeDocumentos | undefined,
 ): React.ReactNode {
   const def = COLUMNAS.find((c) => c.key === col.id);
-  const valor = def ? def.leer(doc) : '';
+  /* EL RESUMEN DE «Contenido» LO ARMA LA VISTA Y NO `columnas.ts`, porque
+     necesita el GRUPO y no sólo el documento: `relaciones` son los vínculos
+     directos, y el grupo es transitivo (A-B, B-C son tres documentos en una
+     fila). Contando las directas, una fila diría «1 documento» y el visor
+     mostraría dos. */
+  const valor =
+    col.id === 'archivos' && grupo
+      ? resumenDelContenido(doc, otrosDelGrupo(grupo))
+      : def
+        ? def.leer(doc)
+        : '';
   /* Un dato que el extractor no leyó deja la celda VACÍA, sin guion ni
      placeholder: es lo que hace el template (`esc(f[c.dato] == null ? '' : …)`).
      Había un `—` con clase propia, que era UI inventada — y además, con
@@ -121,7 +154,12 @@ function celdaDeDocumento(
        en una columna que se recorre con la vista. */
     if (!valor) return null;
     return (
-      <button type="button" className="sw-soportes__archivo" onClick={() => abrir(doc)} title="Abrir">
+      <button
+        type="button"
+        className="sw-soportes__archivo"
+        onClick={() => (grupo ? abrir(grupo) : undefined)}
+        title="Abrir"
+      >
         {valor}
       </button>
     );
@@ -273,6 +311,17 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
      «causá éste». El contenido no: si el modelo lo necesita, lo trae con una
      tool. Es la misma economía que hace que el contrato de un BC se lea con
      `bc_get` en vez de inyectarse en cada turno. */
+  /* UNA FILA POR GRUPO. Dos documentos atados con `relacionar` son UN trabajo
+     para quien causa, así que ocupan una línea: la del `PRINCIPAL`, o la del
+     primero si el grupo no tiene ninguno. El reparto vive en `agrupacion.ts`,
+     con sus tests — la regla tiene más casos de los que parece. */
+  const grupos = useMemo(() => agrupar(documentos), [documentos]);
+  const filas = useMemo(() => grupos.map((g) => g.duenio), [grupos]);
+  const grupoDe = useMemo(
+    () => new Map(grupos.map((g) => [g.duenio.id, g])),
+    [grupos],
+  );
+
   const seleccion = useMemo(() => {
     if (marcados.length === 0) return null;
     const nombres = marcados
@@ -304,7 +353,8 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
    * cosas: la evidencia (su primera página) y CON QUÉ ESTÁ RELACIONADO. Un
    * archivo suelto no tiene vínculos — los tiene el documento.
    */
-  const [mirando, setMirando] = useState<DocumentoContable | null>(null);
+  const [mirando, setMirando] = useState<GrupoDeDocumentos | null>(null);
+  const abrirVisor = useCallback((g: GrupoDeDocumentos) => setMirando(g), []);
   const inputRef = useRef<HTMLInputElement>(null);
 
   /* ---- EL PRIMER RECORTE: el período ----------------------------------- */
@@ -654,7 +704,7 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
            caso en que el salto es inevitable. */
         key={prefsListas ? 'con-prefs' : 'sin-prefs'}
         columnas={columnasDeTabla}
-        filas={documentos}
+        filas={filas}
         clave={(d) => d.id}
         nombreFila={(d) => d.archivos[0]?.filename ?? d.id}
         /* LA CASILLA DEL TEMPLATE. No es adorno: lo marcado se publica para
@@ -672,7 +722,7 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
         onColumnas={(visibles) => guardarPrefs({ ...prefs, columnas: visibles })}
         porPagina={100}
         opcionesPagina={[100, 150]}
-        celda={(doc, col) => celdaDeDocumento(doc, col, setMirando)}
+        celda={(doc, col) => celdaDeDocumento(doc, col, abrirVisor, grupoDe.get(doc.id))}
         /* LA BANDA DE LA TABLA, que es donde el template monta los filtros
            (`encabezado: filaDeFiltros()`): gobiernan ESTA tabla, así que van
            pegados a ella y no sueltos sobre el lienzo. */
@@ -699,7 +749,7 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
       />
       </div>
 
-      <Visor projectId={projectId} documento={mirando} onCerrar={() => setMirando(null)} />
+      <Visor projectId={projectId} grupo={mirando} onCerrar={() => setMirando(null)} />
     </div>
   );
 }

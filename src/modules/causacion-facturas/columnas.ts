@@ -66,33 +66,17 @@ export const COLUMNAS: ColumnaDoc[] = [
     key: 'archivos',
     header: 'Contenido',
     /**
-     * UN RESUMEN, NO UNA LISTA: «3 páginas · 2 documentos».
+     * EL TEXTO LO ARMA LA VISTA (`resumenDelContenido` en `View.tsx`), no esto.
      *
-     * Se llamaba «Archivos» y mostraba el nombre del primero con un `+N`, que
-     * decía dos cosas mal. La primera: el nombre de archivo no identifica nada
-     * —para eso están tipo, fecha, tercero y número, que son columnas— y en
-     * cambio se lleva el ancho. La segunda y peor: con un documento RELACIONADO
-     * el `+N` se leía como una página más, y no lo es.
+     * El resumen es «3 páginas · 2 documentos», y la segunda cuenta es del
+     * GRUPO —transitiva: A-B y B-C son tres documentos en una fila— mientras
+     * que acá sólo llega el documento con sus vínculos DIRECTOS. Armado desde
+     * acá, una fila diría «1 documento» y el visor mostraría dos.
      *
-     * **Las dos cuentas son poblaciones distintas y por eso se nombran las dos.**
-     * Las páginas son el MISMO papel fotografiado varias veces: un documento,
-     * un asiento (`agrupar` en el README del módulo). Los relacionados son OTROS
-     * documentos, cada uno con su clasificación, su CUFE y su estado
-     * (`relacionar`, que no toca los archivos de nadie). Tres páginas son un
-     * asiento; tres relacionados son cuatro documentos.
+     * Queda la parte que sí es del documento, para quien lea esta columna sin
+     * el grupo a mano (hoy nadie, pero el contrato de `leer` es ése).
      */
-    leer: (d) => {
-      const partes: string[] = [];
-      if (d.archivos.length > 0) {
-        partes.push(d.archivos.length === 1 ? '1 página' : `${d.archivos.length} páginas`);
-      }
-      if (d.relaciones.length > 0) {
-        partes.push(d.relaciones.length === 1 ? '1 documento' : `${d.relaciones.length} documentos`);
-      }
-      // Sin archivos y sin vínculos no hay nada que resumir, y la celda vacía
-      // es lo que el template hace con un dato que no existe.
-      return partes.join(' · ');
-    },
+    leer: (d) => (d.archivos.length === 1 ? '1 página' : `${d.archivos.length} páginas`),
   },
   /* EL EJE ÚNICO. Antes eran dos columnas —`estado_trazabilidad` y
      `procesamiento_estado`— que contestaban lo mismo con distinto vocabulario. */

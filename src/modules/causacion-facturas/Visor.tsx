@@ -7,6 +7,7 @@ import type {
   DocumentoContable,
   RelacionDeDocumento,
 } from '../../lib/causacion-documentos-api.js';
+import type { GrupoDeDocumentos } from './agrupacion.js';
 
 /**
  * VER UN DOCUMENTO Y CON QUÉ ESTÁ ATADO.
@@ -63,11 +64,6 @@ const RELACION: Record<RelacionDeDocumento['tipo_relacion'], string> = {
   otro: 'Vínculo',
 };
 
-/** El otro extremo de la relación, mirando desde `documentoId`. */
-function elOtroExtremo(r: RelacionDeDocumento, documentoId: string): string {
-  return r.documento_id === documentoId ? r.documento_relacionado_id : r.documento_id;
-}
-
 /**
  * Cómo se nombra un documento en la lista.
  *
@@ -82,6 +78,24 @@ function nombrarDocumento(d: DocumentoContable): string {
   return d.archivos[0]?.filename ?? d.id;
 }
 
+/**
+ * Con qué vínculo entró un documento al grupo, mirando desde CUALQUIER miembro.
+ *
+ * El grupo es transitivo —A-B y B-C son un solo grupo— así que C puede no tener
+ * ninguna relación con el dueño: su vínculo lo declara B. Por eso se buscan las
+ * relaciones de todos los miembros y no sólo las del que encabeza; sin esto, el
+ * tercero de una cadena aparecía sin decir por qué está ahí.
+ */
+function vinculoEntre(g: GrupoDeDocumentos, doc: DocumentoContable): RelacionDeDocumento | null {
+  for (const m of g.miembros) {
+    const r = m.relaciones.find(
+      (x) => x.documento_id === doc.id || x.documento_relacionado_id === doc.id,
+    );
+    if (r) return r;
+  }
+  return null;
+}
+
 /** Una entrada de la lista de la izquierda: el documento y por qué está ahí. */
 interface EnLaLista {
   doc: DocumentoContable;
@@ -90,73 +104,73 @@ interface EnLaLista {
 }
 
 /**
- * LOS DOCUMENTOS DEL OTRO LADO DE CADA VÍNCULO.
+ * LOS DEL GRUPO QUE LA TABLA NO TENÍA CARGADOS.
  *
- * Se piden al servidor uno por uno en vez de buscarlos entre las filas que la
- * tabla tiene cargadas, y no es por comodidad: **un vínculo cruza períodos y
- * páginas** —una factura de marzo pagada en abril— así que resolverlos contra lo
- * visible los mostraría a veces sí y a veces no, según dónde estuviera parado el
- * usuario. Un vínculo que aparece y desaparece es peor que no tenerlo.
+ * El reparto ya viene hecho de `agrupacion.ts`: la fila sabe quiénes son sus
+ * miembros y qué ids quedaron afuera de la página. Acá sólo se resuelven esos
+ * ausentes, que existen porque **un vínculo cruza períodos** —una factura de
+ * marzo pagada en abril— y la tabla no los tenía a mano.
  *
- * Son pocos por documento (uno, dos), así que no hay endpoint de lote: el día
- * que los haya se agrega, y este hook es el único lugar que cambia.
+ * Son pocos (uno, dos), así que se piden de a uno: el día que haya endpoint de
+ * lote, este hook es el único lugar que cambia.
  */
-function useGrupo(
-  projectId: string,
-  documento: DocumentoContable | null,
-): { cargando: boolean; lista: EnLaLista[] } {
-  const [lista, setLista] = useState<EnLaLista[]>([]);
+function useAusentes(projectId: string, ids: string[]): { cargando: boolean; docs: DocumentoContable[] } {
+  const [docs, setDocs] = useState<DocumentoContable[]>([]);
   const [cargando, setCargando] = useState(false);
+  // Las dependencias de un efecto se comparan por identidad, y el arreglo se
+  // rearma en cada render: sin esto el efecto correría para siempre.
+  const clave = ids.join(',');
 
   useEffect(() => {
-    if (!documento) {
-      setLista([]);
-      return undefined;
-    }
-    // El documento abierto encabeza su grupo: es desde donde se está mirando.
-    const propio: EnLaLista = { doc: documento, relacion: null };
-    if (documento.relaciones.length === 0) {
-      setLista([propio]);
+    if (ids.length === 0) {
+      setDocs([]);
       return undefined;
     }
     let vivo = true;
-    setLista([propio]);
     setCargando(true);
-    const id = documento.id;
     void Promise.all(
-      documento.relaciones.map((relacion) =>
-        getDocumento(projectId, elOtroExtremo(relacion, id))
-          .then((doc): EnLaLista | null => ({ doc, relacion }))
-          /* UN VÍNCULO QUE NO SE PUDO TRAER NO BORRA LA LISTA: se cae esa
-             entrada y las demás se muestran. Fallar entero por una de dos
-             esconde información que sí llegó. */
-          .catch(() => null),
-      ),
-    ).then((otros) => {
+      /* UNO QUE NO SE PUDO TRAER NO BORRA LA LISTA: se cae esa entrada y las
+         demás se muestran. Fallar entero por una de dos esconde información
+         que sí llegó. */
+      ids.map((id) => getDocumento(projectId, id).catch(() => null)),
+    ).then((traidos) => {
       if (!vivo) return;
-      setLista([propio, ...otros.filter((x): x is EnLaLista => x !== null)]);
+      setDocs(traidos.filter((d): d is DocumentoContable => d !== null));
       setCargando(false);
     });
     return () => {
       vivo = false;
     };
-  }, [projectId, documento]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, clave]);
 
-  return { cargando, lista };
+  return { cargando, docs };
 }
 
 export function Visor({
   projectId,
-  documento,
+  grupo,
   onCerrar,
 }: {
   projectId: string;
-  /** El DOCUMENTO, no el archivo: es lo que tiene páginas y vínculos. `null` = cerrado. */
-  documento: DocumentoContable | null;
+  /**
+   * EL GRUPO QUE OCUPA LA FILA, no un documento suelto: es lo mismo que la
+   * tabla agrupó, así que la lista de acá y el contador de la celda no pueden
+   * discrepar. `null` = cerrado.
+   */
+  grupo: GrupoDeDocumentos | null;
   onCerrar: () => void;
 }): React.ReactElement | null {
   const ref = useRef<HTMLDialogElement>(null);
-  const { cargando: cargandoGrupo, lista } = useGrupo(projectId, documento);
+  const documento = grupo?.duenio ?? null;
+  const { cargando: cargandoGrupo, docs: ausentes } = useAusentes(projectId, grupo?.idsAusentes ?? []);
+
+  /* La lista: los que la tabla ya tenía, y detrás los que hubo que traer. El
+     dueño va primero porque es desde donde se está mirando. */
+  const lista: EnLaLista[] = [
+    ...(grupo?.miembros ?? []).map((doc, i) => ({ doc, relacion: i === 0 ? null : vinculoEntre(grupo!, doc) })),
+    ...ausentes.map((doc) => ({ doc, relacion: vinculoEntre(grupo as GrupoDeDocumentos, doc) })),
+  ];
 
   /** Cuál del grupo se está mirando. Arranca en el que se abrió. */
   const [verId, setVerId] = useState<string | null>(null);
@@ -171,7 +185,7 @@ export function Visor({
   /* LA LISTA SÓLO SI HAY CON QUÉ. Un panel izquierdo con una sola entrada —el
      documento que ya se está mirando— es una columna que no deja elegir nada y
      le quita ancho a la foto, que es a lo que se vino. */
-  const hayGrupo = (documento?.relaciones.length ?? 0) > 0;
+  const hayGrupo = lista.length > 1 || (grupo?.idsAusentes.length ?? 0) > 0;
 
   /* LA FOTO ANTERIOR SE QUEDA HASTA QUE LA NUEVA ESTÁ LISTA.
      Antes el efecto hacía `setUrl(null)` al limpiar, así que pasar de página
@@ -286,10 +300,13 @@ export function Visor({
         <section className={hayGrupo ? 'sw-partido sw-soportes__visorPartido' : undefined}>
           {hayGrupo ? (
             <div className="sw-partido__panel sw-soportes__grupo" data-lado="izq">
+              {/* El total cuenta también los que todavía están viniendo: el
+                  número tiene que coincidir con el de la celda desde el primer
+                  frame, o el encabezado «sube» mientras cargan. */}
               <h3>
-                {lista.length === 1 && cargandoGrupo
-                  ? 'Cargando los relacionados…'
-                  : `${lista.length} documentos en el grupo`}
+                {lista.length + ((grupo?.idsAusentes.length ?? 0) - ausentes.length)} documentos en el
+                grupo
+                {cargandoGrupo ? ' · cargando…' : ''}
               </h3>
               {/* LA LISTA ES DE BOTONES Y NO DE TEXTO: elegir uno cambia lo que
                   muestra la derecha, así que cada entrada es una acción. */}
