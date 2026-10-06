@@ -243,12 +243,31 @@
   max-height: 100%;
   object-fit: contain;
   border-radius: var(--sw-r-sm);
+  /* El zoom y el desplazamiento los escribe el componente como `transform`
+     inline. Acá sólo se declara el punto de origen: desde el CENTRO, que es
+     hacia donde la vista crece al ampliar. Con el default (`50% 50%`) ya es
+     así; queda explícito porque es de lo que depende que ampliar no «tire» la
+     imagen hacia una esquina. */
+  transform-origin: center center;
   /* Sólo opacidad (regla 7). La foto que se va no desaparece: se apaga
      mientras llega la próxima, y eso es lo que se lee como transición en vez
      de como un corte. */
   transition: opacity var(--sw-d-short) var(--sw-ease-out);
 }
 .sw-soportes__visorImg[data-cargando='true'] { opacity: 0.45; }
+
+/* AMPLIADA, EL CURSOR DICE QUE SE PUEDE AGARRAR. Es la única pista de que el
+   arrastre existe —no hay barras de scroll, porque el cuerpo recorta— así que
+   sin esto el gesto queda escondido.
+
+   `:active` sobre el cuerpo y no sobre la imagen: el puntero queda capturado en
+   el contenedor mientras se arrastra (`setPointerCapture`), así que es él quien
+   tiene el estado. */
+.sw-soportes__visorCuerpo[data-ampliada='true'] { cursor: grab; }
+.sw-soportes__visorCuerpo[data-ampliada='true']:active { cursor: grabbing; }
+/* Y NO SE SELECCIONA NADA al arrastrar: sin esto, el gesto pinta de azul lo que
+   haya alrededor y suelta la imagen a mitad de camino. */
+.sw-soportes__visorCuerpo[data-ampliada='true'] { user-select: none; }
 
 /* EL AVISO DE CARGA, SUPERPUESTO. Centrado sobre la foto anterior y no en su
    lugar: ocupando su lugar, el cuerpo se vacía y todo lo de abajo sube — que
@@ -442,12 +461,51 @@
   min-height: 0;
 }
 
+/* LA FILA DE ABAJO DEL PAPEL: zoom a la izquierda, páginas al medio.
+
+   Tres columnas y no `justify-content`, y es la razón de que sea una grilla: el
+   porcentaje cambia de ancho al ampliar (100% → 1000%) y con flex eso correría
+   el paginador en cada paso de zoom. Clavado por la grilla, lo único que se
+   mueve es el número. */
+.sw-soportes__barraVista {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--sw-s-2);
+}
+.sw-soportes__zoom {
+  grid-column: 1;
+  justify-self: start;
+  display: flex;
+  align-items: center;
+  gap: var(--sw-s-1);
+}
 .sw-soportes__paginas {
+  grid-column: 2;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--sw-s-1);
 }
+
+/* EL PORCENTAJE ES UN BOTÓN —vuelve a encuadrar— pero no se dibuja como uno:
+   se lee primero como el dato que es. Lo que invita a apretarlo es el hover,
+   igual que el resto de los controles de esta barra. */
+.sw-soportes__zoomN {
+  min-width: 52px;
+  padding: 2px var(--sw-s-1);
+  border: 0;
+  border-radius: var(--sw-r-sm);
+  background: none;
+  font: inherit;
+  font-size: var(--sw-t-body-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--sw-text-2);
+  text-align: center;
+  cursor: pointer;
+}
+.sw-soportes__zoomN:hover:not([disabled]) { background: var(--sw-hover); color: var(--sw-text); }
+.sw-soportes__zoomN[disabled] { color: var(--sw-muted); cursor: default; }
 
 /* ---- LA LISTA DEL GRUPO ---- */
 

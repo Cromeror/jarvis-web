@@ -155,6 +155,31 @@ export function Visor({
      del efecto: revocarlo antes de tener la próxima es justamente lo que
      dejaba el hueco. Sin esto cada foto queda en memoria hasta recargar la
      pestaña, y son varios MB cada una. */
+  /* EL ZOOM VIVE EN UN `transform`, no en el tamaño de la imagen.
+     Escalar con `width`/`height` recalcula layout en cada paso —y acá adentro
+     está el paginador y el pie del diálogo— así que ampliar movería todo lo
+     demás, que es el salto que este visor acaba de dejar de tener. Con
+     `transform` la imagen se dibuja más grande sin ocupar más: es lo único que
+     la regla 7 del sistema permite animar, y por el mismo motivo. */
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const arrastre = useRef<{ x: number; y: number } | null>(null);
+
+  const ZOOM_MIN = 1;
+  const ZOOM_MAX = 6;
+  const ajustar = (): void => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  };
+  /* EL PAN SE DESCARTA AL VOLVER A 1. Una imagen ajustada entra entera, así que
+     un desplazamiento guardado la dejaría corrida sin que nada lo explique —y
+     sin forma de volver, porque arrastrar sólo tiene sentido ampliado. */
+  const cambiarZoom = (siguiente: number): void => {
+    const z = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Number(siguiente.toFixed(2))));
+    setZoom(z);
+    if (z === 1) setPan({ x: 0, y: 0 });
+  };
+
   const [url, setUrl] = useState<string | null>(null);
   const urlRef = useRef<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -189,6 +214,16 @@ export function Visor({
     setVerId(documento?.id ?? null);
     setPagina(0);
   }, [documento]);
+
+  /* CADA PAPEL ARRANCA AJUSTADO. El zoom es de la foto que se está mirando, no
+     del visor: heredarlo al pasar de página deja la siguiente ampliada en una
+     esquina que no se eligió, y lo primero que hay que hacer es volver atrás.
+     Depende del archivo y no de la página, así que también cubre cambiar de
+     documento en la lista. */
+  useEffect(() => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  }, [soporte]);
 
   useEffect(() => {
     if (!soporte || !sePuedeVer(soporte.kind ?? '')) {
@@ -300,7 +335,45 @@ export function Visor({
             className={hayGrupo ? 'sw-partido__panel sw-soportes__vista' : 'sw-soportes__vista'}
             data-lado={hayGrupo ? 'der' : undefined}
           >
-            <div className="sw-soportes__visorCuerpo">
+            <div
+              className="sw-soportes__visorCuerpo"
+              data-ampliada={zoom > 1 ? 'true' : undefined}
+              /* LA RUEDA AMPLÍA, sin pedir Ctrl. Acá no hay nada más que
+                 scrollear —el cuerpo recorta y el diálogo no se mueve— así que
+                 reservarla para el scroll la dejaría sin hacer nada. El
+                 `passive: false` que esto necesita lo da React en `onWheel`
+                 sobre un elemento, y el `preventDefault` evita que el browser
+                 haga su propio zoom de página encima del nuestro. */
+              onWheel={(e) => {
+                if (!url) return;
+                e.preventDefault();
+                cambiarZoom(zoom * (e.deltaY < 0 ? 1.15 : 1 / 1.15));
+              }}
+              /* ARRASTRAR MUEVE, y sólo con la imagen ampliada: con ella entera
+                 no hay nada fuera de la vista, así que el gesto no tendría a
+                 dónde llevarla y se leería como que la pantalla se rompió.
+
+                 Pointer events y no mouse: cubre el dedo y el lápiz con el
+                 mismo código, y `setPointerCapture` hace que el arrastre siga
+                 funcionando aunque el puntero se salga de la caja — sin eso,
+                 soltar afuera deja la imagen pegada al cursor. */
+              onPointerDown={(e) => {
+                if (zoom <= 1 || !url) return;
+                arrastre.current = { x: e.clientX - pan.x, y: e.clientY - pan.y };
+                e.currentTarget.setPointerCapture(e.pointerId);
+              }}
+              onPointerMove={(e) => {
+                if (!arrastre.current) return;
+                setPan({ x: e.clientX - arrastre.current.x, y: e.clientY - arrastre.current.y });
+              }}
+              onPointerUp={(e) => {
+                arrastre.current = null;
+                e.currentTarget.releasePointerCapture(e.pointerId);
+              }}
+              /* DOBLE CLIC ALTERNA entre ajustada y 2×, que es el gesto que
+                 todo visor de imágenes tiene y el que se prueba sin leer nada. */
+              onDoubleClick={() => (zoom > 1 ? ajustar() : cambiarZoom(2))}
+            >
               {!soporte ? (
                 <p className="sw-soportes__visorNada">Este documento no tiene ningún archivo.</p>
               ) : !sePuedeVer(soporte.kind ?? '') ? (
@@ -324,6 +397,17 @@ export function Visor({
                   src={url}
                   alt={soporte.filename ?? 'documento'}
                   data-cargando={cargando ? 'true' : undefined}
+                  /* El orden importa: `translate` ANTES de `scale` mueve en
+                     píxeles de pantalla, que es lo que el dedo espera. Al revés,
+                     el desplazamiento se multiplica por el zoom y la imagen se
+                     va de la vista con un gesto corto.
+
+                     Inline y no en una clase porque son dos números que cambian
+                     en cada rueda y en cada pixel de arrastre: una variable CSS
+                     re-escrita sesenta veces por segundo es lo mismo con más
+                     indirección. */
+                  style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
+                  draggable={false}
                 />
               ) : null}
 
@@ -338,34 +422,74 @@ export function Visor({
               ) : null}
             </div>
 
-            {/* PASAR PÁGINAS, con el mismo control que el navegador de período
-                (`.sw-soportes__pb/__pm`, port de `sw-ctb__pb` del template): son
-                la misma acción —moverse por una secuencia— y no puede haber dos
-                dibujos para eso. Sólo aparece con más de una página: con una,
-                dos flechas apagadas dicen que falta algo que no falta. */}
-            {archivos.length > 1 ? (
-              <div className="sw-soportes__paginas" role="group" aria-label="Páginas">
-                <button
-                  type="button"
-                  className="sw-soportes__pb"
-                  aria-label="Página anterior"
-                  disabled={pagina === 0}
-                  onClick={() => setPagina((p) => Math.max(0, p - 1))}
-                >
-                  <Icon name="left" />
-                </button>
-                <span className="sw-soportes__pm">
-                  {pagina + 1} de {archivos.length}
-                </span>
-                <button
-                  type="button"
-                  className="sw-soportes__pb"
-                  aria-label="Página siguiente"
-                  disabled={pagina >= archivos.length - 1}
-                  onClick={() => setPagina((p) => Math.min(archivos.length - 1, p + 1))}
-                >
-                  <Icon name="right" />
-                </button>
+            {/* LA FILA DE ABAJO: el zoom a la izquierda, las páginas al medio.
+
+                Son dos controles de la misma pieza —lo que se está mirando— así
+                que comparten renglón en vez de apilar dos barras. El paginador
+                queda CENTRADO aunque el zoom ocupe más o menos: la grilla de
+                tres columnas lo clava, y con `justify-content` se correría cada
+                vez que el porcentaje pasa de 100% a 1000%. */}
+            {soporte && sePuedeVer(soporte.kind ?? '') ? (
+              <div className="sw-soportes__barraVista">
+                <div className="sw-soportes__zoom" role="group" aria-label="Zoom">
+                  <button
+                    type="button"
+                    className="sw-soportes__pb"
+                    aria-label="Alejar"
+                    disabled={zoom <= 1}
+                    onClick={() => cambiarZoom(zoom / 1.25)}
+                  >
+                    <Icon name="minus" />
+                  </button>
+                  {/* EL PORCENTAJE ES UN BOTÓN, no una etiqueta: es el camino de
+                      vuelta. Ampliado y corrido, volver a encuadrar con la rueda
+                      es imposible —el pan no se deshace solo— y sin esto habría
+                      que cerrar el visor y abrirlo de nuevo. */}
+                  <button
+                    type="button"
+                    className="sw-soportes__zoomN"
+                    aria-label="Ajustar a la caja"
+                    disabled={zoom === 1 && pan.x === 0 && pan.y === 0}
+                    onClick={ajustar}
+                  >
+                    {Math.round(zoom * 100)}%
+                  </button>
+                  <button
+                    type="button"
+                    className="sw-soportes__pb"
+                    aria-label="Acercar"
+                    disabled={zoom >= 6}
+                    onClick={() => cambiarZoom(zoom * 1.25)}
+                  >
+                    <Icon name="plus" />
+                  </button>
+                </div>
+
+                {archivos.length > 1 ? (
+                  <div className="sw-soportes__paginas" role="group" aria-label="Páginas">
+                    <button
+                      type="button"
+                      className="sw-soportes__pb"
+                      aria-label="Página anterior"
+                      disabled={pagina === 0}
+                      onClick={() => setPagina((p) => Math.max(0, p - 1))}
+                    >
+                      <Icon name="left" />
+                    </button>
+                    <span className="sw-soportes__pm">
+                      {pagina + 1} de {archivos.length}
+                    </span>
+                    <button
+                      type="button"
+                      className="sw-soportes__pb"
+                      aria-label="Página siguiente"
+                      disabled={pagina >= archivos.length - 1}
+                      onClick={() => setPagina((p) => Math.min(archivos.length - 1, p + 1))}
+                    >
+                      <Icon name="right" />
+                    </button>
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </div>
