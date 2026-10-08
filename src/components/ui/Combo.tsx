@@ -18,7 +18,7 @@ import { Icon } from '../Icon.js';
  * medidos sobre el bundle del template— así que de la librería entra sólo el
  * CSS y el foco, el teclado, el Escape y el ARIA los pone Radix DESDE React.
  *
- * Tres trampas que eso trae, y cómo se resuelven acá:
+ * Cuatro trampas que eso trae, y cómo se resuelven acá:
  *
  * · EL WRAPPER `.select` ES OBLIGATORIO: todo el CSS de Basecoat para este
  *   componente cuelga de él (`.select:not(select) > button`,
@@ -32,6 +32,17 @@ import { Icon } from '../Icon.js';
  *   que Radix sí mantiene se traduce a `aria-selected` en el markup
  *   (`SelectItem` de abajo): sin eso, el combo cerrado y vuelto a abrir no
  *   muestra cuál es el valor puesto.
+ * · CADA OPCIÓN LLEVA `data-value`, que es como Basecoat CUENTA las opciones:
+ *
+ *     .select:not(select) [role=listbox]:not([data-empty])
+ *       :not(:has([data-value]:not([aria-hidden=true]))):before
+ *       { content: "No results found" }
+ *
+ *   Radix no lo emite —su valor viaja por contexto—, así que el listbox se le
+ *   veía VACÍO a Basecoat y todo combo abría con un «No results found» en
+ *   inglés arriba de sus opciones, que sí estaban ahí. El template lo pone a
+ *   mano en cada opción (`data-value="' + esc(o.id) + '"`, `accounting.js`),
+ *   o sea que es parte del contrato del componente y no un detalle de su JS.
  *
  * `position="popper"` y no el default: el default alinea el popover sobre la
  * opción elegida —el combo salta de lugar según qué haya seleccionado— y el
@@ -106,8 +117,9 @@ export function Combo({
 }
 
 /**
- * Una opción, con el `aria-selected` que Basecoat necesita para dibujar su
- * check — ver la tercera trampa, arriba.
+ * Una opción, con los dos atributos que Basecoat necesita y Radix no emite:
+ * `aria-selected` para dibujar su check y `data-value` para contarla como
+ * opción — ver la tercera y la cuarta trampa, arriba.
  */
 function SelectItem({
   valor,
@@ -122,8 +134,11 @@ function SelectItem({
     /* `aria-selected` SIEMPRE con valor, no sólo en la elegida: el `undefined`
        borraba el atributo en las demás, y una opción de listbox sin él no dice
        que NO está elegida — lo deja sin decir. Radix esparce los props después
-       de los suyos, así que éste es el que queda. */
-    <Select.Item value={valor} aria-selected={elegido}>
+       de los suyos, así que éste es el que queda.
+
+       `data-value` es lo que le dice a Basecoat que esta opción existe — ver la
+       cuarta trampa, arriba. */
+    <Select.Item value={valor} data-value={valor} aria-selected={elegido}>
       <Select.ItemText>{children}</Select.ItemText>
     </Select.Item>
   );

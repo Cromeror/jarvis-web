@@ -45,6 +45,30 @@ describe('Basecoat entra sólo como CSS', () => {
     expect(culpables).toEqual([]);
   });
 
+  /**
+   * Lo que la librería emitiría sola y Radix no: sin JS de Basecoat, los
+   * atributos de los que cuelga su CSS los tiene que poner nuestro markup.
+   *
+   * `data-value` es el que CUENTA las opciones:
+   *
+   *   .select:not(select) [role=listbox]:not([data-empty])
+   *     :not(:has([data-value]:not([aria-hidden=true])))::before
+   *     { content: "No results found" }
+   *
+   * Sin él, todo combo abría con «No results found» arriba de sus opciones,
+   * que estaban ahí. Es test y no comentario por lo mismo que el de arriba: el
+   * fallo es silencioso —compila verde y se ve mal— y el atributo parece
+   * redundante al lado del `value` de Radix, así que es exactamente de los que
+   * alguien saca por prolijidad.
+   */
+  it('las opciones del combo llevan los atributos que el CSS de Basecoat mira', () => {
+    const combo = readFileSync(join(SRC, 'components/ui/Combo.tsx'), 'utf8');
+    const item = /<Select\.Item\s[^>]*>/.exec(combo)?.[0] ?? '';
+    expect(item).toContain('data-value=');
+    // El del check de la opción elegida, por el mismo motivo.
+    expect(item).toContain('aria-selected=');
+  });
+
   it('el CSS de Basecoat sí está enganchado, y por los dos entries', () => {
     // El entry por default resuelve a base + tema: sin '/components' las 39
     // clases no salen, y falla en silencio (compila verde, sin .card ni .dialog).

@@ -41,6 +41,36 @@
    crea que falta por olvido. */
 
 /* ---------------------------------------------------------------
+   1b · EL VACIO DE UNA LISTA, EN CASTELLANO
+
+   Basecoat escribe "No results found" con un `content:` en `::before` del
+   listbox. Es la unica cadena de texto que la libreria pinta por CSS, y una
+   app en castellano no puede tener una frase en ingles que ademas aparece
+   justo cuando algo sale mal.
+
+   Se pisa el TOKEN y no la regla: Basecoat la declara con `--tw-content`, asi
+   que alcanza con redefinir la variable y el selector —con todas sus
+   condiciones— sigue siendo el suyo. Si la libreria cambia CUANDO lo muestra,
+   esto lo acompania solo.
+
+   Y alcanza con tan poca especificidad porque esto no esta en ninguna capa:
+   las reglas de Basecoat viven en `@layer components` y el CSS sin capa le
+   gana a cualquier capa, sin importar cuantos `:not()` tenga la otra.
+
+   `[data-empty]` queda AFUERA a proposito: es el escape hatch de la libreria
+   para que un listbox diga su propio vacio (`content: attr(data-empty)`), y
+   pisarle el token seria apagar lo unico que ya se podia traducir caso por
+   caso.
+
+   El combo que de verdad se veia vacio es otra cosa y esta arreglada en
+   `Combo.tsx`: Radix no emitia `data-value`, asi que el listbox se le veia
+   vacio a Basecoat con todas sus opciones adentro.
+   --------------------------------------------------------------- */
+.select:not(select) [role="listbox"]:not([data-empty]):before,
+.combobox [role="listbox"]:not([data-empty]):before,
+.command [role="menu"]:not([data-empty]):before { --tw-content: "Sin resultados"; }
+
+/* ---------------------------------------------------------------
    2 · MOTION
 
    REGLA 7 — solo transform y opacity. Basecoat declara
