@@ -49,6 +49,21 @@ export interface PortGrant {
   end_port: number;
   note: string | null;
   created_at: string;
+  /**
+   * Cuántos puertos del bloque tienen una exposición reservada — lo REALMENTE
+   * en uso, contra lo que sólo está concedido.
+   *
+   * Opcional porque todavía no lo manda el servidor: el agregado de
+   * `project_exposures` a nivel instalación no existe (pedido al BC
+   * `entrypoints`, delegación 52b03466). Ausente se lee como 0, y el tramo
+   * «en uso» de la barra no se dibuja — que es la regla del template para un
+   * tramo en cero. Cuando el campo llegue, la barra se completa sola.
+   *
+   * Ausente NO es «nada en uso»: es «no lo sé». La diferencia importa acá
+   * porque un bloque concedido y nunca usado es justamente lo que esta
+   * pantalla existe para hacer visible.
+   */
+  in_use?: number;
 }
 
 export interface PortGrantsResponse {

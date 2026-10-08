@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
+import { Icon } from '../components/Icon.js';
 import { Tabla, type ColumnaDeTabla } from '../components/ui/Tabla.js';
+import { ConcederBloqueDialog } from '../components/installation/ConcederBloqueDialog.js';
 import {
   InstallationApiError,
   allocatePortGrant,
@@ -12,17 +14,24 @@ import {
 } from '../lib/installation-api.js';
 import { listOrganizations, type OrganizationSummary } from '../lib/organizations-api.js';
 
-const PANEL_CLASS = 'rounded-xl border border-white/10 bg-white/[0.03] p-4';
-const INPUT_CLASS =
-  'w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 outline-none focus:border-indigo-400 [&>option]:bg-[#221f1d] [&>option]:text-white';
-const BOTON_PRIMARIO =
-  'rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50';
-
 const COLUMNAS: ColumnaDeTabla[] = [
   { id: 'organizacion', label: 'Organización', w: 220 },
   { id: 'bloque', label: 'Bloque', w: 140 },
   { id: 'cantidad', label: 'Puertos', w: 90, al: 'der' },
   { id: 'note', label: 'Para qué', w: 260 },
+];
+
+/**
+ * LOS TRES TRAMOS DE LA BARRA, en el orden en que se apilan.
+ *
+ * El orden no es decorativo: va de lo más comprometido a lo más libre, para
+ * que la barra se lea como un termómetro de cuánto queda. Y los rótulos van en
+ * PLURAL porque cada uno lleva su número al lado en la leyenda.
+ */
+const TRAMOS: { id: 'en_uso' | 'asignado' | 'libre'; rot: string }[] = [
+  { id: 'en_uso', rot: 'En uso' },
+  { id: 'asignado', rot: 'Asignados sin usar' },
+  { id: 'libre', rot: 'Libres' },
 ];
 
 function mensajeDeError(err: unknown, fallback: string): string {
@@ -33,11 +42,22 @@ function mensajeDeError(err: unknown, fallback: string): string {
 /**
  * EL REPARTO DEL ESPACIO DE PUERTOS, que es configuración de la instalación.
  *
- * Lo que la pantalla tiene que dejar ver de un vistazo es cuánto queda libre: el
- * pool es finito y un bloque concedido no se recupera solo. Por eso la cabecera
- * muestra el total libre antes que la tabla — el listado dice quién tiene qué,
- * pero la decisión que se toma acá («¿le doy diez a esta organización?») depende
- * del resto.
+ * Lo que la pantalla tiene que dejar ver de un vistazo es cómo está repartido
+ * el pool: es finito y un bloque concedido no se recupera solo. La decisión que
+ * se toma acá —«¿le doy diez a esta organización?»— depende del resto, así que
+ * el resumen va arriba de la tabla; el listado dice quién tiene qué.
+ *
+ * **Por qué una barra y no un número.** La cabecera decía «30 libres de 100» y
+ * en el párrafo siguiente se desmentía: el total libre no es el bloque contiguo
+ * más grande, así que pueden quedar treinta sueltos en huecos de cinco y una
+ * concesión de veinte igual no entrar. Un número que viene con su propia
+ * advertencia es la señal de que falta la representación. La barra muestra el
+ * reparto; la nota al pie queda sólo para lo que la barra no puede decir.
+ *
+ * **Y por qué tres tramos y no dos.** Concedido no es usado: una organización
+ * puede tener su bloque entero ocioso, y eso —desde afuera— se ve igual que un
+ * bloque lleno. Es exactamente lo que hace falta distinguir para saber a quién
+ * pedirle que devuelva espacio cuando el pool se acaba.
  *
  * NO se elige el bloque, sólo el TAMAÑO. Elegir el `start` a mano obligaría a
  * mirar qué está tomado para hacer una cuenta que el servidor hace mejor, y
@@ -50,11 +70,7 @@ export function PortGrantsPage(): React.ReactElement {
   const [organizaciones, setOrganizaciones] = useState<OrganizationSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
-
-  const [orgId, setOrgId] = useState('');
-  const [size, setSize] = useState('');
-  const [note, setNote] = useState('');
-  const [guardando, setGuardando] = useState(false);
+  const [concediendo, setConcediendo] = useState(false);
 
   const refresh = useCallback(async (): Promise<void> => {
     try {
@@ -79,34 +95,36 @@ export function PortGrantsPage(): React.ReactElement {
   );
 
   /**
-   * Cuántos puertos quedan sin conceder.
+   * EL REPARTO EN TRES CIFRAS.
    *
-   * Es el total libre, NO el bloque contiguo más grande: pueden quedar treinta
-   * sueltos en huecos de cinco y que una concesión de veinte no entre. Se dice
-   * así —«libres», no «disponibles»— porque prometer más de lo que se puede dar
-   * es peor que no decir nada, y el servidor es quien tiene la última palabra.
+   * `libres` es el total sin conceder, NO el bloque contiguo más grande: pueden
+   * quedar treinta sueltos en huecos de cinco y que una concesión de veinte no
+   * entre. Se dice así —«libres», no «disponibles»— porque prometer más de lo
+   * que se puede dar es peor que no decir nada, y el servidor es quien tiene la
+   * última palabra.
+   *
+   * `en_uso` sale de `in_use`, que el servidor todavía no manda: ausente cuenta
+   * como 0 y su tramo no se dibuja, con lo que la barra queda en dos tramos
+   * ciertos en vez de inventar un tercero. Ver el comentario del campo en
+   * `installation-api.ts`.
    */
-  const libres = useMemo(() => {
+  const reparto = useMemo(() => {
     if (!datos) return null;
     const total = datos.pool.end - datos.pool.start + 1;
     const concedidos = datos.grants.reduce((suma, g) => suma + (g.end_port - g.start_port + 1), 0);
-    return { total, concedidos, libres: total - concedidos };
+    const enUso = datos.grants.reduce((suma, g) => suma + (g.in_use ?? 0), 0);
+    return {
+      total,
+      concedidos,
+      en_uso: enUso,
+      asignado: concedidos - enUso,
+      libre: total - concedidos,
+    };
   }, [datos]);
 
-  async function conceder(): Promise<void> {
-    if (!orgId) return;
-    const tamanio = size.trim() === '' ? (datos?.default_size ?? 10) : Number(size);
-    setGuardando(true);
-    try {
-      await allocatePortGrant({ organization_id: orgId, size: tamanio, note: note.trim() || null });
-      setSize('');
-      setNote('');
-      await refresh();
-    } catch (err) {
-      setError(mensajeDeError(err, 'No se pudo conceder el bloque'));
-    } finally {
-      setGuardando(false);
-    }
+  async function conceder(input: { organization_id: string; size: number; note: string | null }): Promise<void> {
+    await allocatePortGrant(input);
+    await refresh();
   }
 
   async function revocar(grant: PortGrant): Promise<void> {
@@ -129,96 +147,125 @@ export function PortGrantsPage(): React.ReactElement {
   // va al inicio en vez de mirar una pantalla vacía.
   if (user && user.account_type !== 'operator') return <Navigate to="/" replace />;
 
+  /* LOS TRAMOS EN CERO NO SE DIBUJAN, que es la regla del template: uno de
+     ancho cero igual ocupa su filete y deja una rayita que no significa nada. */
+  const tramos = reparto ? TRAMOS.map((t) => ({ ...t, n: reparto[t.id] })).filter((t) => t.n > 0) : [];
+
+  /* LA FRASE DICE UNA SOLA COSA: cuántos puertos quedan libres. Es la cifra
+     con la que se decide lo único que se hace acá —«¿le doy diez a esta
+     organización?»—; el total y el reparto ya los dicen la barra y la leyenda,
+     y repetirlos en la frase obligaba a leer una resta para llegar al número
+     que importa.
+
+     El singular es su propia variante: «1 puertos libres» está mal escrito. */
+  const frase = !reparto
+    ? ''
+    : reparto.libre === 0
+      ? 'Ningún puerto libre.'
+      : reparto.libre === 1
+        ? '1 puerto libre.'
+        : `${reparto.libre} puertos libres.`;
+
   return (
-    <div className="h-full overflow-y-auto bg-[var(--app-bg)] p-6">
-      <h1 className="mb-1 text-lg font-semibold text-white">Puertos de la instalación</h1>
-      <p className="mb-4 max-w-3xl text-xs text-slate-400">
-        Cada organización recibe un bloque de puertos externos, y sus proyectos reservan adentro. El bloque es finito y
-        no se recupera solo: revocarlo es lo único que lo devuelve al pool.
-      </p>
+    <div className="h-full min-h-0 bg-[var(--app-bg)] p-6">
+      <div className="sw-puertos">
+        {/* LA FRANJA DE ARRIBA. El aviso y la tarjeta son la misma cosa —el
+            estado del reparto— así que la superficie tiene DOS hijos y no tres:
+            las filas de `.sw-puertos` son `auto minmax(0, 1fr)`, y un tercer
+            hijo caería en una fila implícita robándole a la tabla el alto que
+            la hace llenar la pantalla. */}
+        <div className="sw-puertos__franja">
+          {error && (
+            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              {error}
+            </div>
+          )}
 
-      {error && (
-        <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-          {error}
+          {reparto && datos && (
+            <section className="sw-raised sw-puertos__avance">
+              <div className="sw-puertos__avTexto">
+                <p className="sw-puertos__avFrase">{frase}</p>
+                {/* LA ADVERTENCIA, sólo cuando puede haber huecos. Con el pool
+                    entero libre o entero concedido no hay nada que fragmentar, y
+                    una advertencia que no aplica enseña a ignorar las que sí. */}
+                {reparto.libre > 0 && reparto.concedidos > 0 ? (
+                  <p className="sw-puertos__avNota">
+                    Es el total libre, no el bloque contiguo más grande: puede haber puertos sueltos en huecos y que
+                    una concesión grande igual no entre. Revocar un bloque es lo único que lo devuelve al pool.
+                  </p>
+                ) : null}
+              </div>
+
+              {/* LA ACCIÓN VIVE EN LA TARJETA, en su segunda columna — es el
+                  mismo lugar donde contable aloja el navegador de período. El
+                  control que actúa sobre lo que la tarjeta narra tiene que estar
+                  donde se lee el resultado, no dos cajas más arriba. */}
+              <button type="button" className="btn" onClick={() => setConcediendo(true)}>
+                <Icon name="plus" />
+                Conceder
+              </button>
+
+              {tramos.length > 0 ? (
+                <>
+                  <div
+                    className="sw-puertos__barraT"
+                    role="img"
+                    aria-label={`${reparto.concedidos} de ${reparto.total} puertos concedidos`}
+                  >
+                    {tramos.map((t) => (
+                      <span key={t.id} className="sw-puertos__tramo" data-e={t.id} style={{ flexGrow: t.n }} />
+                    ))}
+                  </div>
+
+                  <ul className="sw-puertos__leyenda">
+                    {tramos.map((t) => (
+                      <li key={t.id}>
+                        <span className="sw-puertos__punto" data-e={t.id} aria-hidden="true" />
+                        {t.rot}
+                        <span className="sw-puertos__leyN">{t.n}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
+            </section>
+          )}
         </div>
-      )}
 
-      {libres && datos && (
-        <div className={`${PANEL_CLASS} mb-4`}>
-          <p className="text-sm text-white">
-            <span className="font-semibold">{libres.libres}</span> puertos libres de {libres.total}{' '}
-            <span className="text-slate-400">
-              (pool {datos.pool.start}–{datos.pool.end}, {libres.concedidos} concedidos)
-            </span>
-          </p>
-          <p className="mt-1 text-xs text-slate-400">
-            Es el total libre, no el bloque contiguo más grande: puede haber puertos sueltos en huecos y que una
-            concesión grande igual no entre.
-          </p>
-        </div>
-      )}
-
-      <div className={`${PANEL_CLASS} mb-4`}>
-        <h2 className="mb-3 text-sm font-semibold text-white">Conceder un bloque</h2>
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="min-w-56 flex-1">
-            <span className="mb-1 block text-xs text-slate-400">Organización</span>
-            <select className={INPUT_CLASS} value={orgId} onChange={(e) => setOrgId(e.target.value)}>
-              <option value="">Elegí una…</option>
-              {organizaciones.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="w-32">
-            <span className="mb-1 block text-xs text-slate-400">Puertos</span>
-            <input
-              className={INPUT_CLASS}
-              type="number"
-              min={1}
-              value={size}
-              placeholder={String(datos?.default_size ?? 10)}
-              onChange={(e) => setSize(e.target.value)}
+        <div className="sw-puertos__tabla">
+          {cargando ? (
+            <p className="text-sm text-slate-400">Cargando…</p>
+          ) : (
+            <Tabla<PortGrant>
+              titulo="Bloques concedidos"
+              columnas={COLUMNAS}
+              filas={datos?.grants ?? []}
+              clave={(g) => g.id}
+              nombreFila={(g) => `${nombreDeOrg(g.organization_id)} ${g.start_port}–${g.end_port}`}
+              seleccion={false}
+              celda={celda}
+              menuFila={() => ({
+                groups: [{ items: [{ id: 'revocar', label: 'Revocar bloque', icon: 'trash' }] }],
+                onSelect: (id, g) => {
+                  if (id === 'revocar') void revocar(g);
+                },
+              })}
+              textos={{
+                vacio: 'Todavía no hay bloques concedidos',
+                vacioPaso: 'Concedé uno con el botón del resumen.',
+              }}
             />
-          </label>
-          <label className="min-w-56 flex-1">
-            <span className="mb-1 block text-xs text-slate-400">Para qué (opcional)</span>
-            <input className={INPUT_CLASS} value={note} onChange={(e) => setNote(e.target.value)} />
-          </label>
-          <button type="button" className={BOTON_PRIMARIO} disabled={!orgId || guardando} onClick={() => void conceder()}>
-            Conceder
-          </button>
+          )}
         </div>
-        <p className="mt-2 text-xs text-slate-400">
-          Se elige cuántos puertos, no cuáles: el servidor toma el primer hueco contiguo del pool.
-        </p>
       </div>
 
-      {cargando ? (
-        <p className="text-sm text-slate-400">Cargando…</p>
-      ) : (
-        <Tabla<PortGrant>
-          titulo="Bloques concedidos"
-          columnas={COLUMNAS}
-          filas={datos?.grants ?? []}
-          clave={(g) => g.id}
-          nombreFila={(g) => `${nombreDeOrg(g.organization_id)} ${g.start_port}–${g.end_port}`}
-          seleccion={false}
-          celda={celda}
-          menuFila={() => ({
-            groups: [{ items: [{ id: 'revocar', label: 'Revocar bloque', icon: 'trash' }] }],
-            onSelect: (id, g) => {
-              if (id === 'revocar') void revocar(g);
-            },
-          })}
-          textos={{
-            vacio: 'Todavía no hay bloques concedidos',
-            vacioPaso: 'Concedé uno con el formulario de arriba.',
-          }}
-        />
-      )}
+      <ConcederBloqueDialog
+        organizaciones={organizaciones}
+        defaultSize={datos?.default_size ?? 10}
+        abierto={concediendo}
+        onCerrar={() => setConcediendo(false)}
+        onConceder={conceder}
+      />
     </div>
   );
 }

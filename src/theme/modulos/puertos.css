@@ -1,0 +1,158 @@
+/* ===========================================================================
+   PUERTOS DE LA INSTALACIÓN — el reparto del pool entre organizaciones.
+
+   Port de la anatomía de `.sw-soportes` (que a su vez porta `.sw-ctb__avance`
+   de `accounting.css:507-616` del template). Mismo reparto, mismo gap, mismas
+   piezas: la tarjeta que narra el estado arriba, la tabla abajo.
+
+   Prefijo propio y no reuso de `.sw-soportes`: son dos módulos distintos y
+   compartir el namespace ataría el ancho de esta pantalla a cambios de
+   causación. Es el mismo criterio con el que `soportes.css` no reusó
+   `.sw-ctb__`.
+   ========================================================================== */
+
+/* EL REPARTO DE LA SUPERFICIE. `auto minmax(0, 1fr)` con alto completo: la
+   tarjeta mide lo suyo y la tabla se lleva el resto. Sin el `minmax(0, 1fr)`
+   la tabla mide lo que miden sus filas y con tres bloques concedidos la card
+   termina bajo la tercera fila, con la cabecera pegajosa sin nada contra qué
+   pegarse. Es el reparto del template y por eso se copia entero. */
+.sw-puertos {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: var(--sw-s-4);
+  height: 100%;
+  min-height: 0;
+}
+
+/* LA FRANJA DE ARRIBA, UNA SOLA. La tarjeta y lo que haya que avisar son la
+   misma cosa —el estado del reparto—, así que van juntas en una franja: con
+   `grid-template-rows` de dos, un tercer hijo cae en una fila implícita y le
+   come el alto a la tabla. */
+.sw-puertos__franja { display: flex; flex-direction: column; gap: var(--sw-s-3); }
+
+/* El hueco de la tabla: el ítem de grid estira por default y la card lo llena. */
+.sw-puertos__tabla { min-height: 0; display: grid; }
+
+/* ---- la tarjeta de resumen ----------------------------------------------- */
+
+/* DOS COLUMNAS: el texto a la izquierda y la acción a la derecha. Es la misma
+   grilla con la que contable aloja el navegador de período — el control que
+   actúa sobre lo que la tarjeta narra vive EN la tarjeta, no dos cajas más
+   arriba. La barra y la leyenda cruzan las dos columnas (`grid-column: 1/-1`). */
+.sw-puertos__avance {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--sw-s-2) var(--sw-s-4);
+  padding: var(--sw-s-3) var(--sw-s-4);
+  align-items: center;
+}
+
+.sw-puertos__avTexto { min-width: 0; }
+
+.sw-puertos__avFrase {
+  margin: 0;
+  font-family: var(--sw-font-display);
+  font-size: var(--sw-t-h3);
+  font-weight: var(--sw-w-medium);
+  line-height: var(--sw-lh-h3);
+  color: var(--sw-text);
+}
+
+/* LA ACLARACIÓN DE LOS HUECOS, en la línea secundaria. El número grande dice
+   «quedan N libres» y eso solo engaña: pueden ser N sueltos en huecos de a
+   cinco y que una concesión de veinte no entre. Iba en el subtítulo de la
+   página; vive acá porque es una propiedad del número, no de la pantalla. */
+.sw-puertos__avNota {
+  margin: 2px 0 0;
+  font-size: var(--sw-t-body-sm);
+  color: var(--sw-muted);
+}
+
+/* LA BARRA APILADA, y no una dona: son tres estados que importan y un anillo
+   sabe decir UNA proporción. NO SE ANIMA — cambia cuando cambia el contenido
+   (se concede o se revoca un bloque), no es una transición, y animarla sería
+   animar el reparto de una fila, o sea layout. */
+.sw-puertos__barraT {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 2px;
+  height: 6px;
+  border-radius: var(--sw-r-pill);
+  overflow: hidden;
+}
+.sw-puertos__tramo { flex-basis: 0; min-width: 3px; border-radius: var(--sw-r-pill); }
+
+/* LOS RELLENOS PLENOS Y NO LOS SEMÁNTICOS, con el motivo del template:
+   `--sw-success`/`--sw-warning` son colores de TEXTO calibrados contra una
+   superficie —en claro oscuros, en oscuro claros—, así que la misma barra
+   cambiaba de peso entre temas. Una proporción tiene que leerse igual en los
+   dos o deja de ser la misma lectura.
+
+   EL TONO SALE DEL DATO, que es la regla del template:
+
+   - `en_uso` es lo que está cumpliendo su función: el pleno de éxito.
+   - `asignado` es concedido y ocioso. Gris apagado, NO naranja: que una
+     organización no haya usado todavía su bloque no es un problema de nadie —
+     teñirlo de alarma inventaría un trabajo pendiente que no existe.
+   - `libre` es lo que no se le dio a nadie. El gris más callado de la
+     escalera, que es lo que dice «todavía nada». */
+.sw-puertos__tramo[data-e='en_uso'],
+.sw-puertos__punto[data-e='en_uso']    { background: var(--sw-success-fill); }
+.sw-puertos__tramo[data-e='asignado'],
+.sw-puertos__punto[data-e='asignado']  { background: var(--sw-mute-fill); }
+.sw-puertos__tramo[data-e='libre'],
+.sw-puertos__punto[data-e='libre']     { background: var(--sw-line-strong); }
+
+/* LA LEYENDA, con su cuadrito y su número: la barra da la proporción, la
+   leyenda da la cifra. Va DEBAJO y cruzando las dos columnas, para leerse de
+   corrido con la frase. Y no un `title`: hay que descubrirlo con el puntero,
+   uno por uno, y con teclado no existe. */
+.sw-puertos__leyenda {
+  grid-column: 1 / -1;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sw-s-1) var(--sw-s-4);
+  font-size: var(--sw-t-body-sm);
+  color: var(--sw-text-2);
+}
+.sw-puertos__leyenda li { display: flex; align-items: center; gap: var(--sw-s-2); }
+.sw-puertos__punto {
+  width: 8px; height: 8px; flex: none;
+  border-radius: var(--sw-r-sm);
+}
+.sw-puertos__leyN {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--sw-w-medium);
+  color: var(--sw-text);
+}
+
+/* ---- el diálogo de conceder ---------------------------------------------- */
+
+/* Un formulario corto: el ancho se lo queda Basecoat, acá sólo el tope. */
+.sw-puertos__dlg > article { max-width: min(480px, calc(100vw - 2rem)); }
+
+/* LOS CAMPOS, uno por fila. Son tres y se leen de arriba abajo: a quién,
+   cuántos, para qué. En una fila horizontal —como estaba— el «para qué» se
+   comía el resto y los tres quedaban apretados contra el botón. */
+.sw-puertos__campos { display: flex; flex-direction: column; gap: var(--sw-s-3); }
+.sw-puertos__campo { display: flex; flex-direction: column; gap: var(--sw-s-1); }
+.sw-puertos__lab { font-size: var(--sw-t-body-sm); color: var(--sw-text-2); }
+
+/* La pista del reparto automático. Va al pie del formulario y no en un
+   tooltip: explica por qué NO se elige el bloque, que es la pregunta que
+   aparece al ver que sólo se pide un número. */
+.sw-puertos__pista {
+  margin: 0;
+  font-size: var(--sw-t-body-sm);
+  color: var(--sw-muted);
+}
+
+/* El aviso de error del formulario, dentro del diálogo. */
+.sw-puertos__error {
+  margin: 0;
+  font-size: var(--sw-t-body-sm);
+  color: var(--sw-error);
+}
