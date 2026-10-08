@@ -995,6 +995,71 @@
 }
 .sw-flota[hidden] { display: none; }
 
+/* ==========================================================================
+   LA MANIJA DE TAMANIO — esquina superior izquierda.
+
+   AHI Y NO EN OTRA: la tarjeta esta anclada con `place-self: end end`, asi que
+   su esquina inferior derecha es el unico punto que no se mueve. Tirando de la
+   opuesta, la tarjeta crece hacia el centro de la pantalla y el ancla se queda
+   sola — es la misma geometria de la que sale `transform-origin: bottom right`.
+
+   SE REVELA AL PASAR POR LA TARJETA, como los tres puntos de una fila de la
+   tabla: un glifo permanente en la esquina de algo que flota es ruido en el
+   unico borde que el ojo usa para separar la tarjeta del lienzo. Queda visible
+   mientras se arrastra y con foco de teclado, que es como llega quien no
+   arrastra.
+
+   El cursor es `nwse-resize` — el que el sistema operativo ya usa para esta
+   esquina, asi que no hay que aprender nada.
+
+   `touch-action: none` es obligatorio para arrastrar con el dedo: sin eso el
+   navegador se queda el gesto para hacer scroll y el pointermove nunca llega.
+   ========================================================================== */
+.sw-flota__tirar {
+  position: absolute;
+  top: 0; left: 0;
+  z-index: 1;
+  width: 16px; height: 16px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--sw-muted);
+  cursor: nwse-resize;
+  touch-action: none;
+  opacity: 0;
+  transition: opacity var(--sw-d-micro) var(--sw-ease-out);
+}
+/* EL GLIFO ES LA ESQUINA MISMA: dos trazos de 1px siguiendo el borde de la
+   tarjeta, metidos hacia adentro. No es un icono que haya que reconocer —
+   dibuja literalmente el canto del que se tira. */
+.sw-flota__tirar::before {
+  content: "";
+  position: absolute;
+  top: 4px; left: 4px;
+  width: 7px; height: 7px;
+  border-top: var(--sw-border) solid currentColor;
+  border-left: var(--sw-border) solid currentColor;
+  border-top-left-radius: 2px;
+}
+.sw-flota:hover .sw-flota__tirar,
+.sw-flota__tirar:focus-visible,
+.sw-flota[data-midiendo="true"] .sw-flota__tirar { opacity: 1; }
+.sw-flota__tirar:hover,
+.sw-flota[data-midiendo="true"] .sw-flota__tirar { color: var(--sw-text); }
+
+/* PLEGADA NO SE REDIMENSIONA. La pastilla mide lo que mide su barra: no tiene
+   un alto que negociar, y un tirador ahi cambiaria un tamanio que no se ve. */
+.sw-flota[data-min="true"] .sw-flota__tirar { display: none; }
+
+/* Sin hover no hay nada que revelar: la manija se ve siempre. */
+@media (hover: none) {
+  .sw-flota__tirar { opacity: 1; }
+}
+
+/* MIENTRAS SE MIDE, EL TEXTO NO SE SELECCIONA. Un gesto que arranca sobre la
+   esquina y cruza el hilo deja todo el chat pintado de azul al soltar. */
+.sw-flota[data-midiendo="true"] { user-select: none; }
+
 /* La barra de la tarjeta. Hace el trabajo que adentro hace el conmutador:
    decir que es esto y ofrecer la salida. Y ademas es la MANIJA.
 

@@ -4,6 +4,7 @@ import { Sidebar } from './Sidebar.js';
 import { Topbar } from './Topbar.js';
 import { useMedidaDeSuperficie } from '../layout/medida-de-superficie.js';
 import { MIN_KEY, TarjetaDelChatProvider } from './chat-card.js';
+import { TiradorDeTarjeta } from './TiradorDeTarjeta.js';
 
 /**
  * EL CHASIS — el layout de la app después de entrar.
@@ -153,7 +154,15 @@ export function AppShell({
             ref={chatHostRef}
             aria-label="Conversación"
             data-min={minimizada ? 'true' : 'false'}
-          />
+          >
+            {/* LA MANIJA DE TAMAÑO ES DE LA TARJETA, NO DEL CHAT — por eso la
+                pinta el shell y no `FloatingChat`: cambia la caja, no la
+                conversación. Es el mismo reparto que con `data-min`.
+
+                Convive con el portal sin pisarse: React la deja primera y el
+                portal agrega sus nodos detrás. */}
+            <TiradorDeTarjeta objetivo={chatHostRef} />
+          </aside>
         </div>
 
         {pintado && chatHostRef.current
