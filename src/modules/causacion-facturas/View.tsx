@@ -60,7 +60,9 @@ const ANCHOS: Record<string, number> = {
   tercero_nombre: 240,
   numero_documento: 140,
   valor_total: 130,
-  estado: 120,
+  /* El chip necesita el ancho de su palabra más larga; con 120 —el ancho de
+     cuando era un punto— «Sin procesar» salía con puntos suspensivos. */
+  estado: 150,
   clasificacion: 150,
   /* La conclusión de la IA es un PÁRRAFO, no un campo: con los 140 de default
      entraban cuatro palabras. Ancho de columna larga —el que el template le da
@@ -196,18 +198,38 @@ function celdaDeDocumento(
 }
 
 /**
- * El estado del procesamiento, con el PUNTO del template (`.sw-tabla__punto`).
+ * El estado, con el BADGE del template (`.badge[data-variant]` de
+ * `basecoat-ext.css`).
  *
- * Era una píldora con la palabra adentro (`.sw-soportes__estado`), inventada.
- * El template ya resuelve esto y su decisión está escrita al lado del código:
- * **el tono sale del dato, no de la columna** — un documento que todavía no se
- * procesó está esperando, y pintarlo del mismo naranja que a uno que falló
- * «inventa un problema que no hay».
+ * ## Por qué el badge y no `.sw-chip`
  *
- * `data-lleno` (relleno vs. contorno) y `data-tono` (color) son dos ejes
- * distintos a propósito: el relleno dice si el hecho ocurrió, el tono dice si
- * eso está bien. Y lleva `role="img"` con su etiqueta, porque un punto de 9px
- * sin nombre accesible no dice nada.
+ * El template tiene las dos cosas y no son intercambiables: `.sw-chip`
+ * (`menus.css`) es el chip CLICABLE de sugerencias de la paleta de comandos
+ * —tiene `cursor: pointer` y hover de control—, y un estado no se clickea.
+ * Lo que el sistema tiene para un estado es el badge semántico, que es
+ * justamente la deuda 1 que `basecoat-ext.css` vino a saldar: Basecoat trae un
+ * solo color y ahí se agregaron los cinco tonos.
+ *
+ * ## Por qué dejó de ser un punto
+ *
+ * El punto (`.sw-tabla__punto`) distinguía por tono y por relleno, y leído de
+ * corrido eso son cuatro combinaciones que hay que aprender: nada decía cuál
+ * es cuál sin pasarle el mouse por encima. Con el nombre adentro, la palabra
+ * hace el trabajo que hacía el relleno —«si el hecho ocurrió» lo dice la
+ * palabra— y el color queda sólo para lo que el color sabe hacer: decir si eso
+ * está bien de un vistazo, recorriendo la columna.
+ *
+ * Se conserva íntegra la decisión del template que gobernaba al punto: **el
+ * tono sale del dato, no de la columna**. Un documento que la IA todavía no
+ * miró está en cola, no en problema, y pintarlo del mismo naranja que a uno
+ * que falló «inventa un problema que no hay» — por eso `mute` y no `warning`.
+ *
+ * ## Dos vocabularios para el mismo estado, a propósito
+ *
+ * El chip lleva el NOMBRE (dos palabras: es una columna que se recorre) y la
+ * frase entera queda en el `title`. El filtro (`Filtros.tsx`) sigue con la
+ * frase, que es donde hay lugar y donde hace falta: ahí se elige a ciegas,
+ * acá se lee al lado del documento.
  */
 const DICHO: Record<EstadoDocumento, string> = {
   PENDIENTE_PROCESAR: 'Todavía sin procesar',
@@ -216,15 +238,36 @@ const DICHO: Record<EstadoDocumento, string> = {
   AUDITADO: 'Causación cerrada',
 };
 
+/** El nombre corto, el que entra en el chip. */
+const NOMBRE: Record<EstadoDocumento, string> = {
+  PENDIENTE_PROCESAR: 'Sin procesar',
+  PENDIENTE_AUDITAR: 'Por auditar',
+  COMPLETADO: 'Completado',
+  AUDITADO: 'Auditado',
+};
+
 /**
- * El eje único, con el PUNTO del template.
+ * EL TONO SALE DEL DATO. `success` para lo que está bien —la IA cerró, o el
+ * contador cerró—, `warning` sólo para lo que espera a una persona, y `mute`
+ * para lo que está en cola sin que eso sea un problema.
+ *
+ * `COMPLETADO` y `AUDITADO` comparten tono y los separa la palabra: los dos
+ * están bien, y la diferencia —si la causación está cerrada— es de grado, no
+ * de salud. Gastar un color en eso le sacaría fuerza al único que importa de
+ * lejos, que es el naranja de lo que falta.
+ */
+const TONO: Record<EstadoDocumento, string> = {
+  PENDIENTE_PROCESAR: 'mute',
+  PENDIENTE_AUDITAR: 'warning',
+  COMPLETADO: 'success',
+  AUDITADO: 'success',
+};
+
+/**
+ * El eje único.
  *
  * Antes eran dos columnas —el estado del procesamiento del archivo y el de
  * trazabilidad—, que contestaban lo mismo con distinto vocabulario.
- *
- * `data-lleno` dice si el hecho ocurrió; `data-tono`, si eso está bien. Sólo lo
- * que espera a una persona va en naranja: un documento que la IA todavía no
- * miró está en cola, no en problema.
  */
 function Estado({
   estado,
@@ -246,30 +289,19 @@ function Estado({
   if (errorDeImport) {
     const dicho = 'No se pudo subir su archivo — volvé a subirlo';
     return (
-      <span
-        className="sw-tabla__punto"
-        data-lleno="true"
-        data-tono="error"
-        role="img"
-        aria-label={dicho}
-        /* El motivo crudo va en el `title` y no en la etiqueta accesible: es
-           texto de base de datos (un constraint, un ENOENT), útil para quien
-           investiga e ilegible para quien sólo quiere saber que hay que
-           reintentar. */
-        title={`${dicho}\n\n${errorDeImport}`}
-      />
+      /* El motivo crudo va en el `title` detrás de la frase, y no en el chip:
+         es texto de base de datos (un constraint, un ENOENT), útil para quien
+         investiga e ilegible para quien sólo quiere saber que hay que
+         reintentar. */
+      <span className="badge" data-variant="error" title={`${dicho}\n\n${errorDeImport}`}>
+        Sin archivo
+      </span>
     );
   }
-  const tono = estado === 'AUDITADO' || estado === 'COMPLETADO' ? 'ok' : estado === 'PENDIENTE_AUDITAR' ? 'falta' : 'espera';
   return (
-    <span
-      className="sw-tabla__punto"
-      data-lleno={String(estado === 'AUDITADO')}
-      data-tono={tono}
-      role="img"
-      aria-label={DICHO[estado]}
-      title={DICHO[estado]}
-    />
+    <span className="badge" data-variant={TONO[estado]} title={DICHO[estado]}>
+      {NOMBRE[estado]}
+    </span>
   );
 }
 
