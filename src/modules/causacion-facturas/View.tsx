@@ -62,7 +62,16 @@ const ANCHOS: Record<string, number> = {
   valor_total: 130,
   estado: 120,
   clasificacion: 150,
+  /* La conclusión de la IA es un PÁRRAFO, no un campo: con los 140 de default
+     entraban cuatro palabras. Ancho de columna larga —el que el template le da
+     al CUFE— y elástica, que es lo único que el reparto deja encoger: «lo único
+     que aguanta puntos suspensivos es el texto libre». Lo que no entra lo
+     muestra el globo. */
+  observaciones_ia: 280,
 };
+
+/** Las de texto libre: las únicas que pueden encogerse (ver `anchos-de-tabla.ts`). */
+const ELASTICAS = ['tercero_nombre', 'observaciones_ia'];
 
 function aColumnaDeTabla(c: (typeof COLUMNAS)[number]): ColumnaDeTabla {
   return {
@@ -73,7 +82,7 @@ function aColumnaDeTabla(c: (typeof COLUMNAS)[number]): ColumnaDeTabla {
     al: c.numerica ? 'der' : undefined,
     // El globo sólo donde puede haber recorte de verdad.
     tip: !c.numerica && c.key !== 'estado',
-    elastica: c.key === 'tercero_nombre',
+    elastica: ELASTICAS.includes(c.key),
   };
 }
 
@@ -120,24 +129,34 @@ function resumenDelContenido(doc: DocumentoContable, otros: number): string {
   return partes.join(' · ');
 }
 
+/**
+ * EL VALOR DE UNA CELDA COMO TEXTO — lo que se pinta y lo que va en el globo.
+ *
+ * Son el mismo dato y por eso se lee UNA vez: el globo de una celda que dijera
+ * otra cosa que la celda sería peor que no tenerlo.
+ *
+ * EL RESUMEN DE «Contenido» LO ARMA LA VISTA Y NO `columnas.ts`, porque
+ * necesita el GRUPO y no sólo el documento: `relaciones` son los vínculos
+ * directos, y el grupo es transitivo (A-B, B-C son tres documentos en una
+ * fila). Contando las directas, una fila diría «1 documento» y el visor
+ * mostraría dos.
+ */
+function textoDeDocumento(
+  doc: DocumentoContable,
+  col: ColumnaDeTabla,
+  grupo: GrupoDeDocumentos | undefined,
+): string {
+  if (col.id === 'archivos' && grupo) return resumenDelContenido(doc, grupo.miembros.length - 1);
+  return COLUMNAS.find((c) => c.key === col.id)?.leer(doc) ?? '';
+}
+
 function celdaDeDocumento(
   doc: DocumentoContable,
   col: ColumnaDeTabla,
   abrir: (g: GrupoDeDocumentos) => void,
   grupo: GrupoDeDocumentos | undefined,
 ): React.ReactNode {
-  const def = COLUMNAS.find((c) => c.key === col.id);
-  /* EL RESUMEN DE «Contenido» LO ARMA LA VISTA Y NO `columnas.ts`, porque
-     necesita el GRUPO y no sólo el documento: `relaciones` son los vínculos
-     directos, y el grupo es transitivo (A-B, B-C son tres documentos en una
-     fila). Contando las directas, una fila diría «1 documento» y el visor
-     mostraría dos. */
-  const valor =
-    col.id === 'archivos' && grupo
-      ? resumenDelContenido(doc, grupo.miembros.length - 1)
-      : def
-        ? def.leer(doc)
-        : '';
+  const valor = textoDeDocumento(doc, col, grupo);
   /* Un dato que el extractor no leyó deja la celda VACÍA, sin guion ni
      placeholder: es lo que hace el template (`esc(f[c.dato] == null ? '' : …)`).
      Había un `—` con clase propia, que era UI inventada — y además, con
@@ -742,6 +761,10 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
         porPagina={100}
         opcionesPagina={[100, 150]}
         celda={(doc, col) => celdaDeDocumento(doc, col, abrirVisor, grupoDe.get(doc.id))}
+        /* EL GLOBO CON EL VALOR ENTERO. La tabla sola no puede armarlo: el dato
+           de una columna vive anidado (`trazabilidad.observaciones_ia`), no
+           como campo plano de la fila. */
+        textoDeCelda={(doc, col) => textoDeDocumento(doc, col, grupoDe.get(doc.id))}
         /* LA BANDA DE LA TABLA, que es donde el template monta los filtros
            (`encabezado: filaDeFiltros()`): gobiernan ESTA tabla, así que van
            pegados a ella y no sueltos sobre el lienzo. */

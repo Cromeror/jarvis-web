@@ -55,6 +55,21 @@ export interface EspecDeTabla<F> {
   nombreFila?: (f: F) => string;
   /** El dominio pinta la celda; la tabla arma la grilla. */
   celda?: (f: F, c: ColumnaDeTabla) => React.ReactNode;
+  /**
+   * El valor de la celda COMO TEXTO, para el globo de `tip`.
+   *
+   * En el template la fila es un objeto plano y el globo se arma solo
+   * (`f[c.dato]`, `table.js:476`). Acá la fila es un documento con el dato
+   * ANIDADO —`trazabilidad.observaciones_ia`, `extraccion.tercero_nombre`—, así
+   * que `f[c.dato]` es `undefined` en casi todas: el globo se declaraba con
+   * `tip: true` y salía vacío, justo en las columnas de texto libre que son las
+   * únicas que se recortan de verdad.
+   *
+   * No se puede sacar de `celda` porque eso devuelve nodos, no texto. Lo sabe
+   * el dominio —es el mismo `leer()` con el que pinta—, así que lo pasa él.
+   * Sin esto se cae al campo plano, que es lo que hace el template.
+   */
+  textoDeCelda?: (f: F, c: ColumnaDeTabla) => string;
   /** `false` = sin columna de casillas. */
   seleccion?: boolean;
   puedeElegir?: (f: F) => boolean;
@@ -106,6 +121,7 @@ export function Tabla<F>({
   clave,
   nombreFila,
   celda,
+  textoDeCelda,
   seleccion = true,
   puedeElegir = () => true,
   porPagina: porPaginaInicial = 100,
@@ -350,9 +366,10 @@ export function Tabla<F>({
     }
     /* El globo sólo donde puede haber recorte de verdad: ponerlo en todas las
        celdas llena la pantalla de globos que repiten lo que ya se lee. */
-    const bruto = (f as Record<string, unknown>)[c.dato ?? c.id];
+    const bruto = textoDeCelda ? textoDeCelda(f, c) : (f as Record<string, unknown>)[c.dato ?? c.id];
+    const texto = String(bruto ?? '');
     return (
-      <td key={c.id} data-al={c.al} title={c.tip ? String(bruto ?? '') : undefined}>
+      <td key={c.id} data-al={c.al} title={c.tip && texto ? texto : undefined}>
         {pintarCelda(f, c)}
       </td>
     );
