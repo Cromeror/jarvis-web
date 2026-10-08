@@ -68,13 +68,14 @@ export class ApiError extends Error {
   }
 }
 
-async function handleResponse<T>(res: Response): Promise<T> {
+/** Exportada para los clientes de otras rutas de `api/organizations` (red de contexto): mismo error, mismo mensaje. */
+export async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) throw new ApiError(res.status, await readError(res));
   return res.json() as Promise<T>;
 }
 
 /** Nest contesta `{ message, statusCode }`; si no es JSON, el texto crudo es mejor que nada. */
-async function readError(res: Response): Promise<string> {
+export async function readError(res: Response): Promise<string> {
   const body = await res.text();
   try {
     const parsed = JSON.parse(body) as { message?: string | string[] };

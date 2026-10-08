@@ -23,6 +23,7 @@ import { agruparPorModulo } from './permisos-por-modulo.js';
 import { Tabla, type ColumnaDeTabla } from '../ui/Tabla.js';
 import { StatusBadge } from '../ui/atoms/StatusBadge.js';
 import { OrganizationPortsSection } from './OrganizationPortsSection.js';
+import { OrganizationRedContextoSection } from './OrganizationRedContextoSection.js';
 
 /** Controles DENTRO de un modal, que sigue siendo una tarjeta clara sobre el overlay. */
 const INPUT_CLASS =
@@ -255,6 +256,8 @@ export function OrganizationRolesPanel({
   const puedeMiembros = selected?.permissions.includes('members:manage') ?? false;
   /** Repartir el bloque de puertos entre proyectos. Sin él la sección ni se monta: su GET daría 403. */
   const puedePuertos = selected?.permissions.includes('environments-002:ports') ?? false;
+  /** Armar los círculos de la red de contexto. Mismo criterio: sin el permiso, la sección no se monta. */
+  const puedeRed = selected?.permissions.includes('red-de-contexto-004:manage') ?? false;
 
   useEffect(() => {
     void (async () => {
@@ -567,7 +570,7 @@ export function OrganizationRolesPanel({
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>
       )}
 
-      {selected && !puedeRoles && !puedeMiembros && !puedePuertos && (
+      {selected && !puedeRoles && !puedeMiembros && !puedePuertos && !puedeRed && (
         <p className="text-sm text-slate-400">No tenés permisos para configurar esta organización.</p>
       )}
 
@@ -674,6 +677,8 @@ export function OrganizationRolesPanel({
       {/* `key` por organización: el estado del formulario no tiene que
           sobrevivir al cambio de organización en el select de arriba. */}
       {selected && puedePuertos && <OrganizationPortsSection key={selected.id} organizationId={selected.id} />}
+
+      {selected && puedeRed && <OrganizationRedContextoSection key={selected.id} organizationId={selected.id} />}
 
       {editingRole && selectedId && (
         <RoleFormModal
