@@ -30,10 +30,11 @@ const COLUMNAS: ColumnaDeTabla[] = [
  * EL REPARTO DEL BLOQUE DE PUERTOS ENTRE LOS PROYECTOS DE LA ORGANIZACIÓN.
  *
  * Es el segundo nivel de `PortGrantsPage`: allá el superadmin le da un bloque a
- * la organización, acá la organización decide qué proyecto usa qué parte. Vive
- * en el panel de la organización y no en una página propia porque lo gobierna
- * un permiso de ORGANIZACIÓN (`environments-002:ports`) — quien lo tiene ya está
- * mirando esta pantalla para configurar su organización.
+ * la organización, acá la organización decide qué proyecto usa qué parte. Es la
+ * sección del módulo de ORGANIZACIÓN `puertos-005` en «Mi organización», y la
+ * gobierna su permiso `puertos-005:manage`. Vivió en Usuarios —página del
+ * operador— y por eso el administrador de la organización, para quien existe,
+ * no la veía.
  *
  * A diferencia del primer nivel, acá SÍ se puede elegir desde qué puerto: el
  * bloque es chico y conocido, y un proyecto que ya tiene un servicio escuchando

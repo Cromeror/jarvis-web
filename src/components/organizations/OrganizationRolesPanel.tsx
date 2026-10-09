@@ -22,8 +22,6 @@ import { mensajeDeError } from './errores.js';
 import { agruparPorModulo } from './permisos-por-modulo.js';
 import { Tabla, type ColumnaDeTabla } from '../ui/Tabla.js';
 import { StatusBadge } from '../ui/atoms/StatusBadge.js';
-import { OrganizationPortsSection } from './OrganizationPortsSection.js';
-import { OrganizationRedContextoSection } from './OrganizationRedContextoSection.js';
 
 /** Controles DENTRO de un modal, que sigue siendo una tarjeta clara sobre el overlay. */
 const INPUT_CLASS =
@@ -218,8 +216,17 @@ export function OrganizationRolesPanel({
   users,
   focusOrganizationId,
   onMembersChanged,
+  organizacionFija,
+  onSelect,
 }: {
   users: UserSummary[];
+  /**
+   * Una sola organización y sin selector: es el modo de «Mi organización», donde
+   * la organización ya está elegida arriba y el panel es una sección más.
+   */
+  organizacionFija?: string;
+  /** Avisar qué organización quedó elegida: la página de Usuarios filtra su tabla con eso. */
+  onSelect?: (organizationId: string | null) => void;
   /**
    * La organización que hay que mostrar, cuando la elige la página (recién
    * creada desde la cabecera). Es un pedido de enfoque, no estado controlado:
@@ -252,12 +259,15 @@ export function OrganizationRolesPanel({
   const [nuevoMiembro, setNuevoMiembro] = useState<{ userId: string; roleId: string }>({ userId: '', roleId: '' });
 
   const selected = organizations.find((o) => o.id === selectedId) ?? null;
-  const puedeRoles = selected?.permissions.includes('roles:manage') ?? false;
-  const puedeMiembros = selected?.permissions.includes('members:manage') ?? false;
-  /** Repartir el bloque de puertos entre proyectos. Sin él la sección ni se monta: su GET daría 403. */
-  const puedePuertos = selected?.permissions.includes('environments-002:ports') ?? false;
-  /** Armar los círculos de la red de contexto. Mismo criterio: sin el permiso, la sección no se monta. */
-  const puedeRed = selected?.permissions.includes('red-de-contexto-004:manage') ?? false;
+  /* Los permisos del módulo de organización Miembros (`miembros-006`). Puertos y
+     la red de contexto ya no viven acá: son módulos de organización propios y se
+     muestran en «Mi organización». */
+  const puedeRoles = selected?.permissions.includes('miembros-006:roles') ?? false;
+  const puedeMiembros = selected?.permissions.includes('miembros-006:members') ?? false;
+
+  useEffect(() => {
+    onSelect?.(selectedId);
+  }, [selectedId, onSelect]);
 
   useEffect(() => {
     void (async () => {
@@ -265,14 +275,14 @@ export function OrganizationRolesPanel({
         const [orgs, cat] = await Promise.all([listOrganizations(), fetchPermissionCatalog()]);
         setOrganizations(orgs);
         setCatalog(cat);
-        setSelectedId((actual) => actual ?? orgs[0]?.id ?? null);
+        setSelectedId((actual) => organizacionFija ?? actual ?? orgs[0]?.id ?? null);
       } catch (err) {
         setLoadError(mensajeDeError(err, 'Error al cargar las organizaciones'));
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [organizacionFija]);
 
   const refreshOrganizations = useCallback(async (seleccionar?: string): Promise<void> => {
     setLoadError(null);
@@ -538,6 +548,7 @@ export function OrganizationRolesPanel({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end gap-3">
+        {!organizacionFija && (
         <div>
           <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">Organización</label>
           <select
@@ -552,6 +563,7 @@ export function OrganizationRolesPanel({
             ))}
           </select>
         </div>
+        )}
         <button
           type="button"
           disabled={!puedeRoles}
@@ -570,7 +582,7 @@ export function OrganizationRolesPanel({
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>
       )}
 
-      {selected && !puedeRoles && !puedeMiembros && !puedePuertos && !puedeRed && (
+      {selected && !puedeRoles && !puedeMiembros && (
         <p className="text-sm text-slate-400">No tenés permisos para configurar esta organización.</p>
       )}
 
@@ -676,9 +688,6 @@ export function OrganizationRolesPanel({
 
       {/* `key` por organización: el estado del formulario no tiene que
           sobrevivir al cambio de organización en el select de arriba. */}
-      {selected && puedePuertos && <OrganizationPortsSection key={selected.id} organizationId={selected.id} />}
-
-      {selected && puedeRed && <OrganizationRedContextoSection key={selected.id} organizationId={selected.id} />}
 
       {editingRole && selectedId && (
         <RoleFormModal

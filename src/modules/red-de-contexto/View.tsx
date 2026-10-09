@@ -14,7 +14,7 @@ const REFRESCO_MS = 30_000;
  * Es una vista para MIRAR. Lo que se comparte no se sube desde acá: se deja en
  * la carpeta `publicado/` del proyecto, como en una carpeta compartida, y el
  * sync se encarga del resto. Y quién está en cada círculo no lo decide el
- * proyecto sino su organización (Usuarios → Red de contexto). Por eso no hay
+ * proyecto sino su organización (Mi organización → Red de contexto). Por eso no hay
  * botones: cualquiera que hubiera prometería algo que este proyecto no puede
  * hacer sobre sí mismo.
  */
@@ -47,7 +47,7 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
       <div className="max-w-2xl rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">
         <p className="font-medium text-white">Este proyecto todavía no comparte documentación con nadie.</p>
         <p className="mt-2 text-slate-400">
-          Los círculos los arma quien administra la organización, desde Usuarios → Red de contexto. En cuanto este
+          Los círculos los arma quien administra la organización, desde Mi organización → Red de contexto. En cuanto este
           proyecto esté en uno, aparece acá con quién comparte y qué publicó cada uno.
         </p>
       </div>

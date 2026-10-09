@@ -4,7 +4,7 @@
  *
  * Dos alcances, como en el backend:
  * - **organización** (`api/organizations/:id/red-contexto`) — lo administra
- *   quien tiene `red-de-contexto-004:manage`: armar círculos, escribir su
+ *   quien tiene `red-de-contexto-org-007:manage`: armar círculos, escribir su
  *   contexto general, conectar proyectos.
  * - **proyecto** (`api/projects/:id/red-contexto`) — lo que ve un proyecto:
  *   sus círculos, con quién comparte y qué publicó cada uno.

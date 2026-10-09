@@ -187,6 +187,39 @@ export async function removeMember(organizationId: string, userId: string): Prom
   if (!res.ok) throw new ApiError(res.status, await readError(res));
 }
 
+/** Un módulo de ORGANIZACIÓN que la organización tiene (viene en una suite de alguno de sus proyectos). */
+export interface ModuloDeOrganizacion {
+  id: string;
+  key: string | null;
+  name: string;
+  description: string | null;
+}
+
+/** Los módulos de organización que tiene una organización: lo que dibuja «Mi organización». */
+export async function listModulosDeOrganizacion(organizationId: string): Promise<ModuloDeOrganizacion[]> {
+  return handleResponse<ModuloDeOrganizacion[]>(
+    await fetch(`/api/organizations/${encodeURIComponent(organizationId)}/modulos`),
+  );
+}
+
+/**
+ * El administrador de la organización crea un usuario: nace como miembro de
+ * esta organización y sin rol. Un nombre tomado vuelve 409 con un mensaje para
+ * mostrar tal cual — el mismo esté donde esté el nombre.
+ */
+export async function crearMiembro(
+  organizationId: string,
+  input: { username: string; password: string },
+): Promise<{ id: string; username: string }> {
+  return handleResponse<{ id: string; username: string }>(
+    await fetch(`/api/organizations/${encodeURIComponent(organizationId)}/members`, {
+      method: 'POST',
+      headers: jsonHeaders,
+      body: JSON.stringify(input),
+    }),
+  );
+}
+
 /**
  * El bloque de puertos que el superadmin le concedió a la organización
  * (`/api/installation/port-grants`). Acá es de sólo lectura: la organización lo

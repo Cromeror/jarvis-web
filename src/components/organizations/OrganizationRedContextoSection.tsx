@@ -28,13 +28,13 @@ const BOTON_PELIGRO = 'rounded-lg px-2 py-1 text-xs text-red-300 hover:bg-red-50
 
 /**
  * LA RED DE CONTEXTO DE LA ORGANIZACIÓN: qué proyectos comparten documentación
- * con cuáles (módulo `red-de-contexto-004`).
+ * con cuáles.
  *
- * Vive en el panel de la organización, al lado del reparto de puertos y por la
- * misma razón: lo gobierna un permiso de ORGANIZACIÓN
- * (`red-de-contexto-004:manage`). Conectar dos proyectos es decidir qué
- * documentación sale de uno hacia otro, y esa decisión no puede tomarla un
- * proyecto sobre sí mismo.
+ * Es la sección del módulo de ORGANIZACIÓN `red-de-contexto-org-007` en «Mi
+ * organización», gobernada por `red-de-contexto-org-007:manage`; la cara del día
+ * a día —qué comparte cada proyecto— es `red-de-contexto-004`. Conectar dos
+ * proyectos es decidir qué documentación sale de uno hacia otro, y esa decisión
+ * no puede tomarla un proyecto sobre sí mismo.
  *
  * Lo que se arma acá es un CÍRCULO: un grupo de proyectos y un contexto
  * general para todos. Lo que cada miembro deja en

@@ -288,3 +288,21 @@ describe('el borde con la API: `moduleTool` se traduce a `herramienta` acá y no
     expect(h?.cruda.id).toBe('emision-util');
   });
 });
+
+describe('«Mi organización» en el riel', () => {
+  const ids = (configura: boolean, esOperador: boolean) =>
+    superficiesDe({ suites: [], projectId: 'p1', esOperador, configuraOrganizacion: configura }).map((x) => x.id);
+
+  it('la ve quien tiene algo que configurar, cliente u operador, al pie', () => {
+    expect(ids(true, false)).toContain('/organizacion');
+    expect(ids(true, true)).toContain('/organizacion');
+    const entrada = superficiesDe({ suites: [], projectId: null, esOperador: false, configuraOrganizacion: true }).find(
+      (x) => x.id === '/organizacion',
+    );
+    expect(entrada?.alPie).toBe(true);
+  });
+
+  it('sin nada que configurar no aparece: llevaría a una pantalla vacía', () => {
+    expect(ids(false, false)).not.toContain('/organizacion');
+  });
+});

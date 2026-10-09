@@ -96,6 +96,17 @@ const ADMINISTRACION: Superficie[] = [
   { id: '/users', to: '/users', match: '/users', icono: 'users', label: 'Usuarios', directa: true, alPie: true },
 ];
 
+/** La configuración de la organización: sus módulos de organización (ver `pages/OrganizacionPage.tsx`). */
+const MI_ORGANIZACION: Superficie = {
+  id: '/organizacion',
+  to: '/organizacion',
+  match: '/organizacion',
+  icono: 'shield',
+  label: 'Mi organización',
+  directa: true,
+  alPie: true,
+};
+
 /**
  * Dónde vive la pantalla de cada módulo de INSTALACIÓN.
  *
@@ -149,8 +160,14 @@ export function superficiesDe(entrada: {
    * pasa.
    */
   modulosDeInstalacion?: { key: string; name: string }[];
+  /**
+   * Si este usuario tiene algo que configurar en alguna organización: un
+   * permiso de organización en alguna de las suyas. El operador siempre lo
+   * tiene. Omitirlo = no, y la entrada no se dibuja.
+   */
+  configuraOrganizacion?: boolean;
 }): Superficie[] {
-  const { suites, projectId, esOperador, modulosDeInstalacion = [] } = entrada;
+  const { suites, projectId, esOperador, modulosDeInstalacion = [], configuraOrganizacion = false } = entrada;
 
   const herramientas: Superficie[] = (esOperador ? HERRAMIENTAS : []).map((h) => ({
     id: h.id,
@@ -210,7 +227,14 @@ export function superficiesDe(entrada: {
       })
     : [];
 
-  return [...herramientas, ...deSuites, ...(esOperador ? ADMINISTRACION : []), ...deInstalacion];
+  /* «Mi organización»: los módulos de ORGANIZACIÓN —configuración que vale para
+     todos los proyectos de la organización—. Va al pie, con la administración,
+     y la ve quien tenga algo que configurar ahí, cliente u operador: el
+     administrador de una organización es un cliente con un rol, no otro tipo de
+     cuenta. */
+  const deOrganizacion: Superficie[] = configuraOrganizacion ? [MI_ORGANIZACION] : [];
+
+  return [...herramientas, ...deSuites, ...(esOperador ? ADMINISTRACION : []), ...deOrganizacion, ...deInstalacion];
 }
 
 /**

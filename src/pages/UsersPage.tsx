@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
 import { listProjects } from '../lib/projects-api.js';
@@ -11,6 +11,8 @@ import { Tabla, type ColumnaDeTabla } from '../components/ui/Tabla.js';
 import { OrganizationRolesPanel } from '../components/organizations/OrganizationRolesPanel.js';
 import { OrganizationFormModal } from '../components/organizations/OrganizationFormModal.js';
 import { StatusBadge } from '../components/ui/atoms/StatusBadge.js';
+import { Toolbar, ToolbarBoton, ToolbarGrupo, ToolbarUtiles } from '../components/ui/molecules/Toolbar.js';
+import { filasDeUsuarios, pendientesDeAsignar } from '../lib/usuarios-por-organizacion.js';
 
 /**
  * Qué proyectos toca el usuario y CON QUÉ ROL.
@@ -473,6 +475,17 @@ export function UsersPage(): React.ReactElement {
   /** La recién creada, para que el panel de abajo la muestre sin buscarla a mano. */
   const [orgEnfocada, setOrgEnfocada] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState('');
+  /** La organización que eligió el panel de arriba: la tabla muestra sus miembros. */
+  const [orgSeleccionada, setOrgSeleccionada] = useState<string | null>(null);
+  /** La lista «Sin asignar» en vez de los miembros de la organización elegida. */
+  const [verSinAsignar, setVerSinAsignar] = useState(false);
+  const pendientes = useMemo(() => pendientesDeAsignar(users), [users]);
+  /* Elegir otra organización en el panel es pedir sus miembros: sale de «Sin
+     asignar». Estable, porque el panel la usa en un efecto. */
+  const alElegirOrganizacion = useCallback((id: string | null) => {
+    setOrgSeleccionada(id);
+    setVerSinAsignar(false);
+  }, []);
 
   async function refresh(): Promise<void> {
     setLoading(true);
@@ -514,13 +527,18 @@ export function UsersPage(): React.ReactElement {
    * resultado, que es como se busca cuando hay muchas filas.
    */
   const visibles = useMemo(() => {
+    const base = filasDeUsuarios(users, { sinAsignar: verSinAsignar, organizationId: orgSeleccionada });
     const terminos = normalizar(busqueda).split(/\s+/).filter(Boolean);
-    if (terminos.length === 0) return users;
-    return users.filter((u) => {
+    if (terminos.length === 0) return base;
+    return base.filter((u) => {
       const texto = textoBuscable(u, projects);
       return terminos.every((t) => texto.includes(t));
     });
-  }, [users, projects, busqueda]);
+  }, [users, projects, busqueda, verSinAsignar, orgSeleccionada]);
+  const totalDeLaVista = useMemo(
+    () => filasDeUsuarios(users, { sinAsignar: verSinAsignar, organizationId: orgSeleccionada }).length,
+    [users, verSinAsignar, orgSeleccionada],
+  );
 
   /* LA TABLA DE USUARIOS ES LA DEL TEMPLATE (`Tabla`), la misma que roles y
      miembros acá al lado. Tenerla distinta era la rareza: tres listados en una
@@ -613,28 +631,34 @@ export function UsersPage(): React.ReactElement {
     // del template resuelve su propio tema por tokens (`--sw-tabla-*`), que es
     // lo que deja ponerla sobre esta superficie sin pedirle un fondo aparte.
     <div className="h-full overflow-y-auto bg-[var(--app-bg)] p-6">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-lg font-semibold text-white">Usuarios y organizaciones</h1>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => setEditing('new')}
-            className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-          >
-            + Nuevo usuario
-          </button>
-          {/* Sólo el operador del producto funda organizaciones: es el alta de un
-              cliente, no algo que un cliente se haga a sí mismo. */}
-          {currentUser?.account_type === 'operator' && (
-            <button
-              type="button"
-              onClick={() => setCreandoOrg(true)}
-              className="rounded-lg border border-white/15 px-3 py-2 text-sm font-medium text-white hover:bg-white/10"
+      {/* LA TOOLBAR DE LA SUPERFICIE: una pieza opcional de la superficie, no
+          del chasis (ver `ui/molecules/Toolbar.tsx`). A la izquierda las altas;
+          a la derecha, cuánta gente espera organización. */}
+      <div className="mb-4">
+        <Toolbar label="Usuarios">
+          <ToolbarGrupo>
+            <ToolbarBoton primario onClick={() => setEditing('new')}>
+              + Nuevo usuario
+            </ToolbarBoton>
+            {/* Sólo el operador del producto funda organizaciones: es el alta de
+                un cliente, no algo que un cliente se haga a sí mismo. */}
+            {currentUser?.account_type === 'operator' && (
+              <ToolbarBoton onClick={() => setCreandoOrg(true)}>+ Nueva organización</ToolbarBoton>
+            )}
+          </ToolbarGrupo>
+          <ToolbarUtiles>
+            {/* EL NÚMERO ES LA RAZÓN DEL BOTÓN: dice de un vistazo si hay gente
+                esperando organización sin abrir la lista. Los operadores salen
+                en la lista pero no cuentan — no esperan nada. */}
+            <ToolbarBoton
+              presionado={verSinAsignar}
+              onClick={() => setVerSinAsignar((v) => !v)}
+              title="Clientes que no pertenecen a ninguna organización, y los operadores"
             >
-              + Nueva organización
-            </button>
-          )}
-        </div>
+              {pendientes} sin asignar
+            </ToolbarBoton>
+          </ToolbarUtiles>
+        </Toolbar>
       </div>
 
       {error && (
@@ -646,6 +670,7 @@ export function UsersPage(): React.ReactElement {
         <OrganizationRolesPanel
           users={users}
           focusOrganizationId={orgEnfocada}
+          onSelect={alElegirOrganizacion}
           // Agregar o quitar un miembro cambia la columna «Organización» de la
           // tabla de abajo: sin esto quedaría vieja hasta el próximo refresh.
           onMembersChanged={() => void refresh()}
@@ -654,7 +679,9 @@ export function UsersPage(): React.ReactElement {
 
       <section className="border-t border-white/10 pt-6">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-white">Usuarios</h2>
+          <h2 className="text-sm font-semibold text-white">
+            {verSinAsignar ? 'Sin asignar' : 'Usuarios de la organización'}
+          </h2>
           <div className="flex items-center gap-2">
             <input
               type="search"
@@ -668,14 +695,14 @@ export function UsersPage(): React.ReactElement {
                 afuera— para no leer un resultado corto como "no hay más". */}
             {busqueda.trim() !== '' && (
               <span className="text-xs text-slate-400">
-                {visibles.length} de {users.length}
+                {visibles.length} de {totalDeLaVista}
               </span>
             )}
           </div>
         </div>
         {loading ? (
           <p className="text-sm text-slate-400">Cargando…</p>
-        ) : visibles.length === 0 && users.length > 0 ? (
+        ) : visibles.length === 0 && totalDeLaVista > 0 ? (
           <p className="text-sm text-slate-400">Ningún usuario coincide con «{busqueda.trim()}».</p>
         ) : (
           <Tabla<UserSummary>
@@ -691,10 +718,17 @@ export function UsersPage(): React.ReactElement {
             opcionesPagina={[25, 50, 100]}
             /* EL VACÍO DICE LA CONSECUENCIA, no "no hay filas": sin usuarios no
                hay a quién darle un rol, y el alta está en el botón de arriba. */
-            textos={{
-              vacio: 'Todavía no hay usuarios',
-              vacioPaso: 'Un usuario nuevo se crea con «+ Nuevo usuario»; recién ahí se le puede dar un rol en una organización.',
-            }}
+            textos={
+              verSinAsignar
+                ? {
+                    vacio: 'Nadie espera organización',
+                    vacioPaso: 'Todos los clientes pertenecen a una organización.',
+                  }
+                : {
+                    vacio: 'Esta organización todavía no tiene miembros',
+                    vacioPaso: 'Se suman desde «Miembros» en el panel de arriba, o se crean con «+ Nuevo usuario».',
+                  }
+            }
           />
         )}
       </section>
