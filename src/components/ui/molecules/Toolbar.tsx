@@ -12,7 +12,9 @@ import React from 'react';
  * Hubo una fila fija en el chasis para esto y se quitó (4-oct-2026, ver el
  * comentario en `shell/Topbar.tsx`): medía alto en todas las pantallas y
  * ninguna superficie la llenaba. Los estilos quedaron en `shell/chrome.css` y
- * son los que usa este componente —sin estilos propios—:
+ * son los que usa este componente, más la franja que tenía en el template
+ * (`.sw-toolbar--superficie`: sin header alrededor, sin ella se leía como botones
+ * sueltos):
  *
  * ```
  * .sw-toolbar            la fila
@@ -24,7 +26,7 @@ import React from 'react';
  */
 export function Toolbar({ label, children }: { label: string; children: React.ReactNode }): React.ReactElement {
   return (
-    <div className="sw-toolbar" role="toolbar" aria-label={label}>
+    <div className="sw-toolbar sw-toolbar--superficie" role="toolbar" aria-label={label}>
       {children}
     </div>
   );

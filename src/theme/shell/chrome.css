@@ -145,6 +145,25 @@
   min-width: 0;
 }
 
+/* LA TOOLBAR COMO PIEZA DE LA SUPERFICIE recupera su franja.
+
+   Arriba dice que «ya no es una franja con superficie propia», y era cierto
+   mientras vivió en el header: ahí la superficie era la del header. Desde que
+   salió del chasis y la pone cada superficie adentro de su área de trabajo
+   (`ui/molecules/Toolbar.tsx`), no tiene header que la contenga, y sin su
+   franja se leía como botones sueltos flotando sobre el fondo — se veía y no
+   se veía como barra.
+
+   Es la franja original del template (SpaceMyWork 31e150d, `.sw-toolbar-slot`
+   + `.sw-toolbar`): el fondo del chrome, la costura abajo y el aire lateral.
+   Modificador y no cambio de la regla base para no tocar a nadie que todavía
+   la use adentro del header. */
+.sw-toolbar--superficie {
+  background: var(--sw-surface);
+  border-bottom: var(--sw-border) solid var(--sw-line);
+  padding: var(--sw-s-1) var(--sw-s-3);
+}
+
 .sw-toolbar__seg { display: flex; align-items: center; gap: var(--sw-s-1); }
 
 /* DOS LINEAS, no una: la oscura hunde y la clara devuelve el borde del otro
