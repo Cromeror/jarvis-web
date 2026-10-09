@@ -84,12 +84,16 @@ export function ActiveProjectProvider({ children }: { children: React.ReactNode 
   const accesibles = useMemo(() => proyectos?.map((p) => p.id) ?? null, [proyectos]);
   /* Sólo el cliente trabaja EN un proyecto; el operador los administra todos
      (ver `resolverProyectoActivo`). Sin usuario resuelto todavía no se
-     autoelige: el default cierra, no abre. */
+     autoelige: el default cierra, no abre.
+
+     «No es operador» y no `=== 'client'`: el usuario puede venir de una sesión
+     guardada antes de que `member` pasara a llamarse `client`, y con la
+     igualdad ese cliente dejaría de autoelegir hasta volver a entrar. */
   const projectId = resolverProyectoActivo({
     deLaUrl,
     guardado,
     accesibles,
-    autoElegirUnico: user?.account_type === 'member',
+    autoElegirUnico: user != null && user.account_type !== 'operator',
   });
 
   // Lo resuelto se persiste, venga de donde venga: entrar por un link a

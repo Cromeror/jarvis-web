@@ -1,6 +1,6 @@
 /** Auth API client — login + current user, y el storage local del JWT. */
 
-export type AccountType = 'operator' | 'member';
+export type AccountType = 'operator' | 'client';
 
 export interface AuthUserSummary {
   id: string;

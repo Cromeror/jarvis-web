@@ -65,7 +65,7 @@ interface UserFormState {
 const EMPTY_FORM: UserFormState = {
   username: '',
   password: '',
-  account_type: 'member',
+  account_type: 'client',
   organization_id: '',
   organization_role_id: '',
   project_roles: [],
@@ -221,7 +221,7 @@ function UserFormModal({
       if (editing) {
         await updateUser(editing.id, {
           account_type: form.account_type,
-          ...(form.account_type === 'member' && form.organization_id && form.organization_role_id
+          ...(form.account_type === 'client' && form.organization_id && form.organization_role_id
             ? { organization_id: form.organization_id, organization_role_id: form.organization_role_id }
             : {}),
           password: form.password || undefined,
@@ -282,11 +282,11 @@ function UserFormModal({
           onChange={(e) => setForm((f) => ({ ...f, account_type: e.target.value as AccountType }))}
           className="mb-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-indigo-400"
         >
-          <option value="member">Cliente</option>
+          <option value="client">Cliente</option>
           <option value="operator">Operador del producto</option>
         </select>
 
-        {form.account_type === 'member' && !editing && (
+        {form.account_type === 'client' && !editing && (
           <>
             <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">
               Organización
@@ -334,7 +334,7 @@ function UserFormModal({
           </>
         )}
 
-        {form.account_type === 'member' && (
+        {form.account_type === 'client' && (
           <>
             <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">
               Proyectos y rol en cada uno

@@ -42,7 +42,7 @@ export interface OrganizationMember {
   organization_id: string;
   user_id: string;
   username: string;
-  user_account_type: 'operator' | 'member';
+  user_account_type: 'operator' | 'client';
   /** VARIOS: los permisos del miembro son la unión. Vacío = pertenece sin poder nada. */
   roles: RoleRef[];
   created_at: string;

@@ -1,6 +1,6 @@
 /** API client for api/users — superadmin-only user management. */
 
-export type AccountType = 'operator' | 'member';
+export type AccountType = 'operator' | 'client';
 
 /** Sobre qué proyecto entra el usuario y con qué rol. El par junto: un proyecto sin rol no otorga nada. */
 export interface ProjectRoleInput {
