@@ -192,6 +192,10 @@
 .sw-tabla__t td[data-al="centro"],
 .sw-tabla__t th[data-al="centro"] { text-align: center; }
 
+/* Alineación vertical por columna: arriba, para la celda que acompaña a otra
+   más alta de la misma fila y no tiene que quedar flotando en el medio. */
+.sw-tabla__t td[data-va="arriba"] { vertical-align: top; }
+
 .sw-tabla__t tbody tr { cursor: pointer; }
 
 /* EL FILETE ENTRE FILAS, con token propio (pedido del dueño: en oscuro no se

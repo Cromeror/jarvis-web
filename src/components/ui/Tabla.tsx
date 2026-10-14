@@ -369,7 +369,7 @@ export function Tabla<F>({
     const bruto = textoDeCelda ? textoDeCelda(f, c) : (f as Record<string, unknown>)[c.dato ?? c.id];
     const texto = String(bruto ?? '');
     return (
-      <td key={c.id} data-al={c.al} title={c.tip && texto ? texto : undefined}>
+      <td key={c.id} data-al={c.al} data-va={c.va} title={c.tip && texto ? texto : undefined}>
         {pintarCelda(f, c)}
       </td>
     );

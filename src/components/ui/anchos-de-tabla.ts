@@ -38,6 +38,10 @@ export interface ColumnaDeTabla {
    * `[data-al="der"]`. Estuvieron como `'d' | 'c'`, que es un vocabulario
    * paralelo y no casa con ninguna regla: los importes quedaban a la izquierda. */
   al?: 'der' | 'centro';
+  /** Alineación VERTICAL: `arriba` pega el contenido al borde superior de la
+   * celda (va como `data-va`). Sirve cuando otra celda de la fila es alta y la
+   * de ésta queda flotando en el medio. Default: centrado, como el template. */
+  va?: 'arriba';
   /** `false` = la columna no se puede ordenar. */
   orden?: boolean;
   /** `true` = muestra el valor completo en un `title` cuando puede recortarse. */
