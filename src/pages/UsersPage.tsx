@@ -148,6 +148,19 @@ function UserFormModal({
      no tiene: ésa es la forma de asignar a los «sin asignar». A quien ya
      pertenece a una no se lo muda desde acá. */
   const puedeElegirOrganizacion = !editing || !editing.organization;
+  /** Qué proyecto tiene abierto el recuadro de roles (uno a la vez). */
+  const [editandoProyecto, setEditandoProyecto] = useState<string | null>(null);
+  const idsAsignados = new Set(form.project_roles.map((a) => a.project_id));
+  /* El que se está editando sigue en la lista aunque se le saquen todos los
+     roles: si desapareciera al destildar el último, no habría dónde volver a
+     marcar uno. Al cerrarlo sin roles, deja de estar asignado. */
+  const asignados = projects.filter((p) => idsAsignados.has(p.id) || p.id === editandoProyecto);
+  /* Lo que se puede agregar: lo que no tiene todavía y cuya organización tiene
+     roles de proyecto. Un proyecto sin ellos no se ofrece —el backend lo
+     rechazaría— y se dice cuántos quedaron afuera y por qué. */
+  const sinAsignar = projects.filter((p) => !idsAsignados.has(p.id));
+  const asignables = sinAsignar.filter((p) => rolesAsignables(p, rolesPorOrg).length > 0);
+  const sinRolesDeProyecto = rolesListos ? sinAsignar.length - asignables.length : 0;
 
   // Los roles de cada organización dueña de un proyecto: son las opciones del
   // select. Se piden una vez por organización y no una por proyecto — varios
@@ -328,17 +341,29 @@ function UserFormModal({
           />,
         )}
 
-        {campo(
-          'Tipo de cuenta',
-          <select
-            className="select w-full"
-            value={form.account_type}
-            onChange={(e) => setForm((f) => ({ ...f, account_type: e.target.value as AccountType }))}
-          >
-            <option value="client">Cliente</option>
-            <option value="operator">Operador del producto</option>
-          </select>,
-        )}
+        {/* DOS VALORES, UN INTERRUPTOR: el switch de Basecoat que el tema ya
+            estila (basecoat-ext.css). Apagado es cliente —lo normal—, encendido
+            es operar la instalación entera. */}
+        <div className="grid gap-1.5">
+          <span className="text-xs font-medium text-muted-foreground">Tipo de cuenta</span>
+          <label className="flex items-center gap-3 text-sm">
+            <input
+              type="checkbox"
+              role="switch"
+              className="input"
+              checked={form.account_type === 'operator'}
+              onChange={(e) => setForm((f) => ({ ...f, account_type: e.target.checked ? 'operator' : 'client' }))}
+            />
+            <span>
+              {form.account_type === 'operator' ? 'Operador del producto' : 'Cliente'}
+              <span className="block text-xs text-muted-foreground">
+                {form.account_type === 'operator'
+                  ? 'Opera la instalación entera: ve y administra todo, sin roles.'
+                  : 'Gente de una organización: puede lo que le den sus roles.'}
+              </span>
+            </span>
+          </label>
+        </div>
 
         {form.account_type === 'client' &&
           puedeElegirOrganizacion &&
@@ -383,72 +408,110 @@ function UserFormModal({
           )}
 
         {form.account_type === 'client' && (
-          <div className="grid gap-1.5">
-            <span className="text-xs font-medium text-muted-foreground">Proyectos y rol en cada uno</span>
-            <div className="max-h-52 space-y-1 overflow-y-auto rounded-lg border border-border p-2">
-              {projects.map((p) => {
-                const deEsteProyecto = form.project_roles.filter((a) => a.project_id === p.id);
-                const asignado = deEsteProyecto.length > 0;
-                const disponibles = rolesAsignables(p, rolesPorOrg);
-                // Un proyecto cuya organización no tiene ningún rol de proyecto
-                // no se puede asignar: se deshabilita y se dice por qué, en vez
-                // de dejar tildar algo que el backend va a rechazar.
-                const sinRoles = rolesListos && disponibles.length === 0;
-                return (
-                  <div key={p.id} className="flex items-center gap-2 rounded px-1 py-1 text-sm hover:bg-accent">
-                    <input
-                      type="checkbox"
-                      className="input"
-                      checked={asignado}
-                      disabled={sinRoles || !rolesListos}
-                      onChange={() => toggleProject(p)}
-                    />
-                    <span className="flex-1 truncate">{p.name}</span>
-                    {/* VARIOS ROLES POR PROYECTO, no un select. Los permisos son
-                        la unión, así que «Contable» + «Colaborador» en el mismo
-                        proyecto es el caso normal — y con un select había que
-                        fabricar un rol que fuera los dos. */}
-                    {asignado && (
-                      <span className="flex flex-wrap justify-end gap-1">
-                        {disponibles.map((r) => {
-                          const activo = deEsteProyecto.some((a) => a.role_id === r.id);
-                          return (
-                            <button
-                              key={r.id}
-                              type="button"
-                              onClick={() => alternarRolDeProyecto(p.id, r.id)}
-                              aria-pressed={activo}
-                              className={`rounded-full border px-2 py-0.5 text-[11px] ${
-                                activo
-                                  ? 'border-transparent bg-primary text-primary-foreground'
-                                  : 'border-border text-muted-foreground hover:text-foreground'
-                              }`}
-                            >
-                              {r.name}
-                            </button>
-                          );
-                        })}
+          <div className="grid gap-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-medium text-muted-foreground">Proyectos y sus roles</span>
+              {/* UNA LISTA QUE SE DESPLIEGA, no una lista de casillas: una persona
+                  tiene pocos proyectos de muchos posibles, y la lista entera
+                  tildada escondía cuáles tenía entre los que no. Es el combo del
+                  template —con scroll y búsqueda al teclear—, porque los
+                  proyectos pueden ser decenas. Elegir uno lo agrega y el combo
+                  vuelve a «Agregar proyecto». */}
+              {rolesListos && asignables.length > 0 ? (
+                <Combo
+                  rotulo=""
+                  opciones={[{ id: '', label: '+ Agregar proyecto' }, ...asignables.map((p) => ({ id: p.id, label: p.name }))]}
+                  valor=""
+                  alCambiar={(id) => {
+                    const p = projects.find((x) => x.id === id);
+                    if (!p) return;
+                    toggleProject(p);
+                    // El recién agregado entra abierto: lo siguiente es elegirle roles.
+                    setEditandoProyecto(p.id);
+                  }}
+                />
+              ) : (
+                <span className="text-xs text-muted-foreground">
+                  {rolesListos ? 'Ya tiene todos los proyectos que se pueden asignar' : 'Cargando…'}
+                </span>
+              )}
+            </div>
+
+            {asignados.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-border px-3 py-3 text-center text-xs text-muted-foreground">
+                {rolesListos ? 'Sin proyectos: no va a ver ninguno.' : 'Cargando roles…'}
+              </p>
+            ) : (
+              <ul className="grid gap-2">
+                {asignados.map((p) => {
+                  const deEsteProyecto = form.project_roles.filter((a) => a.project_id === p.id);
+                  const disponibles = rolesAsignables(p, rolesPorOrg);
+                  const nombres = deEsteProyecto.map((a) => disponibles.find((r) => r.id === a.role_id)?.name ?? '(rol desconocido)');
+                  const abierto = editandoProyecto === p.id;
+                  return (
+                    <li key={p.id} className="rounded-lg border border-border">
+                      <div className="flex items-center gap-2 px-2 py-1.5">
+                        <span className="min-w-0 flex-1">
+                          <ChipDeGrupo rotulo={p.name} items={nombres} />
+                        </span>
+                        {/* Un proyecto sin roles queda asignado y sin poder nada:
+                            se dice, porque después es un 403 que nadie entiende. */}
                         {deEsteProyecto.length === 0 ? (
                           <span className="text-[11px] text-[var(--sw-warning)]">sin roles — no podrá entrar</span>
                         ) : null}
-                      </span>
-                    )}
-                    {sinRoles && (
-                      <span
-                        className="text-xs text-muted-foreground"
-                        title="Creá un rol de scope 'proyecto' en la pestaña «Roles por organización»"
-                      >
-                        sin roles de proyecto
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-              {projects.length === 0 && <p className="px-1 text-xs text-muted-foreground">No hay proyectos todavía</p>}
-              {!rolesListos && projects.length > 0 && (
-                <p className="px-1 text-xs text-muted-foreground">Cargando roles…</p>
-              )}
-            </div>
+                        <Button variant="ghost" aria-expanded={abierto} onClick={() => setEditandoProyecto(abierto ? null : p.id)}>
+                          {abierto ? 'Listo' : 'Editar'}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          className="text-[var(--sw-error)]"
+                          onClick={() => {
+                            toggleProject(p);
+                            if (abierto) setEditandoProyecto(null);
+                          }}
+                        >
+                          Quitar
+                        </Button>
+                      </div>
+                      {/* LOS ROLES SE EDITAN DE A UN PROYECTO: el recuadro con todos
+                          los posibles aparece sólo en el que se está editando.
+                          VARIOS ROLES POR PROYECTO, no un select: los permisos son
+                          la unión, así que «Contable» + «Colaborador» en el mismo
+                          proyecto es el caso normal. */}
+                      {abierto && (
+                        <div className="flex flex-wrap gap-1 border-t border-border px-2 py-2">
+                          {disponibles.map((r) => {
+                            const activo = deEsteProyecto.some((a) => a.role_id === r.id);
+                            return (
+                              <button
+                                key={r.id}
+                                type="button"
+                                onClick={() => alternarRolDeProyecto(p.id, r.id)}
+                                aria-pressed={activo}
+                                className={`rounded-full border px-2 py-0.5 text-[11px] ${
+                                  activo
+                                    ? 'border-transparent bg-primary text-primary-foreground'
+                                    : 'border-border text-muted-foreground hover:text-foreground'
+                                }`}
+                              >
+                                {r.name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+
+            {sinRolesDeProyecto > 0 && (
+              <p className="text-[11px] text-muted-foreground">
+                {sinRolesDeProyecto === 1 ? 'Un proyecto no aparece' : `${sinRolesDeProyecto} proyectos no aparecen`} en la
+                lista: su organización no tiene roles de proyecto. Creá uno en «Roles» para poder asignarlos.
+              </p>
+            )}
           </div>
         )}
       </div>
