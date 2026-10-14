@@ -16,6 +16,7 @@ import type { PlanDetail, PlanAnnotation, PlanAnnotationAnchorKind } from '../..
 import { PlanMarkdown } from './PlanMarkdown.js';
 import { PlanLaunchDialog } from './PlanLaunchDialog.js';
 import { Toast, useToast } from '../ui/atoms/Toast.js';
+import { Button } from '../ui/atoms/Button.js';
 
 interface PlanFullscreenModalProps {
   planId: string;
@@ -324,24 +325,22 @@ export function PlanFullscreenModal({ planId, onClose, activeSessionId, onSendTo
           </div>
           <div className="flex items-center gap-2">
             {detail?.plan.status === 'draft' && (
-              <button
-                type="button"
+              <Button
                 onClick={() => void handleApprove()}
                 disabled={busy}
-                className="rounded-full border border-indigo-300 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-40"
+                variant="outline"
               >
                 Aprobar
-              </button>
+              </Button>
             )}
             {(detail?.plan.status === 'draft' || detail?.plan.status === 'approved') && (
-              <button
-                type="button"
+              <Button
                 onClick={() => setAskingWhere(true)}
                 disabled={busy}
-                className="rounded-full bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-40"
+                variant="primary"
               >
                 Lanzar ahora
-              </button>
+              </Button>
             )}
             {detail?.plan.status === 'running' && (
               <span className="text-xs text-slate-500">Ejecutándose…</span>
@@ -425,15 +424,14 @@ export function PlanFullscreenModal({ planId, onClose, activeSessionId, onSendTo
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-sm font-semibold text-slate-900">Anotaciones</h3>
               {pending.length > 0 && (
-                <button
-                  type="button"
+                <Button
                   disabled={!canSendToChat || selectedIds.size === 0 || busy}
                   onClick={() => void handleSendSelected()}
                   title={canSendToChat ? 'Enviar las anotaciones seleccionadas al chat' : 'Abrí la conversación de este plan para poder enviar anotaciones'}
-                  className="rounded-full bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-40"
+                  variant="primary"
                 >
                   Enviar al chat ({selectedIds.size})
-                </button>
+                </Button>
               )}
             </div>
 
@@ -566,13 +564,12 @@ export function PlanFullscreenModal({ planId, onClose, activeSessionId, onSendTo
           onMouseDown={(e) => e.stopPropagation()}
         >
           {!composing ? (
-            <button
-              type="button"
+            <Button
               onClick={() => setComposing(true)}
-              className="rounded-full bg-slate-900 px-3 py-1.5 text-xs font-medium text-white shadow-lg hover:bg-slate-700"
+              variant="primary" className="shadow-lg"
             >
               + Comentar
-            </button>
+            </Button>
           ) : (
             <div className="w-72 rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
               <p className="mb-2 truncate text-[11px] italic text-slate-400">"{popover.quote}"</p>
@@ -592,14 +589,13 @@ export function PlanFullscreenModal({ planId, onClose, activeSessionId, onSendTo
                 >
                   Cancelar
                 </button>
-                <button
-                  type="button"
+                <Button
                   disabled={!draftComment.trim() || busy}
                   onClick={() => void handleCreateAnnotation()}
-                  className="rounded-full bg-indigo-600 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-indigo-700 disabled:opacity-40"
+                  variant="primary"
                 >
                   Guardar
-                </button>
+                </Button>
               </div>
             </div>
           )}

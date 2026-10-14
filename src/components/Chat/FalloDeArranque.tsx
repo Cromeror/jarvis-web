@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ExecutorLoginPrompt } from './ExecutorLoginPrompt.js';
+import { Button } from '../ui/atoms/Button.js';
 
 /**
  * QUÉ PASÓ CUANDO EL CHAT NO PUDO ARRANCAR, Y QUÉ HACER AL RESPECTO.
@@ -92,13 +93,12 @@ export function FalloDeArranque({
           diferencia entre ofrecer un camino y afirmar una causa es justamente
           lo que hizo perder tiempo antes. */}
       {!explicacion && (
-        <button
-          type="button"
+        <Button
           onClick={() => setLoguear(true)}
-          className="rounded-lg border border-amber-500/40 px-3 py-1.5 text-xs font-medium text-amber-100 hover:bg-amber-500/20"
+          variant="outline"
         >
           Probar con un login del executor
-        </button>
+        </Button>
       )}
     </div>
   );

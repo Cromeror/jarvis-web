@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { ProjectSummary } from '../../lib/projects-api.js';
-import { Button2 } from '../ui/atoms/Button2.js';
+import { Button } from '../ui/atoms/Button.js';
 import { ButtonGroup } from '../ui/atoms/ButtonGroup.js';
 import { Icons } from '../ui/atoms/Icons.js';
 
@@ -37,18 +37,13 @@ export function NewSessionButton({
   return (
     <div className="relative" ref={ref}>
       <ButtonGroup>
-        <Button2
-          label="Nueva conversación"
-          size="xs"
-          iconLeft={<Icons icon="Plus" size={16} />}
-          onClick={() => (activeProjectId ? onCreate(activeProjectId) : setOpen((o) => !o))}
-        />
-        <Button2
-          label=""
-          size="xs"
-          iconLeft={<Icons icon="chevron-right" size={14} className="rotate-90" />}
-          onClick={() => setOpen((o) => !o)}
-        />
+        <Button className="gap-1.5" onClick={() => (activeProjectId ? onCreate(activeProjectId) : setOpen((o) => !o))}>
+          <Icons icon="Plus" size={16} />
+          Nueva conversación
+        </Button>
+        <Button aria-label="Elegir en qué proyecto" onClick={() => setOpen((o) => !o)}>
+          <Icons icon="chevron-right" size={14} className="rotate-90" />
+        </Button>
       </ButtonGroup>
 
       {open && (

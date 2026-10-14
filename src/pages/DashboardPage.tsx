@@ -15,7 +15,7 @@ import {
 } from '../lib/environments-api.js';
 import { CardProject } from '../components/ui/molecules/CardProject.js';
 import { SectionCard } from '../components/ui/molecules/SectionCard.js';
-import { Button2 } from '../components/ui/atoms/Button2.js';
+import { Button } from '../components/ui/atoms/Button.js';
 import { FilterPopover } from '../components/ui/atoms/FilterPopover.js';
 import { FilterIcon } from '../components/ui/atoms/FilterIcon.js';
 import {
@@ -255,10 +255,13 @@ export function DashboardPage(): React.ReactElement {
             <FilterPopover
               icon={<FilterIcon />}
               groups={[{ label: 'Proyectos', options: projectOptions, selected: projectFilter, onChange: setProjectFilter }]}
-              variant="dark"
             />
-            <Button2 label="Ver todos" variant="secondary" size="xs" />
-            <Button2 label="Nuevo" variant="primary" size="xs" iconLeft={<PlusIcon />} iconRight={<ChevronDownIcon />} />
+            <Button variant="outline">Ver todos</Button>
+            <Button className="gap-1.5">
+              <PlusIcon />
+              Nuevo
+              <ChevronDownIcon />
+            </Button>
           </div>
         </div>
 

@@ -9,13 +9,12 @@ import {
 import { mensajeDeError } from './errores.js';
 import { repartoDeBloque } from './reparto-de-puertos.js';
 import { Tabla, type ColumnaDeTabla } from '../ui/Tabla.js';
+import { Button } from '../ui/atoms/Button.js';
 
 /** Mismas superficies que `PortGrantsPage`: esto es su segundo nivel y tiene que leerse igual. */
 const PANEL_CLASS = 'rounded-xl border border-white/10 bg-white/[0.03] p-4';
 const INPUT_CLASS =
   'w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 outline-none focus:border-indigo-400 [&>option]:bg-[#221f1d] [&>option]:text-white';
-const BOTON_PRIMARIO =
-  'rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50';
 
 const TAMANIO_POR_DEFECTO = 10;
 
@@ -210,14 +209,13 @@ export function OrganizationPortsSection({ organizationId }: { organizationId: s
                     <span className="mb-1 block text-xs text-slate-400">Para qué (opcional)</span>
                     <input className={INPUT_CLASS} value={note} onChange={(e) => setNote(e.target.value)} />
                   </label>
-                  <button
-                    type="button"
-                    className={BOTON_PRIMARIO}
+                  <Button
+                    variant="primary"
                     disabled={!projectId || guardando}
                     onClick={() => void asignar()}
                   >
                     Asignar
-                  </button>
+                  </Button>
                 </div>
                 <p className="mt-2 text-xs text-slate-400">
                   Sin «desde el puerto», el servidor toma el primer hueco del tamaño pedido.

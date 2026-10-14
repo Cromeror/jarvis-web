@@ -6,6 +6,7 @@ import {
   watchExecutorLogin,
   type LoginStarted,
 } from '../../lib/executor-login-api.js';
+import { Button } from '../ui/atoms/Button.js';
 
 type Fase = 'ofrecido' | 'arrancando' | 'esperando_autorizacion' | 'enviando_codigo' | 'ok' | 'error';
 
@@ -203,13 +204,12 @@ export function ExecutorLoginPrompt({
       {fase === 'error' && (
         <>
           <p className="mb-2 text-red-300">{detalle}</p>
-          <button
-            type="button"
+          <Button
             onClick={() => void arrancar()}
-            className="rounded-lg border border-amber-500/40 px-3 py-1.5 text-xs font-medium text-amber-100 hover:bg-amber-500/20"
+            variant="outline"
           >
             Reintentar
-          </button>
+          </Button>
         </>
       )}
     </div>

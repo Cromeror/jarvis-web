@@ -24,14 +24,11 @@ import {
 import type { CatalogModule, CatalogSuite, CatalogToolOption, CatalogModuleTool } from '../lib/catalog-api.js';
 import { StatusBadge } from '../components/ui/atoms/StatusBadge.js';
 import { fichaDeModulo, nombreDistinguible, paraQuienDe } from '../lib/ficha-de-modulo.js';
+import { Button } from '../components/ui/atoms/Button.js';
 
 const PANEL_CLASS = 'rounded-xl border border-border bg-muted p-4';
 const INPUT_CLASS =
   'w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary [&>option]:bg-popover [&>option]:text-popover-foreground';
-const BOTON_PRIMARIO =
-  'rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50';
-const BOTON_SECUNDARIO =
-  'rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-accent disabled:opacity-40';
 
 const PASTILLA = 'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium leading-none';
 
@@ -169,14 +166,13 @@ function AltaRapida({
           ))}
         </select>
       )}
-      <button
-        type="button"
+      <Button
         disabled={guardando || !name.trim()}
         onClick={() => void crear()}
-        className={BOTON_PRIMARIO}
+        variant="primary"
       >
         Agregar
-      </button>
+      </Button>
     </div>
   );
 }
@@ -221,17 +217,16 @@ function Composicion<T extends { id: string; name: string }>({
     <div>
       <div className="mb-2 flex items-center justify-between">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{titulo}</h3>
-        <button
-          type="button"
+        <Button
           disabled={!sucio || guardando}
           onClick={() => {
             setGuardando(true);
             void onGuardar(ids).finally(() => setGuardando(false));
           }}
-          className={BOTON_SECUNDARIO}
+          variant="outline"
         >
           {guardando ? 'Guardando…' : 'Guardar'}
-        </button>
+        </Button>
       </div>
       {opciones.length === 0 ? (
         <p className="text-xs text-muted-foreground">{vacio}</p>

@@ -9,9 +9,8 @@ import {
 import { timeAgo } from '../../lib/time-ago.js';
 import { INPUT_CLASS, PANEL_CLASS } from './carpetas-compartidas.js';
 import { mensajeDeError } from './errores.js';
+import { Button } from '../ui/atoms/Button.js';
 
-const BOTON_APROBAR = 'rounded-lg px-2 py-1 text-xs text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-40';
-const BOTON_RECHAZAR = 'rounded-lg px-2 py-1 text-xs text-red-300 hover:bg-red-500/10 disabled:opacity-40';
 
 /**
  * LAS INVITACIONES ENTRE ESPACIOS que esperan a la organización.
@@ -151,17 +150,16 @@ function FilaDeInvitacion({
           placeholder="Nota para quien invitó (opcional; al rechazar, decí por qué)"
           onChange={(e) => setNota(e.target.value)}
         />
-        <button type="button" className={BOTON_APROBAR} disabled={decidiendo} onClick={() => void decidir('aprobada')}>
+        <Button variant="outline" disabled={decidiendo} onClick={() => void decidir('aprobada')}>
           Aprobar
-        </button>
-        <button
-          type="button"
-          className={BOTON_RECHAZAR}
+        </Button>
+        <Button
+          variant="destructive"
           disabled={decidiendo}
           onClick={() => void decidir('rechazada')}
         >
           Rechazar
-        </button>
+        </Button>
       </div>
     </li>
   );

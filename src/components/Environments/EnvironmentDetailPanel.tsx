@@ -5,6 +5,7 @@ import { ROOT_REPLICA } from '../../lib/project-replicas-api.js';
 import type { ProjectReplica } from '../../lib/project-replicas-api.js';
 import { EnvironmentEditor } from './EnvironmentEditor.js';
 import { Spinner } from '../ui/atoms/Spinner.js';
+import { Button } from '../ui/atoms/Button.js';
 
 const STATUS_LABEL: Record<EnvironmentRunSummary['status'], string> = {
   running: '● corriendo',
@@ -171,16 +172,15 @@ export function EnvironmentDetailPanel({
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
+          <Button
             onClick={onRun}
             disabled={running || dirty}
             title={dirty ? 'Guardá los cambios antes de ejecutar' : undefined}
-            className="flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+            variant="primary" className="gap-2"
           >
             {running && <Spinner className="h-3.5 w-3.5" />}
             Ejecutar
-          </button>
+          </Button>
           <button
             type="button"
             onClick={onCheck}

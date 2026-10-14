@@ -2,6 +2,7 @@ import React from 'react';
 import { Spinner } from '../ui/atoms/Spinner.js';
 import { WorkspaceCard } from './WorkspaceCard.js';
 import type { WorkspaceRow, WorkspacesSection } from '../../lib/workspace-view.js';
+import { Button } from '../ui/atoms/Button.js';
 
 interface WorkspaceListProps {
   section: WorkspacesSection;
@@ -49,13 +50,12 @@ export function WorkspaceList({ section, selectedId, missingId, onSelect, onRetr
         <i className="pi pi-exclamation-triangle mb-3 block text-2xl text-red-400" />
         <h3 className="text-base font-medium text-red-700">No se pudieron leer los espacios de trabajo</h3>
         <p className="mx-auto mt-2 max-w-xl text-sm text-red-600">{section.message}</p>
-        <button
-          type="button"
+        <Button
           onClick={onRetry}
-          className="mt-4 rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-100"
+          variant="outline"
         >
           Reintentar
-        </button>
+        </Button>
       </div>
     );
   }

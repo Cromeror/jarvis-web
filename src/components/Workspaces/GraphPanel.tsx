@@ -8,6 +8,7 @@ import {
   getWorkspaceCommit,
   type CommitDetailResponse,
 } from '../../lib/workspace-history-api.js';
+import { Button } from '../ui/atoms/Button.js';
 
 interface GraphPanelProps {
   projectId: string;
@@ -122,13 +123,12 @@ export function GraphPanel({ projectId, replicaId, selectedHash, onSelectCommit 
         <i className="pi pi-exclamation-triangle mb-3 block text-2xl text-red-400" />
         <h3 className="text-base font-medium text-red-700">No se pudo leer la historia</h3>
         <p className="mx-auto mt-2 max-w-md text-sm text-red-600">{state.message}</p>
-        <button
-          type="button"
+        <Button
           onClick={loadFirstPage}
-          className="mt-4 rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-100"
+          variant="outline"
         >
           Reintentar
-        </button>
+        </Button>
       </div>
     );
   }
@@ -157,14 +157,13 @@ export function GraphPanel({ projectId, replicaId, selectedHash, onSelectCommit 
                 No se pudo traer la pagina siguiente: {loadMoreError}
               </p>
             )}
-            <button
-              type="button"
+            <Button
               onClick={loadMore}
               disabled={loadingMore}
-              className="rounded-lg border border-slate-200 px-4 py-1.5 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+              variant="outline"
             >
               {loadingMore ? 'Cargando…' : loadMoreError ? 'Reintentar' : `Cargar ${PAGE_SIZE} commits mas`}
-            </button>
+            </Button>
           </div>
         )}
       </div>

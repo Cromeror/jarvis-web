@@ -4,6 +4,7 @@ import { estadoEnLaCarpeta, slugDeNombre, slugValido } from '../../modules/red-d
 import type { StatusBadgeTone } from '../ui/atoms/StatusBadge.js';
 import { Tabla, type ColumnaDeTabla } from '../ui/Tabla.js';
 import { ChipsDeEspacios } from './ChipsDeEspacios.js';
+import { Button } from '../ui/atoms/Button.js';
 
 /**
  * LAS PIEZAS DE LAS CARPETAS COMPARTIDAS que comparten las dos superficies de
@@ -16,8 +17,6 @@ import { ChipsDeEspacios } from './ChipsDeEspacios.js';
 export const PANEL_CLASS = 'rounded-xl border border-border bg-muted p-4';
 export const INPUT_CLASS =
   'w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary [&>option]:bg-popover [&>option]:text-popover-foreground';
-export const BOTON_PRIMARIO =
-  'rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50';
 
 export type CarpetaDeTabla = Circulo & { miembros: MiembroDeCirculo[] };
 
@@ -604,9 +603,9 @@ export function NuevoCirculo({
         />
       </label>
       <div className="mt-3">
-        <button type="button" className={BOTON_PRIMARIO} disabled={!valido || creando} onClick={() => void crear()}>
+        <Button variant="primary" disabled={!valido || creando} onClick={() => void crear()}>
           Crear carpeta compartida
-        </button>
+        </Button>
       </div>
     </div>
   );

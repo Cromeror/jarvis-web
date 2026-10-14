@@ -15,17 +15,12 @@ import { bytesAMb, estadoDeRevision, etiquetaDeMotivo, mbABytes } from '../../mo
 import { ExecutorLoginPrompt } from '../Chat/ExecutorLoginPrompt.js';
 import { StatusBadge } from '../ui/atoms/StatusBadge.js';
 import { mensajeDeError } from './errores.js';
+import { Button } from '../ui/atoms/Button.js';
 
 /** Mismas superficies que la sección de la red: viven en el mismo panel. */
 const PANEL_CLASS = 'rounded-xl border border-border bg-muted p-4';
 const INPUT_CLASS =
   'w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary [&>option]:bg-popover [&>option]:text-popover-foreground';
-const BOTON_PRIMARIO =
-  'rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50';
-const BOTON_SECUNDARIO =
-  'rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-accent disabled:opacity-40';
-const BOTON_APROBAR = 'rounded-lg px-2 py-1 text-xs text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-40';
-const BOTON_RECHAZAR = 'rounded-lg px-2 py-1 text-xs text-red-300 hover:bg-red-500/10 disabled:opacity-40';
 
 const FILTROS: Array<{ valor: EstadoRevision; etiqueta: string }> = [
   { valor: 'cuarentena', etiqueta: 'En cuarentena' },
@@ -224,9 +219,8 @@ function Configuracion({
           {auditoria.auditor.ultima_revision_at &&
             ` Última revisión: ${new Date(auditoria.auditor.ultima_revision_at).toLocaleString()}.`}
         </span>
-        <button
-          type="button"
-          className={auditoria.activa ? BOTON_SECUNDARIO : BOTON_PRIMARIO}
+        <Button
+          variant={auditoria.activa ? 'outline' : 'primary'}
           disabled={guardando}
           onClick={() => {
             if (
@@ -240,7 +234,7 @@ function Configuracion({
           }}
         >
           {auditoria.activa ? 'Apagar' : 'Prender'}
-        </button>
+        </Button>
       </div>
 
       <label className="block">
@@ -269,9 +263,8 @@ function Configuracion({
 
       {cambio && (
         <div className="mt-3 flex gap-2">
-          <button
-            type="button"
-            className={BOTON_PRIMARIO}
+          <Button
+            variant="primary"
             disabled={guardando || umbralBytes === null}
             onClick={() =>
               void guardar({
@@ -283,17 +276,16 @@ function Configuracion({
             }
           >
             Guardar
-          </button>
-          <button
-            type="button"
-            className={BOTON_SECUNDARIO}
+          </Button>
+          <Button
+            variant="outline"
             onClick={() => {
               setReglas(auditoria.reglas);
               setUmbral(bytesAMb(auditoria.umbral_bytes));
             }}
           >
             Descartar
-          </button>
+          </Button>
         </div>
       )}
     </div>
@@ -358,23 +350,21 @@ function FilaDeRevision({
             placeholder="Nota para quien lo publicó (opcional)"
             onChange={(ev) => setNota(ev.target.value)}
           />
-          <button
-            type="button"
-            className={BOTON_APROBAR}
+          <Button
+            variant="outline"
             disabled={decidiendo}
             onClick={() => void decidir('aprobado')}
           >
             Aprobar y compartir
-          </button>
+          </Button>
           {r.estado !== 'rechazado' && (
-            <button
-              type="button"
-              className={BOTON_RECHAZAR}
+            <Button
+              variant="destructive"
               disabled={decidiendo}
               onClick={() => void decidir('rechazado')}
             >
               Rechazar
-            </button>
+            </Button>
           )}
         </div>
       )}

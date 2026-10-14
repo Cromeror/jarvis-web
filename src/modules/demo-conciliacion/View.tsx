@@ -3,6 +3,7 @@ import { runModuleTool } from '../../lib/catalog-api.js';
 import type { CatalogModuleTool } from '../../lib/catalog-api.js';
 import type { ModuleViewProps } from '../registry.js';
 import { StatusBadge } from '../../components/ui/atoms/StatusBadge.js';
+import { Button } from '../../components/ui/atoms/Button.js';
 
 const INPUT_CLASS =
   'w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 font-mono text-xs text-white outline-none focus:border-indigo-400';
@@ -78,8 +79,7 @@ export function View({ projectId, module }: ModuleViewProps): React.ReactElement
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
+        <Button
           disabled={!conciliar || corriendo !== null}
           onClick={() => {
             setError(null);
@@ -90,10 +90,10 @@ export function View({ projectId, module }: ModuleViewProps): React.ReactElement
               setError(err instanceof Error ? err.message : 'Entrada inválida');
             }
           }}
-          className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+          variant="primary"
         >
           {corriendo && conciliar && corriendo === conciliar.id ? 'Conciliando…' : 'Conciliar'}
-        </button>
+        </Button>
 
         <button
           type="button"

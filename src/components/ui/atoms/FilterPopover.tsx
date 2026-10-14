@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Button } from './Button.js';
 
 export interface FilterOption<T> {
   label: string;
@@ -12,64 +13,25 @@ export interface FilterGroup<T> {
   onChange: (value: T[]) => void;
 }
 
-export type FilterPopoverVariant = 'light' | 'dark';
-
 interface FilterPopoverProps {
   groups: Array<FilterGroup<any>>;
   icon?: React.ReactNode;
-  /** Default 'light' — mismo look que ya tenían Planes/Environments. 'dark' es para DashboardPage (tema oscuro "DBoard V1.1.X"), reusa sus tokens (--button2-secondary-bg, --table2-*, --sidebar2-accent-default) en vez de slate/indigo. */
-  variant?: FilterPopoverVariant;
 }
-
-const TRIGGER_CLASS: Record<FilterPopoverVariant, string> = {
-  light: 'border-transparent bg-slate-50 text-slate-900 hover:bg-slate-100',
-  dark: 'border-transparent bg-[var(--button2-secondary-bg)] text-white hover:bg-white/10',
-};
-
-const ICON_CLASS: Record<FilterPopoverVariant, string> = {
-  light: 'text-slate-400',
-  dark: 'text-[var(--card-text-secondary)]',
-};
-
-const BADGE_CLASS: Record<FilterPopoverVariant, string> = {
-  light: 'bg-indigo-600 text-white',
-  dark: 'bg-[var(--sidebar2-accent-default)] text-white',
-};
-
-const PANEL_CLASS: Record<FilterPopoverVariant, string> = {
-  light: 'border-slate-200 bg-white',
-  dark: 'border-[var(--table2-border)] bg-[var(--table2-header-bg)]',
-};
-
-const GROUP_LABEL_CLASS: Record<FilterPopoverVariant, string> = {
-  light: 'text-slate-400',
-  dark: 'text-[var(--card-text-secondary)]',
-};
-
-const OPTION_CLASS: Record<FilterPopoverVariant, string> = {
-  light: 'text-slate-700 hover:bg-slate-50',
-  dark: 'text-white hover:bg-white/5',
-};
-
-const CHECKBOX_CLASS: Record<FilterPopoverVariant, string> = {
-  light: 'border-slate-300 text-indigo-600 focus:ring-indigo-500',
-  dark: 'border-white/20 bg-transparent text-[var(--sidebar2-accent-default)] focus:ring-[var(--sidebar2-accent-default)]',
-};
-
-const CLEAR_CLASS: Record<FilterPopoverVariant, string> = {
-  light: 'text-indigo-600 hover:text-indigo-700',
-  dark: 'text-[var(--sidebar2-accent-default)] hover:text-white',
-};
 
 function toggle<T>(list: T[], value: T): T[] {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
 }
 
 /**
- * Single pill button that opens a Jira-style filter panel — one checkbox
- * group per facet (e.g. Projects, Status), each independently multi-select.
+ * Un botón que abre un panel de filtros —un grupo de casillas por faceta
+ * (proyectos, estado), cada uno de selección múltiple—.
+ *
+ * Con el tema: el botón es el del sistema (`Button`, contorno) y el panel usa
+ * las superficies del tema. Tenía dos paletas propias, una clara con azul y
+ * una oscura con tokens del look anterior (`--button2-*`, `--sidebar2-*`) que
+ * ya no existen, así que su botón salía sin fondo.
  */
-export function FilterPopover({ groups, icon, variant = 'light' }: FilterPopoverProps): React.ReactElement {
+export function FilterPopover({ groups, icon }: FilterPopoverProps): React.ReactElement {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -86,39 +48,29 @@ export function FilterPopover({ groups, icon, variant = 'light' }: FilterPopover
 
   return (
     <div className="relative" ref={ref}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium ${TRIGGER_CLASS[variant]}`}
-      >
-        <span className={ICON_CLASS[variant]}>{icon}</span>
-        Filters
-        {activeCount > 0 && (
-          <span className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-xs font-semibold ${BADGE_CLASS[variant]}`}>
-            {activeCount}
-          </span>
-        )}
-      </button>
+      <Button variant="outline" className="gap-2" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        <span className="text-muted-foreground">{icon}</span>
+        Filtros
+        {activeCount > 0 && <span className="badge">{activeCount}</span>}
+      </Button>
 
       {open && (
-        <div className={`absolute left-0 top-full z-30 mt-2 w-72 rounded-2xl border p-4 shadow-lg ${PANEL_CLASS[variant]}`}>
+        <div className="absolute left-0 top-full z-30 mt-2 w-72 rounded-xl border border-border bg-popover p-4 text-popover-foreground shadow-lg">
           <div className="flex flex-col gap-4">
             {groups.map((group) => (
-              <div key={group.label}>
-                <div className={`mb-2 text-xs font-semibold uppercase tracking-wide ${GROUP_LABEL_CLASS[variant]}`}>
-                  {group.label}
-                </div>
+              <div key={group.label} className="flex flex-col gap-2">
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{group.label}</div>
                 <div className="flex flex-col gap-1.5">
                   {group.options.map((option) => (
                     <label
                       key={String(option.value)}
-                      className={`flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1 text-sm ${OPTION_CLASS[variant]}`}
+                      className="flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1 text-sm hover:bg-accent"
                     >
                       <input
                         type="checkbox"
+                        className="input"
                         checked={group.selected.includes(option.value)}
                         onChange={() => group.onChange(toggle(group.selected, option.value))}
-                        className={`h-3.5 w-3.5 rounded ${CHECKBOX_CLASS[variant]}`}
                       />
                       {option.label}
                     </label>
@@ -126,17 +78,12 @@ export function FilterPopover({ groups, icon, variant = 'light' }: FilterPopover
                 </div>
               </div>
             ))}
+            {activeCount > 0 && (
+              <Button variant="link" className="self-start px-0" onClick={() => groups.forEach((g) => g.onChange([]))}>
+                Limpiar filtros
+              </Button>
+            )}
           </div>
-
-          {activeCount > 0 && (
-            <button
-              type="button"
-              onClick={() => groups.forEach((g) => g.onChange([]))}
-              className={`mt-3 text-xs font-medium ${CLEAR_CLASS[variant]}`}
-            >
-              Limpiar filtros
-            </button>
-          )}
         </div>
       )}
     </div>

@@ -26,6 +26,7 @@ import { PermisosCompactos } from './PermisosCompactos.js';
 import { listModules } from '../../lib/catalog-api.js';
 import { useActiveProject } from '../../hooks/useActiveProject.js';
 import { Icon } from '../Icon.js';
+import { Button } from '../ui/atoms/Button.js';
 
 /**
  * Controles que van directo sobre la página, que es oscura (`--app-bg`).
@@ -507,13 +508,12 @@ export function OrganizationRolesPanel({
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
           No se pudieron cargar las organizaciones: {loadError}
         </div>
-        <button
-          type="button"
+        <Button
           onClick={() => void refreshOrganizations()}
-          className="rounded-lg border border-white/15 px-3 py-2 text-sm text-white hover:bg-white/10"
+          variant="outline"
         >
           Reintentar
-        </button>
+        </Button>
       </div>
     );
   }
@@ -582,18 +582,17 @@ export function OrganizationRolesPanel({
             </div>
             {/* Adentro del summary, así que el clic no tiene que plegar el
                 acordeón: se corta acá. */}
-            <button
-              type="button"
+            <Button
               disabled={!puedeRoles}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 setEditingRole('new');
               }}
-              className="shrink-0 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              variant="primary" className="shrink-0"
             >
               + Nuevo rol
-            </button>
+            </Button>
             <Icon name="chevron" className="text-muted-foreground" />
           </summary>
           <div className="border-t border-[var(--sw-line-strong)] p-3">
@@ -675,8 +674,7 @@ export function OrganizationRolesPanel({
                 </option>
               ))}
             </select>
-            <button
-              type="button"
+            <Button
               disabled={!nuevoMiembro.userId || !nuevoMiembro.roleId}
               onClick={() => {
                 if (!selectedId) return;
@@ -692,10 +690,10 @@ export function OrganizationRolesPanel({
                   true,
                 );
               }}
-              className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+              variant="primary"
             >
               Agregar
-            </button>
+            </Button>
           </div>
         )}
       </section>
