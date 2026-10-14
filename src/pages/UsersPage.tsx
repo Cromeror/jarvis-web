@@ -298,8 +298,8 @@ function UserFormModal({
     }
   }
 
-  /* Un campo: su rótulo arriba y el control. Agrupados con `gap` y no con
-     márgenes, que el reset del template anula. */
+  /* Un campo: su rótulo arriba y el control. Agrupados con `gap`, como los
+     componentes del template, y no con márgenes en cada hijo. */
   const campo = (rotulo: React.ReactNode, control: React.ReactNode, ayuda?: React.ReactNode): React.ReactElement => (
     <label className="grid gap-1.5">
       <span className="text-xs font-medium text-muted-foreground">{rotulo}</span>
@@ -1066,9 +1066,9 @@ export function UsersPage(): React.ReactElement {
         )}
       </section>
 
-      {/* `gap` y no `mb-*` entre el encabezado y la tabla: el reset del template
-          (`theme/base.css`, fuera de las capas de Tailwind) les gana a las
-          utilidades de margen, y `mb-4` medía 0. */}
+      {/* El aire entre el encabezado y la tabla va con `gap` en el contenedor,
+          como lo arman los componentes del template, y no con un margen en un
+          hijo. */}
       <section className="flex flex-col gap-4 border-t border-border pt-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-4">
