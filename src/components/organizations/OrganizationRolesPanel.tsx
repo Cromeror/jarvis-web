@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCierrePorFondo } from '../../hooks/useCierrePorFondo.js';
 import {
   createRole,
   deleteRole,
@@ -24,6 +25,7 @@ import { RolesDelMiembro } from './RolesDelMiembro.js';
 import { PermisosCompactos } from './PermisosCompactos.js';
 import { listModules } from '../../lib/catalog-api.js';
 import { useActiveProject } from '../../hooks/useActiveProject.js';
+import { Icon } from '../Icon.js';
 
 /** Controles DENTRO de un modal, que sigue siendo una tarjeta clara sobre el overlay. */
 const INPUT_CLASS =
@@ -114,8 +116,10 @@ function RoleFormModal({
     }
   }
 
+  const cierrePorFondo = useCierrePorFondo(onClose);
+
   return (
-    <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-900/30 px-4" onClick={onClose}>
+    <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-900/30 px-4" {...cierrePorFondo}>
       <form
         onSubmit={(e) => void handleSubmit(e)}
         onClick={(e) => e.stopPropagation()}
@@ -203,6 +207,16 @@ function RoleFormModal({
   );
 }
 
+/** «7 roles · 2 de organización · 5 de proyecto»: el resumen del acordeón contraído. */
+function resumenDeRoles(roles: RoleSummary[]): string {
+  if (roles.length === 0) return 'ninguno todavía';
+  const org = roles.filter((r) => r.scope === 'org').length;
+  const partes = [`${roles.length} ${roles.length === 1 ? 'rol' : 'roles'}`];
+  if (org) partes.push(`${org} de organización`);
+  if (roles.length - org) partes.push(`${roles.length - org} de proyecto`);
+  return partes.join(' · ');
+}
+
 /**
  * Configuración de roles y miembros de una organización.
  *
@@ -285,6 +299,7 @@ export function OrganizationRolesPanel({
    */
   const [loadError, setLoadError] = useState<string | null>(null);
   const [editingRole, setEditingRole] = useState<RoleSummary | 'new' | null>(null);
+  const [rolesAbiertos, setRolesAbiertos] = useState(false);
   const [nuevoMiembro, setNuevoMiembro] = useState<{ userId: string; roleId: string }>({ userId: '', roleId: '' });
 
   const selected = organizations.find((o) => o.id === selectedId) ?? null;
@@ -525,14 +540,6 @@ export function OrganizationRolesPanel({
           </select>
         </div>
         )}
-        <button
-          type="button"
-          disabled={!puedeRoles}
-          onClick={() => setEditingRole('new')}
-          className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-        >
-          + Nuevo rol
-        </button>
       </div>
 
       {organizations.length === 0 && (
@@ -547,28 +554,75 @@ export function OrganizationRolesPanel({
         <p className="text-sm text-slate-400">No tenés permisos para configurar esta organización.</p>
       )}
 
-      <section>
-        <h2 className="mb-2 text-sm font-semibold text-white">Roles</h2>
-        <Tabla<RoleSummary>
-          titulo="Roles"
-          columnas={COLUMNAS_ROL}
-          ocultasInicial={['descripcion']}
-          filas={roles}
-          clave={(r) => r.id}
-          nombreFila={(r) => r.name}
-          seleccion={false}
-          menuFila={menuDeRol}
-          celda={celdaDeRol}
-          porPagina={25}
-          opcionesPagina={[25, 50]}
-          /* EL VACÍO DICE LA CONSECUENCIA, no "no hay filas". Sin roles nadie
-             puede nada adentro de los proyectos de esta organización, y ese es
-             el dato que evita buscar la causa en el eje equivocado. */
-          textos={{
-            vacio: 'Esta organización todavía no tiene roles',
-            vacioPaso: 'Sin un rol nadie puede hacer nada adentro de sus proyectos: la suite decide qué se ve, el rol decide qué se puede.',
-          }}
-        />
+      {/* LOS ROLES EN UN ACORDEÓN (el `.accordion` de Basecoat, que el tema ya
+          estila): contraído —el estado de partida— dice cuántos hay y cuáles;
+          expandido, la tabla. La tabla es lo que se viene a editar de vez en
+          cuando; el resumen es lo que se quiere saber cada vez que se entra. */}
+      <section className="accordion overflow-hidden rounded-xl border border-b-0 border-[var(--sw-line-strong)] bg-card">
+        <details open={rolesAbiertos} onToggle={(e) => setRolesAbiertos(e.currentTarget.open)}>
+          <summary className="items-center gap-3 px-4 py-3 hover:bg-accent hover:no-underline">
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <span className="flex items-baseline gap-2">
+                <span className="text-sm font-semibold text-foreground">Roles</span>
+                <span className="text-xs text-muted-foreground">{resumenDeRoles(roles)}</span>
+              </span>
+              {/* Contraído, los nombres: es lo que se busca al entrar. Abierto
+                  ya están en la tabla, y repetirlos sería ruido. */}
+              {!rolesAbiertos && roles.length > 0 && (
+                <span className="flex flex-wrap gap-1">
+                  {roles.map((r) => (
+                    <span
+                      key={r.id}
+                      className="badge"
+                      data-variant={r.scope === 'org' ? undefined : 'mute'}
+                      title={`${r.scope === 'org' ? 'Rol de organización' : 'Rol de proyecto'} · ${r.permissions.length} permiso(s)${r.description ? ` — ${r.description}` : ''}`}
+                    >
+                      {r.name}
+                    </span>
+                  ))}
+                </span>
+              )}
+            </div>
+            {/* Adentro del summary, así que el clic no tiene que plegar el
+                acordeón: se corta acá. */}
+            <button
+              type="button"
+              disabled={!puedeRoles}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setEditingRole('new');
+              }}
+              className="shrink-0 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              + Nuevo rol
+            </button>
+            <Icon name="chevron" className="text-muted-foreground" />
+          </summary>
+          <div className="border-t border-[var(--sw-line-strong)] p-3">
+            <Tabla<RoleSummary>
+              titulo="Roles"
+              columnas={COLUMNAS_ROL}
+              ocultasInicial={['descripcion']}
+              filas={roles}
+              clave={(r) => r.id}
+              nombreFila={(r) => r.name}
+              seleccion={false}
+              menuFila={menuDeRol}
+              celda={celdaDeRol}
+              porPagina={25}
+              opcionesPagina={[25, 50]}
+              /* EL VACÍO DICE LA CONSECUENCIA, no "no hay filas". Sin roles nadie
+                 puede nada adentro de los proyectos de esta organización, y ese es
+                 el dato que evita buscar la causa en el eje equivocado. */
+              textos={{
+                vacio: 'Esta organización todavía no tiene roles',
+                vacioPaso:
+                  'Sin un rol nadie puede hacer nada adentro de sus proyectos: la suite decide qué se ve, el rol decide qué se puede.',
+              }}
+            />
+          </div>
+        </details>
       </section>
 
       {!sinMiembros && (

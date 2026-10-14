@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { CampoClave } from '../ui/CampoClave.js';
 import { crearMiembro } from '../../lib/organizations-api.js';
 import { mensajeDeError } from './errores.js';
 
@@ -67,13 +68,7 @@ export function CrearMiembro({
         </label>
         <label className="min-w-56 flex-1">
           <span className="mb-1 block text-xs text-slate-400">Contraseña inicial</span>
-          <input
-            className={INPUT_CLASS}
-            type="password"
-            value={password}
-            autoComplete="new-password"
-            onChange={(e) => setPassword(e.target.value)}
-          />
+          <CampoClave value={password} onChange={setPassword} className={INPUT_CLASS} />
         </label>
         <button
           type="button"

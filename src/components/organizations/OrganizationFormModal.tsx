@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useCierrePorFondo } from '../../hooks/useCierrePorFondo.js';
 import { createOrganization } from '../../lib/organizations-api.js';
 import type { UserSummary } from '../../lib/users-api.js';
 import { mensajeDeError } from './errores.js';
@@ -77,8 +78,10 @@ export function OrganizationFormModal({
     }
   }
 
+  const cierrePorFondo = useCierrePorFondo(onClose);
+
   return (
-    <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-900/30 px-4" onClick={onClose}>
+    <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-900/30 px-4" {...cierrePorFondo}>
       <form
         onSubmit={(e) => void handleSubmit(e)}
         onClick={(e) => e.stopPropagation()}

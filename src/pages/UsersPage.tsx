@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCierrePorFondo } from '../hooks/useCierrePorFondo.js';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
 import { listProjects } from '../lib/projects-api.js';
@@ -12,8 +13,10 @@ import { OrganizationRolesPanel } from '../components/organizations/Organization
 import { OrganizationFormModal } from '../components/organizations/OrganizationFormModal.js';
 import { RolesDelMiembro } from '../components/organizations/RolesDelMiembro.js';
 import { StatusBadge } from '../components/ui/atoms/StatusBadge.js';
-import { Toolbar, ToolbarBoton, ToolbarGrupo, ToolbarUtiles } from '../components/ui/molecules/Toolbar.js';
+import { Toolbar, ToolbarBoton, ToolbarGrupo } from '../components/ui/molecules/Toolbar.js';
 import { Combo } from '../components/ui/Combo.js';
+import { Icon } from '../components/Icon.js';
+import { CampoClave } from '../components/ui/CampoClave.js';
 import { filasDeUsuarios, pendientesDeAsignar } from '../lib/usuarios-por-organizacion.js';
 
 /**
@@ -245,9 +248,12 @@ function UserFormModal({
     }
   }
 
+  const cierrePorFondo = useCierrePorFondo(onClose);
+
   return (
-    <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-900/30 px-4" onClick={onClose}>
+    <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-900/30 px-4" {...cierrePorFondo}>
       <form
+        autoComplete="off"
         onSubmit={(e) => void handleSubmit(e)}
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-xl"
@@ -262,8 +268,13 @@ function UserFormModal({
         {error && <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>}
 
         <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">Usuario</label>
+        {/* Las credenciales de ESTE formulario son de OTRA persona: sin esto el
+            navegador lo toma por un login y completa el usuario y la clave
+            guardados de quien está dando el alta (y ofrece guardarlos). */}
         <input
           type="text"
+          name="nuevo-usuario"
+          autoComplete="off"
           value={form.username}
           disabled={!!editing}
           onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
@@ -273,12 +284,13 @@ function UserFormModal({
         <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">
           {editing ? 'Nueva contraseña (opcional)' : 'Contraseña'}
         </label>
-        <input
-          type="password"
-          value={form.password}
-          onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-          className="mb-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-indigo-400"
-        />
+        <div className="mb-3">
+          <CampoClave
+            value={form.password}
+            onChange={(v) => setForm((f) => ({ ...f, password: v }))}
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-indigo-400"
+          />
+        </div>
 
         <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">Tipo de cuenta</label>
         <select
@@ -453,6 +465,35 @@ function textoBuscable(user: UserSummary, projects: ProjectSummary[]): string {
     ...user.project_ids.filter((id) => !user.project_roles.some((a) => a.project_id === id)).map(nombreDe),
   ];
   return normalizar(partes.join(' '));
+}
+
+/** El botón de «Agregar usuario» junto al título: el mismo botón del sistema, fuera de la barra. */
+function BotonDeAgregar({
+  children,
+  onClick,
+  disabled,
+  primario,
+  title,
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  primario?: boolean;
+  title?: string;
+}): React.ReactElement {
+  return (
+    <button
+      type="button"
+      className="btn"
+      data-variant={primario ? undefined : 'outline'}
+      data-size="sm"
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+    >
+      {children}
+    </button>
+  );
 }
 
 /**
@@ -737,54 +778,6 @@ export function UsersPage(): React.ReactElement {
             )}
             <ToolbarBoton onClick={() => setEditing('new')}>+ Nuevo usuario</ToolbarBoton>
           </ToolbarGrupo>
-          <ToolbarUtiles>
-            {/* Sumar a alguien con cuenta y sin organización. Entra con UN rol;
-                los demás se dan después con los chips de su fila. Sin nadie a
-                quien sumar, el botón queda y dice por qué no hace nada. */}
-            {orgSeleccionada && candidatos.length > 0 && rolesOrg.some((r) => r.scope === 'org') ? (
-              <>
-                <Combo
-                  rotulo="Agregar usuario"
-                  opciones={[{ id: '', label: 'Elegí a quién…' }, ...candidatos.map((u) => ({ id: u.id, label: u.username }))]}
-                  valor={nuevoMiembro.userId}
-                  alCambiar={(v) => setNuevoMiembro((n) => ({ ...n, userId: v }))}
-                />
-                <Combo
-                  rotulo="con el rol"
-                  opciones={[
-                    { id: '', label: 'Elegí un rol…' },
-                    ...rolesOrg.filter((r) => r.scope === 'org').map((r) => ({ id: r.id, label: r.name })),
-                  ]}
-                  valor={nuevoMiembro.roleId}
-                  alCambiar={(v) => setNuevoMiembro((n) => ({ ...n, roleId: v }))}
-                />
-                <ToolbarBoton
-                  primario
-                  disabled={!nuevoMiembro.userId || !nuevoMiembro.roleId}
-                  onClick={() => {
-                    const { userId, roleId } = nuevoMiembro;
-                    void cambiarMembresia(async () => {
-                      await setMemberRoles(orgSeleccionada, userId, [roleId]);
-                      setNuevoMiembro({ userId: '', roleId: '' });
-                    }, 'Error al agregar a la organización');
-                  }}
-                >
-                  Agregar
-                </ToolbarBoton>
-              </>
-            ) : (
-              <ToolbarBoton
-                disabled
-                title={
-                  candidatos.length === 0
-                    ? 'No hay nadie sin organización: todos los clientes ya pertenecen a una. Creá uno con «+ Nuevo usuario».'
-                    : 'Esta organización no tiene roles de organización: creá uno para poder sumar gente.'
-                }
-              >
-                Agregar usuario
-              </ToolbarBoton>
-            )}
-          </ToolbarUtiles>
         </Toolbar>
       </div>
 
@@ -794,7 +787,6 @@ export function UsersPage(): React.ReactElement {
       )}
 
       <section className="mb-8">
-        <h2 className="mb-3 text-sm font-semibold text-white">Configuración de la organización</h2>
         {orgSeleccionada && (
         <OrganizationRolesPanel
           users={users}
@@ -811,50 +803,109 @@ export function UsersPage(): React.ReactElement {
         )}
       </section>
 
-      <section className="border-t border-white/10 pt-6">
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-white">
-            {verSinAsignar ? 'Sin asignar' : 'Usuarios de la organización'}
+      {/* `gap` y no `mb-*` entre el encabezado y la tabla: el reset del template
+          (`theme/base.css`, fuera de las capas de Tailwind) les gana a las
+          utilidades de margen, y `mb-4` medía 0. */}
+      <section className="flex flex-col gap-4 border-t border-border pt-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-4">
+          <h2 className="text-sm font-semibold text-foreground">
+            {verSinAsignar
+              ? 'Sin asignar'
+              : `Usuarios de ${organizaciones.find((o) => o.id === orgSeleccionada)?.name ?? 'la organización'}`}
           </h2>
+            {/* Sumar a esta organización a alguien con cuenta y sin organización.
+                Va junto al título porque actúa sobre ESTA tabla. Entra con UN
+                rol; los demás se dan después con los chips de su fila. */}
+            {!verSinAsignar && (
+              <div className="flex flex-wrap items-center gap-2">
+                {orgSeleccionada && candidatos.length > 0 && rolesOrg.some((r) => r.scope === 'org') ? (
+              <>
+                <Combo
+                  rotulo="Agregar usuario"
+                  opciones={[{ id: '', label: 'Elegí a quién…' }, ...candidatos.map((u) => ({ id: u.id, label: u.username }))]}
+                  valor={nuevoMiembro.userId}
+                  alCambiar={(v) => setNuevoMiembro((n) => ({ ...n, userId: v }))}
+                />
+                <Combo
+                  rotulo="con el rol"
+                  opciones={[
+                    { id: '', label: 'Elegí un rol…' },
+                    ...rolesOrg.filter((r) => r.scope === 'org').map((r) => ({ id: r.id, label: r.name })),
+                  ]}
+                  valor={nuevoMiembro.roleId}
+                  alCambiar={(v) => setNuevoMiembro((n) => ({ ...n, roleId: v }))}
+                />
+                <BotonDeAgregar
+                  primario
+                  disabled={!nuevoMiembro.userId || !nuevoMiembro.roleId}
+                  onClick={() => {
+                    const { userId, roleId } = nuevoMiembro;
+                    void cambiarMembresia(async () => {
+                      await setMemberRoles(orgSeleccionada, userId, [roleId]);
+                      setNuevoMiembro({ userId: '', roleId: '' });
+                    }, 'Error al agregar a la organización');
+                  }}
+                >
+                  Agregar
+                </BotonDeAgregar>
+              </>
+            ) : (
+              <BotonDeAgregar
+                disabled
+                title={
+                  candidatos.length === 0
+                    ? 'No hay nadie sin organización: todos los clientes ya pertenecen a una. Creá uno con «+ Nuevo usuario».'
+                    : 'Esta organización no tiene roles de organización: creá uno para poder sumar gente.'
+                }
+              >
+                Agregar usuario
+              </BotonDeAgregar>
+            )}
+              </div>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             {/* EL NÚMERO ES LA RAZÓN DEL BOTÓN: dice de un vistazo si hay gente
                 esperando organización sin abrir la lista. Va junto al buscador
                 porque es lo mismo: un filtro de esta tabla. Los operadores salen
                 en la lista pero no cuentan — no esperan nada. */}
+            {/* Un link y no un botón con caja: al lado del buscador, una caja
+                más competía con él y con el borde de la tabla. Va a su
+                IZQUIERDA: el rótulo cambia al encenderse («Viendo N sin
+                asignar») y así crece hacia afuera sin correr al buscador. */}
             <button
               type="button"
+              className={`btn inline-flex items-center gap-1.5 ${verSinAsignar ? 'text-primary' : 'text-secondary-foreground'}`}
+              data-variant="link"
+              data-size="sm"
               aria-pressed={verSinAsignar}
               onClick={() => setVerSinAsignar((v) => !v)}
               title="Clientes que no pertenecen a ninguna organización, y los operadores"
-              className={`rounded-lg border px-3 py-2 text-sm ${
-                verSinAsignar
-                  ? 'border-transparent bg-primary text-primary-foreground'
-                  : 'border-border text-secondary-foreground hover:bg-accent'
-              }`}
             >
-              {pendientes} sin asignar
+              {/* El ícono dice que es un FILTRO de la tabla y no una acción. */}
+              <Icon name="filter" />
+              {verSinAsignar ? `Viendo ${pendientes} sin asignar` : `${pendientes} sin asignar`}
             </button>
             <input
               type="search"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder="Buscar por usuario, organización, rol o proyecto…"
-              className="w-72 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 outline-none focus:border-indigo-400"
+              className="w-72 rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary"
             />
             {/* El contador sólo aparece filtrando: con la lista entera repetiría
                 lo que ya se ve, y filtrando es el dato que falta —cuántas quedaron
                 afuera— para no leer un resultado corto como "no hay más". */}
             {busqueda.trim() !== '' && (
-              <span className="text-xs text-slate-400">
+              <span className="text-xs text-muted-foreground">
                 {visibles.length} de {totalDeLaVista}
               </span>
             )}
           </div>
         </div>
         {loading ? (
-          <p className="text-sm text-slate-400">Cargando…</p>
-        ) : visibles.length === 0 && totalDeLaVista > 0 ? (
-          <p className="text-sm text-slate-400">Ningún usuario coincide con «{busqueda.trim()}».</p>
+          <p className="text-sm text-muted-foreground">Cargando…</p>
         ) : (
           <Tabla<UserSummary>
             titulo="Usuarios"
@@ -870,7 +921,16 @@ export function UsersPage(): React.ReactElement {
             /* EL VACÍO DICE LA CONSECUENCIA, no "no hay filas": sin usuarios no
                hay a quién darle un rol, y el alta está en el botón de arriba. */
             textos={
-              verSinAsignar
+              /* La búsqueda sin resultados usa el vacío de la tabla —su fila con
+                 el motivo y el paso siguiente— y no un párrafo suelto en lugar
+                 de la tabla: se ve igual que cualquier otro vacío y la cabecera
+                 queda, así que se entiende qué se filtró. */
+              busqueda.trim() !== '' && totalDeLaVista > 0
+                ? {
+                    vacio: `Ningún usuario coincide con «${busqueda.trim()}»`,
+                    vacioPaso: 'Se busca por usuario, organización, rol o proyecto. Probá con menos palabras.',
+                  }
+                : verSinAsignar
                 ? {
                     vacio: 'Nadie espera organización',
                     vacioPaso: 'Todos los clientes pertenecen a una organización.',
