@@ -62,7 +62,11 @@ export function Dialogo({
         <h2>{titulo}</h2>
         {descripcion ? <p>{descripcion}</p> : null}
       </header>
-      <section>{children}</section>
+      {/* El cuerpo es lo que crece: usa el alto disponible hasta que la caja
+          llega al 90% de la pantalla, y recién ahí aparece su scroll. El
+          encabezado y el pie quedan fijos. `min-h-0` es lo que deja a un hijo
+          flex achicarse por debajo de su contenido. */}
+      <section className="min-h-0 overflow-y-auto">{children}</section>
       {pie ? <footer>{pie}</footer> : null}
     </>
   );
@@ -89,7 +93,7 @@ export function Dialogo({
       {onSubmit ? (
         <form
           autoComplete={autoComplete}
-          style={{ width: '100%', maxWidth: `min(${ancho}px, calc(100vw - 2rem))` }}
+          style={{ width: '100%', maxWidth: `min(${ancho}px, calc(100vw - 2rem))`, maxHeight: '90vh' }}
           onSubmit={(e) => {
             e.preventDefault();
             onSubmit();
@@ -98,7 +102,7 @@ export function Dialogo({
           {contenido}
         </form>
       ) : (
-        <article style={{ width: '100%', maxWidth: `min(${ancho}px, calc(100vw - 2rem))` }}>{contenido}</article>
+        <article style={{ width: '100%', maxWidth: `min(${ancho}px, calc(100vw - 2rem))`, maxHeight: '90vh' }}>{contenido}</article>
       )}
     </dialog>
   );

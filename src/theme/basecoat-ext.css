@@ -635,3 +635,24 @@ input[type="radio"] {
   overflow: visible;
   text-overflow: clip;
 }
+
+/* ---------------------------------------------------------------
+   UN MENÚ ADENTRO DE UN MODAL NO ES LA CAJA DEL MODAL.
+   `MenuContextual` se monta como hijo directo del <dialog> abierto (para no
+   quedar inerte), y Basecoat estila TODO hijo directo de `.dialog` como la caja
+   del modal: ancho completo, relleno, fondo, centrado con translate. El menú
+   salía del ancho del modal. Se le devuelve lo suyo.
+   --------------------------------------------------------------- */
+.dialog > .sw-context {
+  width: auto;
+  max-width: none;
+  max-height: none;
+  padding: 0;
+  gap: 0;
+  display: block;
+  background: transparent;
+  box-shadow: none;
+  translate: none;
+  scale: none;
+  --tw-ring-shadow: 0 0 #0000;
+}

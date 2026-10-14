@@ -17,6 +17,7 @@ import { Combo } from '../components/ui/Combo.js';
 import { Icon } from '../components/Icon.js';
 import { CampoClave } from '../components/ui/CampoClave.js';
 import { Dialogo } from '../components/ui/Dialogo.js';
+import { cambiosDeUsuario } from '../lib/cambios-de-usuario.js';
 import { ChipDeGrupo } from '../components/ui/ChipDeGrupo.js';
 import { MenuContextual } from '../components/ui/MenuContextual.js';
 import { Button } from '../components/ui/atoms/Button.js';
@@ -140,6 +141,11 @@ function UserFormModal({
         }
       : EMPTY_FORM,
   );
+  /* Cómo estaba al abrirse: contra eso se calcula qué cambió. «Guardar» se
+     habilita sólo con al menos un cambio, y antes de guardar se confirma. */
+  const [inicial] = useState<UserFormState>(form);
+  const resumen = cambiosDeUsuario(inicial, form);
+  const [confirmando, setConfirmando] = useState(false);
   const [organizaciones, setOrganizaciones] = useState<OrganizationSummary[]>([]);
   const [rolesPorOrg, setRolesPorOrg] = useState<Record<string, RoleSummary[]>>({});
   const [rolesListos, setRolesListos] = useState(false);
@@ -249,13 +255,25 @@ function UserFormModal({
     });
   }
 
+  /** Antes de confirmar: lo que se puede saber sin ir al servidor. */
+  function pedirConfirmacion(): void {
+    if (resumen.vacio || saving) return;
+    setError(null);
+    if (!editing && (!form.username.trim() || !form.password.trim())) {
+      setError('Usuario y contraseña son obligatorios');
+      return;
+    }
+    if (form.account_type === 'client' && puedeElegirOrganizacion && form.organization_id && !form.organization_role_id) {
+      setError('Elegí con qué rol entra a la organización');
+      return;
+    }
+    setConfirmando(true);
+  }
+
   async function handleSubmit(): Promise<void> {
     setError(null);
     setSaving(true);
     try {
-      if (form.account_type === 'client' && puedeElegirOrganizacion && form.organization_id && !form.organization_role_id) {
-        throw new Error('Elegí con qué rol entra a la organización');
-      }
       if (editing) {
         await updateUser(editing.id, {
           account_type: form.account_type,
@@ -269,13 +287,11 @@ function UserFormModal({
           await setMemberRoles(form.organization_id, editing.id, [form.organization_role_id]);
         }
       } else {
-        if (!form.username.trim() || !form.password.trim()) {
-          throw new Error('Usuario y contraseña son obligatorios');
-        }
         await createUser(form);
       }
       onSaved();
     } catch (err) {
+      setConfirmando(false);
       setError(err instanceof Error ? err.message : 'Error al guardar');
     } finally {
       setSaving(false);
@@ -292,12 +308,139 @@ function UserFormModal({
     </label>
   );
 
+  /* Nombres para el resumen: los ids no le dicen nada a quien confirma. */
+  const nombreDeProyecto = (id: string): string => projects.find((p) => p.id === id)?.name ?? id;
+  const nombreDeRol = (projectId: string, roleId: string): string => {
+    const p = projects.find((x) => x.id === projectId);
+    return (p ? rolesAsignables(p, rolesPorOrg) : []).find((r) => r.id === roleId)?.name ?? roleId;
+  };
+  const agregados = resumen.proyectos.filter((c) => c.tipo === 'agregado');
+  const quitados = resumen.proyectos.filter((c) => c.tipo === 'quitado');
+  const modificados = resumen.proyectos.filter((c) => c.tipo === 'modificado');
+  const NOMBRE_CUENTA = { client: 'Cliente', operator: 'Operador del producto' } as const;
+
+  const confirmacion = (
+    <Dialogo
+      abierto={confirmando}
+      onCerrar={() => setConfirmando(false)}
+      titulo={editing ? `Guardar los cambios de ${editing.username}` : `Crear a ${form.username.trim()}`}
+      descripcion="Revisá qué se agrega y qué se quita antes de guardar."
+      ancho={480}
+      pie={
+        <>
+          <button type="button" className="btn" data-variant="outline" onClick={() => setConfirmando(false)}>
+            Volver
+          </button>
+          {/* Con algo que se quita, el botón es el de peligro: es la acción que
+              le saca acceso a alguien y no se nota en la tabla hasta que falta. */}
+          <button
+            type="button"
+            className="btn"
+            data-variant={resumen.hayQuitas ? 'destructive' : undefined}
+            disabled={saving}
+            onClick={() => void handleSubmit()}
+          >
+            {saving ? 'Guardando…' : resumen.hayQuitas ? 'Guardar y quitar' : 'Guardar'}
+          </button>
+        </>
+      }
+    >
+      <div className="grid gap-4 text-sm">
+        {resumen.hayQuitas && (
+          <p className="rounded-lg border border-[var(--sw-error)] bg-[var(--sw-error-bg)] px-3 py-2 text-xs text-[var(--sw-on-error)]">
+            Se quitan accesos: lo marcado con − deja de estar disponible para esta persona apenas guardes.
+          </p>
+        )}
+
+        {(resumen.cuenta || resumen.clave || resumen.organizacion) && (
+          <ul className="grid gap-1">
+            {resumen.cuenta && (
+              <li>
+                Tipo de cuenta: {NOMBRE_CUENTA[resumen.cuenta.de]} → <strong>{NOMBRE_CUENTA[resumen.cuenta.a]}</strong>
+              </li>
+            )}
+            {resumen.organizacion && (
+              <li>
+                Entra a{' '}
+                <strong>{organizaciones.find((o) => o.id === resumen.organizacion!.id)?.name ?? resumen.organizacion.id}</strong>{' '}
+                como {(rolesPorOrg[resumen.organizacion.id] ?? []).find((r) => r.id === resumen.organizacion!.rol)?.name ?? 'sin rol'}
+              </li>
+            )}
+            {resumen.clave && <li>{editing ? 'Se cambia la contraseña' : 'Con la contraseña que escribiste'}</li>}
+          </ul>
+        )}
+
+        {/* LO QUE SE AGREGA en verde con +, LO QUE SE QUITA en rojo con − y
+            tachado: el signo y el tachado dicen lo mismo que el color, para
+            quien no lo distingue. */}
+        {agregados.length > 0 && (
+          <div className="grid gap-1.5">
+            <span className="text-xs font-medium text-muted-foreground">Proyectos que se agregan</span>
+            <ul className="grid gap-1">
+              {agregados.map((c) => (
+                <li key={c.project_id} className="flex flex-wrap items-baseline gap-x-1.5">
+                  <span className="font-semibold text-[var(--sw-success)]">+</span>
+                  <span className="font-medium">{nombreDeProyecto(c.project_id)}</span>
+                  <span className="text-muted-foreground">
+                    como {c.rolesAgregados.map((r) => nombreDeRol(c.project_id, r)).join(', ')}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {quitados.length > 0 && (
+          <div className="grid gap-1.5">
+            <span className="text-xs font-medium text-[var(--sw-error)]">Proyectos que se quitan</span>
+            <ul className="grid gap-1">
+              {quitados.map((c) => (
+                <li key={c.project_id} className="flex flex-wrap items-baseline gap-x-1.5 text-[var(--sw-error)]">
+                  <span className="font-semibold">−</span>
+                  <span className="font-medium line-through">{nombreDeProyecto(c.project_id)}</span>
+                  <span className="opacity-80">(tenía {c.rolesQuitados.map((r) => nombreDeRol(c.project_id, r)).join(', ')})</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {modificados.length > 0 && (
+          <div className="grid gap-1.5">
+            <span className="text-xs font-medium text-muted-foreground">Roles que cambian</span>
+            <ul className="grid gap-1.5">
+              {modificados.map((c) => (
+                <li key={c.project_id} className="grid gap-0.5">
+                  <span className="font-medium">{nombreDeProyecto(c.project_id)}</span>
+                  <span className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
+                    {c.rolesAgregados.map((r) => (
+                      <span key={`+${r}`} className="text-[var(--sw-success)]">
+                        + {nombreDeRol(c.project_id, r)}
+                      </span>
+                    ))}
+                    {c.rolesQuitados.map((r) => (
+                      <span key={`-${r}`} className="text-[var(--sw-error)]">
+                        − <span className="line-through">{nombreDeRol(c.project_id, r)}</span>
+                      </span>
+                    ))}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </Dialogo>
+  );
+
   return (
+    <>
+      {confirmacion}
     <Dialogo
       abierto
       onCerrar={onClose}
       titulo={editing ? 'Editar usuario' : 'Nuevo usuario'}
-      onSubmit={() => void handleSubmit()}
+      onSubmit={pedirConfirmacion}
       // Las credenciales de ESTE formulario son de OTRA persona: sin esto el
       // navegador lo toma por un login y completa el usuario y la clave
       // guardados de quien está dando el alta (y ofrece guardarlos).
@@ -308,7 +451,12 @@ function UserFormModal({
           <button type="button" className="btn" data-variant="outline" onClick={onClose}>
             Cancelar
           </button>
-          <button type="submit" className="btn" disabled={saving}>
+          <button
+            type="submit"
+            className="btn"
+            disabled={saving || resumen.vacio}
+            title={resumen.vacio ? 'No hay cambios para guardar' : undefined}
+          >
             {saving ? 'Guardando…' : 'Guardar'}
           </button>
         </>
@@ -463,9 +611,9 @@ function UserFormModal({
                 {rolesListos ? 'Sin proyectos: no va a ver ninguno.' : 'Cargando roles…'}
               </p>
             ) : (
-              /* Con techo y scroll propio: una persona con muchos proyectos
-                 empujaba el pie del modal —y «Guardar»— fuera de la pantalla. */
-              <ul className="grid max-h-80 gap-2 overflow-y-auto pr-1">
+              /* Sin scroll propio: crece con el cuerpo del modal, que es el que
+                 se desplaza cuando la caja llega al 90% de la pantalla. */
+              <ul className="grid gap-2">
                 {asignados.map((p) => {
                   const deEsteProyecto = form.project_roles.filter((a) => a.project_id === p.id);
                   const disponibles = rolesAsignables(p, rolesPorOrg);
@@ -485,9 +633,14 @@ function UserFormModal({
                         {/* LOS TRES PUNTOS DEL TEMPLATE (`.sw-tabla__puntos`), como el
                             menú de fila de las tablas: las acciones con su nombre
                             en un menú, sin ocupar la fila. */}
+                        {/* Visible siempre: la clase de la tabla (`.sw-tabla__puntos`)
+                            lo esconde hasta pasar por la fila, y acá no hay fila de
+                            tabla que lo revele. Es el botón de ícono del sistema. */}
                         <button
                           type="button"
-                          className="sw-tabla__puntos sw-touch-target"
+                          className="btn"
+                          data-variant="ghost"
+                          data-size="icon-sm"
                           aria-haspopup="menu"
                           aria-label={`Acciones de ${p.name}`}
                           onClick={(e) => {
@@ -562,6 +715,7 @@ function UserFormModal({
         )}
       </div>
     </Dialogo>
+    </>
   );
 }
 
