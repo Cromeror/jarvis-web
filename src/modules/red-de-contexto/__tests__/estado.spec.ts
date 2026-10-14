@@ -83,3 +83,12 @@ describe('estadoEnLaCarpeta', () => {
     expect(estadoEnLaCarpeta({ ...base, estado: 'aprobada' }).etiqueta).toBe('Pendiente');
   });
 });
+
+describe('un espacio desactivado en la red', () => {
+  it('se ve como desactivado, con la nota, y eso manda sobre la invitación y el sync', () => {
+    const proyecto = { con_modulo: true, tiene_root: true, desactivado: { por: 'u', nota: 'Revisión de seguridad', desde: '' } };
+    const e = estadoEnLaCarpeta({ estado: 'aprobada', nota: null, sincronizado_at: null, ultimo_error: 'x' }, proyecto);
+    expect(e).toMatchObject({ etiqueta: 'Desactivado', icono: 'eyeOff' });
+    expect(e.detalle).toContain('Revisión de seguridad');
+  });
+});

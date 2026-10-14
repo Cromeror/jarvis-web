@@ -219,14 +219,19 @@ export function TablaDeCarpetas({
                     /* Sin carpeta en el servidor no hay dónde recibir: no se
                        ofrece invitarlo. Sí se puede sacar si ya estaba. */
                     const sinDondeRecibir = !p.tiene_root && !m;
+                    // Desactivado en la red: no comparte ni recibe, así que
+                    // invitarlo no le entregaría nada.
+                    const apagado = Boolean(p.desactivado) && !m;
                     return {
                       id: `espacio:${p.id}`,
-                      label: sinDondeRecibir
-                        ? `${p.name} — sin carpeta, no puede recibir`
-                        : `${p.name}${sufijo}`,
+                      label: apagado
+                        ? `${p.name} — desactivado en la red`
+                        : sinDondeRecibir
+                          ? `${p.name} — sin carpeta, no puede recibir`
+                          : `${p.name}${sufijo}`,
                       // Rechazada no cuenta como compartida: tocarla la vuelve a pedir.
                       checked: Boolean(m) && m?.estado !== "rechazada",
-                      disabled: sinDondeRecibir,
+                      disabled: sinDondeRecibir || apagado,
                     };
                   })
                 : [

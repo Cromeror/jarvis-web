@@ -73,7 +73,11 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
   const espacios: ProyectoDeRed[] = datos
     ? [
         { id: projectId, name: propio?.name ?? projectId, con_modulo: true, tiene_root: true },
-        ...datos.espacios.map((e) => ({ ...e, con_modulo: true })),
+        ...datos.espacios.map((e) => ({
+          ...e,
+          con_modulo: true,
+          desactivado: e.desactivado ? { por: null, nota: null, desde: '' } : null,
+        })),
       ]
     : [];
 
@@ -92,6 +96,12 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
         <code className="text-slate-300">contexto-org/&lt;carpeta&gt;/publicado/</code> les llega a los aprobados.
       </p>
 
+      {datos?.desactivado && (
+        <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+          La organización desactivó este espacio en la red: lo que comparte no les llega a los demás, y no recibe lo de
+          ellos. {datos.desactivado.nota ?? ''}
+        </div>
+      )}
       {error && (
         <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>
       )}

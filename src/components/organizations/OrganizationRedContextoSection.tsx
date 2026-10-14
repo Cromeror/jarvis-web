@@ -21,6 +21,7 @@ import {
 import { mensajeDeError } from "./errores.js";
 import { OrganizationAuditorSection } from "./OrganizationAuditorSection.js";
 import { OrganizationInvitacionesSection } from "./OrganizationInvitacionesSection.js";
+import { OrganizationEspaciosSection } from "./OrganizationEspaciosSection.js";
 
 /**
  * LA RED DE CONTEXTO, del lado de la ORGANIZACIÓN (`MOD-0007`,
@@ -37,7 +38,7 @@ import { OrganizationInvitacionesSection } from "./OrganizationInvitacionesSecti
  * los demás; el sync corre solo cada 30 segundos, y «Sincronizar ahora» no
  * espera. Ver `docs/05-ambito-de-los-modulos.md` del workspace, «Red de contexto».
  */
-type Pestana = "carpetas" | "invitaciones" | "auditor" | "cuarentena";
+type Pestana = "carpetas" | "espacios" | "invitaciones" | "auditor" | "cuarentena";
 
 export function OrganizationRedContextoSection({
   organizationId,
@@ -93,6 +94,7 @@ export function OrganizationRedContextoSection({
 
   const pestanas: Array<{ id: Pestana; etiqueta: string }> = [
     { id: "carpetas", etiqueta: "Carpetas compartidas" },
+    { id: "espacios", etiqueta: "Espacios" },
     {
       id: "invitaciones",
       etiqueta: pendientes ? `Invitaciones (${pendientes})` : "Invitaciones",
@@ -269,6 +271,15 @@ export function OrganizationRedContextoSection({
             </div>
           ) : null}
         </>
+      )}
+
+      {pestana === "espacios" && datos && (
+        <OrganizationEspaciosSection
+          organizationId={organizationId}
+          carpetas={datos.circulos}
+          proyectos={datos.proyectos}
+          onCambio={() => void refresh()}
+        />
       )}
 
       {pestana === "invitaciones" && datos && (

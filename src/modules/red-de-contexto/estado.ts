@@ -27,8 +27,18 @@ export interface EstadoDeMiembro {
  */
 export function estadoDeMiembro(
   miembro: Pick<MiembroDeCirculo, 'sincronizado_at' | 'ultimo_error'>,
-  proyecto?: Pick<ProyectoDeRed, 'con_modulo' | 'tiene_root'>,
+  proyecto?: Pick<ProyectoDeRed, 'con_modulo' | 'tiene_root' | 'desactivado'>,
 ): EstadoDeMiembro {
+  // Desactivado por la organización manda sobre todo lo demás: no comparte ni
+  // recibe, así que su sync no dice nada.
+  if (proyecto?.desactivado) {
+    return {
+      tono: 'neutral',
+      icono: 'eyeOff',
+      etiqueta: 'Desactivado',
+      detalle: `La organización lo desactivó en la red: no comparte ni recibe.${proyecto.desactivado.nota ? ` ${proyecto.desactivado.nota}` : ''}`,
+    };
+  }
   if (proyecto && !proyecto.con_modulo) {
     return {
       tono: 'warning',
@@ -64,8 +74,9 @@ export function estadoDeMiembro(
  */
 export function estadoEnLaCarpeta(
   miembro: Pick<MiembroDeCirculo, 'estado' | 'nota' | 'sincronizado_at' | 'ultimo_error'>,
-  proyecto?: Pick<ProyectoDeRed, 'con_modulo' | 'tiene_root'>,
+  proyecto?: Pick<ProyectoDeRed, 'con_modulo' | 'tiene_root' | 'desactivado'>,
 ): EstadoDeMiembro {
+  if (proyecto?.desactivado) return estadoDeMiembro(miembro, proyecto);
   if (miembro.estado === 'pendiente') {
     return {
       tono: 'info',
