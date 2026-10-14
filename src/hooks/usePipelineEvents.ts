@@ -44,8 +44,7 @@ type PipelineSseEvent = StepUpdatedEvent | RunCheckingEvent | RunFinishedEvent;
 
 /**
  * Subscribes to real-time progress for a pipeline run via SSE
- * (GET /api/pipeline/:runId/events) — mirrors the EventSource pattern
- * used by Editor.tsx for /api/file/watch.
+ * (GET /api/pipeline/:runId/events).
  */
 export function usePipelineEvents(runId: string | null) {
   const [steps, setSteps] = useState<PipelineStepEvent[]>([]);

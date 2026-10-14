@@ -1,8 +1,6 @@
 import React from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
-import { EditorPage } from './pages/EditorPage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
-import { ProjectMapPage } from './pages/ProjectMapPage.js';
 import { ChatPage } from './pages/ChatPage.js';
 import { PlansPage } from './pages/PlansPage.js';
 import { EnvironmentsPage } from './pages/EnvironmentsPage.js';
@@ -21,8 +19,7 @@ import { PlanRunView } from './components/Plan/PlanRunView.js';
 /**
  * Root app component. Routing uses react-router — real paths, no query
  * params for navigation. Dashboard/Chat share the persistent
- * top nav via AppLayout; ProjectMapPage/EditorPage are full-canvas surfaces
- * that opt out of it:
+ * top nav via AppLayout; PreviewLoginPage is the only surface that opts out of it:
  *   /                        → AppLayout > DashboardPage
  *   /chat                    → AppLayout > ChatPage (project picker)
  *   /chat/:projectId         → AppLayout > ChatPage
@@ -42,12 +39,9 @@ import { PlanRunView } from './components/Plan/PlanRunView.js';
  *                              es compartible y sobrevive a un reload.
  *   /workspaces/:projectId/:workspaceId/changes?file=<path> → panel de cambios.
  *                              El archivo abierto va como query param y no como
- *                              segmento, igual que en /editor: no es una ruta,
+ *                              segmento: no es una ruta,
  *                              es qué archivo está abierto — y así un path con
  *                              barras no necesita escaparse dentro de la ruta.
- *   /project/:projectId      → ProjectMapPage
- *   /editor?file=<path>      → EditorPage (file kept as query param — it's
- *                              not a route, just which file is open)
  *   /pipeline/:runId         → AppLayout > PipelineRunView (real-time pipeline progress)
  *   /plan-runs/:runId        → AppLayout > PlanRunView (real-time plan progress, parallel by layer)
  *   /preview-login?rd=<url>  → PreviewLoginPage: la puerta de los previews de los
@@ -82,8 +76,6 @@ export default function App(): React.ReactElement {
           <Route path="/pipeline/:runId" element={<PipelineRunView />} />
           <Route path="/plan-runs/:runId" element={<PlanRunView />} />
         </Route>
-        <Route path="/project/:projectId" element={<ProjectMapPage />} />
-        <Route path="/editor" element={<EditorPage />} />
         <Route path="/preview-login" element={<PreviewLoginPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
