@@ -1,0 +1,434 @@
+import React, { useCallback, useEffect, useState } from "react";
+import {
+  decidirRevision,
+  getAuditoria,
+  guardarAuditoria,
+  listarRevisiones,
+  type Auditoria,
+  type Circulo,
+  type EstadoRevision,
+  type ProyectoDeRed,
+  type Revision,
+} from "../../lib/red-de-contexto-api.js";
+import { startAuditorLogin } from "../../lib/executor-login-api.js";
+import {
+  bytesAMb,
+  estadoDeRevision,
+  etiquetaDeMotivo,
+  mbABytes,
+} from "../../modules/red-de-contexto/auditoria.js";
+import { ExecutorLoginPrompt } from "../Chat/ExecutorLoginPrompt.js";
+import { StatusBadge } from "../ui/atoms/StatusBadge.js";
+import { mensajeDeError } from "./errores.js";
+
+/** Mismas superficies que la sección de la red: viven en el mismo panel. */
+const PANEL_CLASS = "rounded-xl border border-white/10 bg-white/[0.03] p-4";
+const INPUT_CLASS =
+  "w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 outline-none focus:border-indigo-400 [&>option]:bg-[#221f1d] [&>option]:text-white";
+const BOTON_PRIMARIO =
+  "rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50";
+const BOTON_SECUNDARIO =
+  "rounded-lg border border-white/15 px-3 py-2 text-sm font-medium text-white hover:bg-white/10 disabled:opacity-40";
+const BOTON_APROBAR =
+  "rounded-lg px-2 py-1 text-xs text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-40";
+const BOTON_RECHAZAR =
+  "rounded-lg px-2 py-1 text-xs text-red-300 hover:bg-red-500/10 disabled:opacity-40";
+
+const FILTROS: Array<{ valor: EstadoRevision; etiqueta: string }> = [
+  { valor: "cuarentena", etiqueta: "En cuarentena" },
+  { valor: "pendiente", etiqueta: "Pendientes" },
+  { valor: "rechazado", etiqueta: "Rechazados" },
+  { valor: "aprobado", etiqueta: "Aprobados" },
+];
+
+/**
+ * EL AUDITOR DE LA RED DE CONTEXTO, del lado de la organización
+ * (`red-de-contexto-org-007:manage`).
+ *
+ * Revisa lo que cada espacio publica antes de que llegue a los demás: con la
+ * auditoría prendida, a un círculo sólo le llega lo aprobado. Todo lo que no
+ * pasa —formato, secreto, tamaño, contenido de otro círculo, o lo que retuvo el
+ * auditor— queda en cuarentena con su nota, y esta bandeja es donde una persona
+ * lo arregla o decide. Aprobar hace que viaje; rechazar lo deja afuera.
+ *
+ * Es también, por ahora, la notificación: lo que espera a una persona está acá.
+ */
+export function OrganizationAuditorSection({
+  organizationId,
+  circulos,
+  proyectos,
+  vista,
+  onCambio,
+}: {
+  organizationId: string;
+  circulos: Circulo[];
+  proyectos: ProyectoDeRed[];
+  /** Qué pestaña es: qué valida el auditor (`reglas`), o lo que retuvo (`bandeja`). */
+  vista: "reglas" | "bandeja";
+  /** Algo cambió (una decisión, la configuración): quien tiene el contador lo recarga. */
+  onCambio?: () => void;
+}): React.ReactElement {
+  const [auditoria, setAuditoria] = useState<Auditoria | null>(null);
+  const [revisiones, setRevisiones] = useState<Revision[]>([]);
+  const [filtro, setFiltro] = useState<EstadoRevision>("cuarentena");
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async (): Promise<void> => {
+    try {
+      const [a, r] = await Promise.all([
+        getAuditoria(organizationId),
+        listarRevisiones(organizationId, filtro),
+      ]);
+      setAuditoria(a);
+      setRevisiones(r);
+      setError(null);
+    } catch (err) {
+      setError(mensajeDeError(err, "No se pudo cargar el auditor"));
+    }
+  }, [organizationId, filtro]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  async function accion(
+    fn: () => Promise<unknown>,
+    fallback: string,
+  ): Promise<boolean> {
+    setError(null);
+    try {
+      await fn();
+      await refresh();
+      onCambio?.();
+      return true;
+    } catch (err) {
+      setError(mensajeDeError(err, fallback));
+      return false;
+    }
+  }
+
+  const nombreDeCirculo = new Map(circulos.map((c) => [c.id, c.nombre]));
+  const nombreDeProyecto = new Map(proyectos.map((p) => [p.id, p.name]));
+
+  const sesionVencida = auditoria?.auditor.sesion_vencida && (
+    <div className={`${PANEL_CLASS} border-amber-500/30`}>
+      <p className="mb-2 text-sm text-amber-200">
+        La sesión del auditor venció: no se está revisando nada. Lo nuevo queda
+        retenido hasta que vuelva a iniciar.
+      </p>
+      <ExecutorLoginPrompt
+        projectId={null}
+        iniciar={startAuditorLogin}
+        textoOk="El auditor retoma en unos minutos."
+        onResuelto={() => void refresh()}
+      />
+    </div>
+  );
+
+  return (
+    <section>
+      <p className="mb-3 text-xs text-slate-400">
+        {vista === "reglas"
+          ? "Revisa lo que cada espacio publica antes de que llegue a los demás. Acá se decide qué valida."
+          : "Lo que no pasó la revisión queda acá, con su nota, y sólo sale si alguien lo aprueba."}
+      </p>
+
+      {error && (
+        <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+          {error}
+        </div>
+      )}
+
+      {auditoria && (
+        <div className="space-y-4">
+          {sesionVencida}
+
+          {vista === "reglas" ? (
+            <Configuracion
+              auditoria={auditoria}
+              onGuardar={(patch) =>
+                accion(
+                  () => guardarAuditoria(organizationId, patch),
+                  "No se pudo guardar el auditor",
+                )
+              }
+            />
+          ) : (
+            <div className={PANEL_CLASS}>
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                {FILTROS.map((f) => (
+                  <button
+                    key={f.valor}
+                    type="button"
+                    className={`rounded-full px-3 py-1 text-xs ${filtro === f.valor ? "bg-indigo-600 text-white" : "text-slate-300 hover:bg-white/10"}`}
+                    onClick={() => setFiltro(f.valor)}
+                  >
+                    {f.etiqueta} ({auditoria.conteos[f.valor] ?? 0})
+                  </button>
+                ))}
+              </div>
+
+              {revisiones.length === 0 ? (
+                <p className="text-xs text-slate-400">
+                  {filtro === "cuarentena"
+                    ? "Nada esperando una decisión."
+                    : "Nada en este estado."}
+                </p>
+              ) : (
+                <ul className="divide-y divide-white/5">
+                  {revisiones.map((r) => (
+                    <FilaDeRevision
+                      key={`${r.circulo_id}/${r.sha256}`}
+                      revision={r}
+                      circulo={
+                        nombreDeCirculo.get(r.circulo_id) ?? r.circulo_id
+                      }
+                      proyecto={
+                        nombreDeProyecto.get(r.project_id) ?? r.project_id
+                      }
+                      onDecidir={(estado, nota) =>
+                        accion(
+                          () =>
+                            decidirRevision(organizationId, r, {
+                              estado,
+                              ...(nota ? { nota } : {}),
+                            }),
+                          "No se pudo guardar la decisión",
+                        )
+                      }
+                    />
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function Configuracion({
+  auditoria,
+  onGuardar,
+}: {
+  auditoria: Auditoria;
+  onGuardar: (patch: {
+    activa?: boolean;
+    reglas?: string;
+    umbral_bytes?: number;
+  }) => Promise<boolean>;
+}): React.ReactElement {
+  const [reglas, setReglas] = useState(auditoria.reglas);
+  const [umbral, setUmbral] = useState(bytesAMb(auditoria.umbral_bytes));
+  const [guardando, setGuardando] = useState(false);
+
+  useEffect(() => {
+    setReglas(auditoria.reglas);
+    setUmbral(bytesAMb(auditoria.umbral_bytes));
+  }, [auditoria.reglas, auditoria.umbral_bytes]);
+
+  const umbralBytes = mbABytes(umbral);
+  const cambio =
+    reglas !== auditoria.reglas ||
+    (umbralBytes !== null && umbralBytes !== auditoria.umbral_bytes);
+
+  async function guardar(patch: {
+    activa?: boolean;
+    reglas?: string;
+    umbral_bytes?: number;
+  }): Promise<void> {
+    setGuardando(true);
+    await onGuardar(patch);
+    setGuardando(false);
+  }
+
+  return (
+    <div className={PANEL_CLASS}>
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <StatusBadge
+          label={auditoria.activa ? "Auditando" : "Apagado"}
+          tone={auditoria.activa ? "success" : "neutral"}
+        />
+        <span className="flex-1 text-xs text-slate-400">
+          {auditoria.activa
+            ? "A las carpetas compartidas sólo les llega lo aprobado."
+            : "Apagado, todo lo publicado viaja sin revisión."}
+          {auditoria.auditor.ultima_revision_at &&
+            ` Última revisión: ${new Date(auditoria.auditor.ultima_revision_at).toLocaleString()}.`}
+        </span>
+        <button
+          type="button"
+          className={auditoria.activa ? BOTON_SECUNDARIO : BOTON_PRIMARIO}
+          disabled={guardando}
+          onClick={() => {
+            if (
+              auditoria.activa &&
+              !window.confirm(
+                "¿Apagar el auditor? Desde la próxima sincronización, todo lo publicado viaja sin revisión.",
+              )
+            )
+              return;
+            void guardar({ activa: !auditoria.activa });
+          }}
+        >
+          {auditoria.activa ? "Apagar" : "Prender"}
+        </button>
+      </div>
+
+      <label className="block">
+        <span className="mb-1 block text-xs text-slate-400">
+          Reglas de la organización — qué no puede salir de un espacio, en tus
+          palabras. Además de estas, el auditor siempre retiene credenciales,
+          datos personales, instrucciones dirigidas a una IA y contenido de otra
+          carpeta compartida.
+        </span>
+        <textarea
+          className={`${INPUT_CLASS} min-h-24 text-xs`}
+          value={reglas}
+          placeholder="No se comparten precios ni márgenes negociados con clientes."
+          onChange={(e) => setReglas(e.target.value)}
+        />
+      </label>
+
+      <label className="mt-3 block w-64">
+        <span className="mb-1 block text-xs text-slate-400">
+          Por encima de este tamaño, cuarentena sin consultar a la IA (MB)
+        </span>
+        <input
+          className={INPUT_CLASS}
+          value={umbral}
+          inputMode="decimal"
+          onChange={(e) => setUmbral(e.target.value)}
+        />
+      </label>
+      {umbral && umbralBytes === null && (
+        <p className="mt-1 text-xs text-amber-300">
+          Tiene que ser un número mayor que cero.
+        </p>
+      )}
+
+      {cambio && (
+        <div className="mt-3 flex gap-2">
+          <button
+            type="button"
+            className={BOTON_PRIMARIO}
+            disabled={guardando || umbralBytes === null}
+            onClick={() =>
+              void guardar({
+                ...(reglas !== auditoria.reglas ? { reglas } : {}),
+                ...(umbralBytes !== null &&
+                umbralBytes !== auditoria.umbral_bytes
+                  ? { umbral_bytes: umbralBytes }
+                  : {}),
+              })
+            }
+          >
+            Guardar
+          </button>
+          <button
+            type="button"
+            className={BOTON_SECUNDARIO}
+            onClick={() => {
+              setReglas(auditoria.reglas);
+              setUmbral(bytesAMb(auditoria.umbral_bytes));
+            }}
+          >
+            Descartar
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FilaDeRevision({
+  revision: r,
+  circulo,
+  proyecto,
+  onDecidir,
+}: {
+  revision: Revision;
+  circulo: string;
+  proyecto: string;
+  onDecidir: (
+    estado: "aprobado" | "rechazado",
+    nota: string,
+  ) => Promise<boolean>;
+}): React.ReactElement {
+  const [nota, setNota] = useState("");
+  const [decidiendo, setDecidiendo] = useState(false);
+  const e = estadoDeRevision(r.estado);
+
+  async function decidir(estado: "aprobado" | "rechazado"): Promise<void> {
+    setDecidiendo(true);
+    const ok = await onDecidir(estado, nota.trim());
+    setDecidiendo(false);
+    if (ok) setNota("");
+  }
+
+  return (
+    <li className="py-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <StatusBadge label={e.etiqueta} tone={e.tono} />
+        <code className="text-sm text-white">{r.ruta}</code>
+        <span className="text-xs text-slate-400">
+          de {proyecto} · en {circulo} · {etiquetaDeMotivo(r.motivo)}
+        </span>
+      </div>
+
+      {r.explicacion && (
+        <p className="mt-2 text-xs text-slate-300">{r.explicacion}</p>
+      )}
+      {r.hallazgos.length > 0 && (
+        <ul className="mt-1 list-disc pl-5 text-xs text-slate-400">
+          {r.hallazgos.map((h, i) => (
+            <li key={i}>
+              {h.regla} — {h.ubicacion}
+            </li>
+          ))}
+        </ul>
+      )}
+      {r.estado === "pendiente" && r.ultimo_error && (
+        <p className="mt-1 text-xs text-amber-300">
+          El auditor no pudo revisarlo ({r.intentos} intento
+          {r.intentos === 1 ? "" : "s"}): {r.ultimo_error}
+        </p>
+      )}
+      {r.nota && (
+        <p className="mt-1 text-xs text-slate-400">
+          Nota de quien decidió: {r.nota}
+        </p>
+      )}
+
+      {r.estado !== "aprobado" && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <input
+            className={`${INPUT_CLASS} max-w-md text-xs`}
+            value={nota}
+            placeholder="Nota para quien lo publicó (opcional)"
+            onChange={(ev) => setNota(ev.target.value)}
+          />
+          <button
+            type="button"
+            className={BOTON_APROBAR}
+            disabled={decidiendo}
+            onClick={() => void decidir("aprobado")}
+          >
+            Aprobar y compartir
+          </button>
+          {r.estado !== "rechazado" && (
+            <button
+              type="button"
+              className={BOTON_RECHAZAR}
+              disabled={decidiendo}
+              onClick={() => void decidir("rechazado")}
+            >
+              Rechazar
+            </button>
+          )}
+        </div>
+      )}
+    </li>
+  );
+}

@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { estadoDeMiembro, slugDeNombre, slugValido, publicadosPorProyecto, tamano } from '../estado.js';
+import { estadoDeMiembro, estadoEnLaCarpeta, slugDeNombre, slugValido, publicadosPorProyecto, tamano } from '../estado.js';
 
 const hace = (ms: number): string => new Date(Date.now() - ms).toISOString();
 
 describe('estadoDeMiembro', () => {
   it('sin el módulo o sin carpeta no participa, y eso va antes que cualquier error del sync', () => {
     const conError = { sincronizado_at: null, ultimo_error: 'El proyecto no tiene el módulo…' };
-    expect(estadoDeMiembro(conError, { con_modulo: false, tiene_root: true }).etiqueta).toBe('Sin el módulo');
+    expect(estadoDeMiembro(conError, { con_modulo: false, tiene_root: true }).etiqueta).toBe('Sin la red');
     expect(estadoDeMiembro(conError, { con_modulo: true, tiene_root: false }).etiqueta).toBe('Sin carpeta');
   });
 
@@ -64,5 +64,22 @@ describe('tamano', () => {
     expect(tamano(2048)).toBe('2 KB');
     expect(tamano(1536)).toBe('1.5 KB');
     expect(tamano(10 * 1024 * 1024)).toBe('10 MB');
+  });
+});
+
+describe('estadoEnLaCarpeta', () => {
+  const base = { sincronizado_at: null, ultimo_error: null, nota: null };
+  it('una invitación pendiente espera a la organización: no se habla de sync', () => {
+    expect(estadoEnLaCarpeta({ ...base, estado: 'pendiente' })).toMatchObject({ etiqueta: 'Pendiente de aprobación', tono: 'info' });
+  });
+  it('una rechazada dice por qué, con su propio ícono', () => {
+    expect(estadoEnLaCarpeta({ ...base, estado: 'rechazada', nota: 'Datos de clientes' })).toMatchObject({
+      etiqueta: 'Rechazada',
+      icono: 'x',
+      detalle: 'La organización la rechazó: Datos de clientes',
+    });
+  });
+  it('aprobada, es el estado del sync de siempre', () => {
+    expect(estadoEnLaCarpeta({ ...base, estado: 'aprobada' }).etiqueta).toBe('Pendiente');
   });
 });

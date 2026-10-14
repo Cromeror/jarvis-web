@@ -12,7 +12,7 @@ import { openSseStream } from './sse-stream.js';
 export interface LoginStarted {
   attemptId: string;
   /** A quién se está autenticando — el usuario Unix del proyecto, o la cuenta de jarvis-api. */
-  authenticating?: { unix_user: string; project_id: string } | { jarvis_api: true };
+  authenticating?: { unix_user: string; project_id: string } | { jarvis_api: true } | { auditor_red_de_contexto: true };
 }
 
 export type LoginEventKind = 'url' | 'awaiting_code' | 'log' | 'success' | 'error';
@@ -46,6 +46,21 @@ export async function startExecutorLogin(projectId?: string | null): Promise<Log
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(projectId ? { project_id: projectId } : {}),
+    }),
+  );
+}
+
+/**
+ * Arranca el login de la cuenta del AUDITOR de la red de contexto: es otra que
+ * la del chat (`JARVIS_AUDITOR_CLAUDE_CONFIG_DIR` en el servidor), y por eso va
+ * con su propio destino. Mismo flujo después: URL, autorizar, pegar el código.
+ */
+export async function startAuditorLogin(): Promise<LoginStarted> {
+  return handle<LoginStarted>(
+    await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target: 'auditor' }),
     }),
   );
 }

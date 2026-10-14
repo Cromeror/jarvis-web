@@ -218,6 +218,16 @@ export interface MenuContextualProps extends EspecDeMenu {
  *
  * Cierra con Escape, con un clic afuera y al cambiar el tamaño de la ventana,
  * que son los tres listeners que `menus.js` registra a nivel documento.
+ *
+ * **Es un popover (`popover="manual"` + `showPopover()`)**, y no por estilo: un
+ * `<dialog>` abierto con `showModal()` vive en la capa superior del navegador,
+ * por encima de cualquier `z-index`, así que un menú del `<body>` quedaba DEBAJO
+ * del modal (el de una tabla dentro de Ajustes no se veía). El popover entra a
+ * esa misma capa después del modal, y queda encima. Sigue en el `<body>` y con
+ * coordenadas de ventana: lo único que cambia es la capa.
+ *
+ * Por lo mismo, Escape con el menú abierto cierra SÓLO el menú: el `<dialog>`
+ * nativo también escucha Escape, y sin cortarlo se cerraba el modal entero.
  */
 export function MenuContextual({
   x,
@@ -235,6 +245,13 @@ export function MenuContextual({
   useLayoutEffect(() => {
     const w = wrapRef.current;
     if (!w) return;
+    /* A la capa superior, encima de un modal abierto (ver arriba). Sin soporte
+       de popover queda como antes: en el `<body>`, con su z-index. */
+    const pop = w as HTMLElement & { showPopover?: () => void };
+    if (pop.showPopover && !w.matches(':popover-open')) {
+      w.setAttribute('popover', 'manual');
+      pop.showPopover();
+    }
     const r = w.getBoundingClientRect();
     const flipX = x + r.width > window.innerWidth - 8;
     const flipY = y + r.height > window.innerHeight - 8;
@@ -255,16 +272,21 @@ export function MenuContextual({
       if (!wrapRef.current?.contains(e.target as Node)) onCerrar();
     };
     const escape = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') onCerrar();
+      if (e.key !== 'Escape') return;
+      // Cierra el menú y nada más: sin esto el `<dialog>` que lo contiene
+      // también toma el Escape y se cierra.
+      e.preventDefault();
+      e.stopPropagation();
+      onCerrar();
     };
     // En captura, igual que el template: un handler que detiene la propagación
     // en el medio no puede impedir que el menú se cierre.
     document.addEventListener('pointerdown', afuera, true);
-    document.addEventListener('keydown', escape);
+    document.addEventListener('keydown', escape, true);
     window.addEventListener('resize', onCerrar);
     return () => {
       document.removeEventListener('pointerdown', afuera, true);
-      document.removeEventListener('keydown', escape);
+      document.removeEventListener('keydown', escape, true);
       window.removeEventListener('resize', onCerrar);
     };
   }, [onCerrar]);
@@ -277,6 +299,17 @@ export function MenuContextual({
         {
           left: pos?.left ?? x,
           top: pos?.top ?? y,
+          /* El estilo del navegador para [popover] lo centra con borde y fondo
+             propios: se anula para que mande `.sw-context`. */
+          position: 'fixed',
+          right: 'auto',
+          bottom: 'auto',
+          margin: 0,
+          padding: 0,
+          border: 'none',
+          background: 'transparent',
+          overflow: 'visible',
+          color: 'inherit',
           '--origin-x': pos?.ox ?? '0',
           '--origin-y': pos?.oy ?? '0',
           // Hasta medir, invisible: un frame en el lugar equivocado se ve.

@@ -12,6 +12,8 @@ export interface EstadoDeMiembro {
   etiqueta: string;
   /** La explicación larga: el tooltip, o la línea debajo. */
   detalle: string;
+  /** Un ícono propio, cuando el del tono no alcanza (rechazada = ✗, no ⚠). */
+  icono?: string;
 }
 
 /**
@@ -30,15 +32,15 @@ export function estadoDeMiembro(
   if (proyecto && !proyecto.con_modulo) {
     return {
       tono: 'warning',
-      etiqueta: 'Sin el módulo',
-      detalle: 'No publica ni recibe hasta que tenga Red de contexto en una de sus suites.',
+      etiqueta: 'Sin la red',
+      detalle: 'La organización no tiene la red de contexto: no publica ni recibe.',
     };
   }
   if (proyecto && !proyecto.tiene_root) {
     return {
       tono: 'warning',
       etiqueta: 'Sin carpeta',
-      detalle: 'El proyecto no tiene carpeta en el servidor: no hay dónde publicar ni dónde recibir.',
+      detalle: 'El espacio no tiene carpeta en el servidor: no hay dónde publicar ni dónde recibir.',
     };
   }
   if (!miembro.sincronizado_at) {
@@ -50,6 +52,36 @@ export function estadoDeMiembro(
   return miembro.ultimo_error
     ? { tono: 'warning', etiqueta: 'Con aviso', detalle: `${cuando}. ${miembro.ultimo_error}` }
     : { tono: 'success', etiqueta: 'Sincronizado', detalle: cuando };
+}
+
+/**
+ * El estado de un espacio DENTRO de una carpeta compartida: primero, si la
+ * organización aprobó que le llegue; después, cómo le va al sync.
+ *
+ * Una invitación pendiente o rechazada no recibe nada, así que no tiene
+ * sentido hablar de su sincronización: lo que hay que decir es que espera, o
+ * por qué no.
+ */
+export function estadoEnLaCarpeta(
+  miembro: Pick<MiembroDeCirculo, 'estado' | 'nota' | 'sincronizado_at' | 'ultimo_error'>,
+  proyecto?: Pick<ProyectoDeRed, 'con_modulo' | 'tiene_root'>,
+): EstadoDeMiembro {
+  if (miembro.estado === 'pendiente') {
+    return {
+      tono: 'info',
+      etiqueta: 'Pendiente de aprobación',
+      detalle: 'La organización todavía no aprobó que esta carpeta le llegue.',
+    };
+  }
+  if (miembro.estado === 'rechazada') {
+    return {
+      tono: 'danger',
+      icono: 'x',
+      etiqueta: 'Rechazada',
+      detalle: miembro.nota ? `La organización la rechazó: ${miembro.nota}` : 'La organización la rechazó.',
+    };
+  }
+  return estadoDeMiembro(miembro, proyecto);
 }
 
 /**

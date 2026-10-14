@@ -28,10 +28,16 @@ type Fase = 'ofrecido' | 'arrancando' | 'esperando_autorizacion' | 'enviando_cod
 export function ExecutorLoginPrompt({
   projectId,
   onResuelto,
+  iniciar,
+  textoOk,
 }: {
   projectId: string | null;
   /** El login terminó bien: quien lo muestre puede limpiar el error y dejar reintentar. */
   onResuelto?: () => void;
+  /** Otra cuenta que la del chat (p. ej. la del auditor de la red de contexto). Default: la del proyecto. */
+  iniciar?: () => Promise<LoginStarted>;
+  /** Lo que se dice al terminar bien. Default: el del chat. */
+  textoOk?: string;
 }): React.ReactElement {
   const [fase, setFase] = useState<Fase>('ofrecido');
   const [attempt, setAttempt] = useState<LoginStarted | null>(null);
@@ -84,7 +90,7 @@ export function ExecutorLoginPrompt({
     setFase('arrancando');
     setDetalle(null);
     try {
-      const iniciado = await startExecutorLogin(projectId);
+      const iniciado = await (iniciar ? iniciar() : startExecutorLogin(projectId));
       setAttempt(iniciado);
       const cortar = watchExecutorLogin(iniciado.attemptId, (evento) => {
         // Un evento de OTRO intento no decide nada de éste: al reintentar
@@ -192,7 +198,7 @@ export function ExecutorLoginPrompt({
         </>
       )}
 
-      {fase === 'ok' && <p className="text-emerald-300">{detalle ?? 'Sesión abierta'}. Probá mandar tu mensaje de nuevo.</p>}
+      {fase === 'ok' && <p className="text-emerald-300">{detalle ?? 'Sesión abierta'}. {textoOk ?? 'Probá mandar tu mensaje de nuevo.'}</p>}
 
       {fase === 'error' && (
         <>
