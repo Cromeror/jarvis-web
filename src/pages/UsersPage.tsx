@@ -5,13 +5,15 @@ import { listProjects } from '../lib/projects-api.js';
 import type { ProjectSummary } from '../lib/projects-api.js';
 import { listUsers, createUser, updateUser, deleteUser } from '../lib/users-api.js';
 import type { UserSummary, AccountType, ProjectRoleInput } from '../lib/users-api.js';
-import { listRoles, listOrganizations } from '../lib/organizations-api.js';
+import { listRoles, listOrganizations, removeMember, setMemberRoles } from '../lib/organizations-api.js';
 import type { RoleSummary, OrganizationSummary } from '../lib/organizations-api.js';
 import { Tabla, type ColumnaDeTabla } from '../components/ui/Tabla.js';
 import { OrganizationRolesPanel } from '../components/organizations/OrganizationRolesPanel.js';
 import { OrganizationFormModal } from '../components/organizations/OrganizationFormModal.js';
+import { RolesDelMiembro } from '../components/organizations/RolesDelMiembro.js';
 import { StatusBadge } from '../components/ui/atoms/StatusBadge.js';
 import { Toolbar, ToolbarBoton, ToolbarGrupo, ToolbarUtiles } from '../components/ui/molecules/Toolbar.js';
+import { Combo } from '../components/ui/Combo.js';
 import { filasDeUsuarios, pendientesDeAsignar } from '../lib/usuarios-por-organizacion.js';
 
 /**
@@ -472,14 +474,67 @@ export function UsersPage(): React.ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<UserSummary | 'new' | null>(null);
   const [creandoOrg, setCreandoOrg] = useState(false);
-  /** La recién creada, para que el panel de abajo la muestre sin buscarla a mano. */
-  const [orgEnfocada, setOrgEnfocada] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState('');
   /** La organización que eligió el panel de arriba: la tabla muestra sus miembros. */
   const [orgSeleccionada, setOrgSeleccionada] = useState<string | null>(null);
   /** La lista «Sin asignar» en vez de los miembros de la organización elegida. */
   const [verSinAsignar, setVerSinAsignar] = useState(false);
   const pendientes = useMemo(() => pendientesDeAsignar(users), [users]);
+  /* LA ORGANIZACIÓN SE ELIGE EN LA BARRA, y la página es la dueña de la
+     elección: la usan el panel de roles (que ya no tiene selector propio) y la
+     tabla de usuarios. */
+  const [organizaciones, setOrganizaciones] = useState<OrganizationSummary[]>([]);
+  const cargarOrganizaciones = useCallback(async (elegir?: string): Promise<void> => {
+    try {
+      const orgs = await listOrganizations();
+      setOrganizaciones(orgs);
+      setOrgSeleccionada((actual) => elegir ?? actual ?? orgs[0]?.id ?? null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cargar las organizaciones');
+    }
+  }, []);
+  useEffect(() => {
+    void cargarOrganizaciones();
+  }, [cargarOrganizaciones]);
+
+  /** Los roles de la organización elegida: los chips de la columna «Roles en la organización». */
+  const [rolesOrg, setRolesOrg] = useState<RoleSummary[]>([]);
+  const [versionRoles, setVersionRoles] = useState(0);
+  const [nuevoMiembro, setNuevoMiembro] = useState<{ userId: string; roleId: string }>({ userId: '', roleId: '' });
+
+  useEffect(() => {
+    if (!orgSeleccionada) {
+      setRolesOrg([]);
+      return;
+    }
+    let vigente = true;
+    void listRoles(orgSeleccionada)
+      .then((r) => {
+        if (vigente) setRolesOrg(r);
+      })
+      .catch((err: unknown) => {
+        if (vigente) setError(err instanceof Error ? err.message : 'Error al cargar los roles');
+      });
+    return () => {
+      vigente = false;
+    };
+  }, [orgSeleccionada, versionRoles]);
+
+  /* A quién se puede sumar: clientes que no pertenecen a NINGUNA organización.
+     Una persona pertenece a una sola, así que ofrecer a alguien de otra es
+     ofrecer un 409 seguro; y a los de ésta se les cambia el rol en su fila. */
+  const candidatos = useMemo(() => users.filter((u) => u.account_type === 'client' && !u.organization), [users]);
+
+  /** Corre un cambio de membresía y recarga la tabla. */
+  async function cambiarMembresia(accion: () => Promise<void>, fallback: string): Promise<void> {
+    setError(null);
+    try {
+      await accion();
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : fallback);
+    }
+  }
   /* Elegir otra organización en el panel es pedir sus miembros: sale de «Sin
      asignar». Estable, porque el panel la usa en un efecto. */
   const alElegirOrganizacion = useCallback((id: string | null) => {
@@ -548,10 +603,16 @@ export function UsersPage(): React.ReactElement {
      `proyectos` es la elástica: es la única columna de largo impredecible —una
      persona puede tocar uno o quince— y es la que el template deja absorber el
      déficit de ancho. Las otras tres son acotadas y se declaran con su ideal. */
+  /* Mirando una organización, la columna «Organización» repetiría el mismo
+     nombre en cada fila: en su lugar van sus roles, EDITABLES. Es lo que hacía
+     la tabla «Miembros» del panel de arriba, que mostraba a esta misma gente;
+     dos tablas con las mismas filas hacían preguntar si eran cosas distintas. */
   const COLUMNAS_USUARIO: ColumnaDeTabla[] = [
     { id: 'username', label: 'Usuario', dato: 'username', w: 220, tip: true },
     { id: 'account_type', label: 'Tipo de cuenta', dato: 'account_type', w: 180 },
-    { id: 'organization', label: 'Organización', w: 280, orden: false },
+    verSinAsignar
+      ? { id: 'organization', label: 'Organización', w: 280, orden: false }
+      : { id: 'roles', label: 'Roles en la organización', w: 320, orden: false },
     { id: 'proyectos', label: 'Proyectos', w: 420, orden: false, elastica: true },
   ];
 
@@ -561,10 +622,19 @@ export function UsersPage(): React.ReactElement {
   const menuDeUsuario = (u: UserSummary) => ({
     groups: [
       { items: [{ id: 'editar', label: 'Editar el usuario' }] },
+      ...(!verSinAsignar && orgSeleccionada && u.organization
+        ? [{ items: [{ id: 'sacar', label: 'Sacar de la organización', danger: true }] }]
+        : []),
       { items: [{ id: 'eliminar', label: 'Eliminar el usuario', danger: true }] },
     ],
     onSelect: (id: string) => {
       if (id === 'editar') { setEditing(u); return; }
+      if (id === 'sacar') {
+        if (!orgSeleccionada) return;
+        if (!window.confirm(`¿Sacar a '${u.username}' de la organización? La cuenta sigue existiendo, sin organización.`)) return;
+        void cambiarMembresia(() => removeMember(orgSeleccionada, u.id), 'Error al sacar de la organización');
+        return;
+      }
       void handleDelete(u);
     },
   });
@@ -581,6 +651,19 @@ export function UsersPage(): React.ReactElement {
         <StatusBadge
           label={u.account_type === 'operator' ? 'Operador del producto' : 'Cliente'}
           tone={u.account_type === 'operator' ? 'info' : 'neutral'}
+        />
+      );
+    }
+    if (c.id === 'roles') {
+      if (u.account_type === 'operator' || !orgSeleccionada) return <span className="text-xs opacity-70">No aplica</span>;
+      return (
+        <RolesDelMiembro
+          roles={rolesOrg}
+          asignados={u.organization?.roles ?? []}
+          editable
+          onCambiar={(ids) =>
+            void cambiarMembresia(() => setMemberRoles(orgSeleccionada, u.id, ids), 'Error al cambiar los roles')
+          }
         />
       );
     }
@@ -630,51 +713,102 @@ export function UsersPage(): React.ReactElement {
     // estaba pensado para fondo oscuro y sobre blanco se veía mal — la `Tabla`
     // del template resuelve su propio tema por tokens (`--sw-tabla-*`), que es
     // lo que deja ponerla sobre esta superficie sin pedirle un fondo aparte.
-    <div className="h-full overflow-y-auto bg-[var(--app-bg)] p-6">
-      {/* LA TOOLBAR DE LA SUPERFICIE: una pieza opcional de la superficie, no
-          del chasis (ver `ui/molecules/Toolbar.tsx`). A la izquierda las altas;
-          a la derecha, cuánta gente espera organización. */}
-      <div className="mb-4">
+    <div className="h-full overflow-y-auto bg-[var(--app-bg)]">
+      {/* LA TOOLBAR DE LA SUPERFICIE (`ui/molecules/Toolbar.tsx`), a todo el
+          ancho y pegada arriba —como en el template—, fuera del relleno de la
+          página. A la izquierda, sobre qué organización se trabaja y las altas;
+          a la derecha, sumar a esa organización a alguien que ya tiene cuenta.
+          El filtro «sin asignar» NO va acá: filtra la tabla, y va con ella. */}
+      <div className="sticky top-0 z-10">
         <Toolbar label="Usuarios">
           <ToolbarGrupo>
-            <ToolbarBoton primario onClick={() => setEditing('new')}>
-              + Nuevo usuario
-            </ToolbarBoton>
+            <Combo
+              rotulo="Organización"
+              opciones={organizaciones.map((o) => ({ id: o.id, label: o.name }))}
+              valor={orgSeleccionada ?? ''}
+              alCambiar={(v) => alElegirOrganizacion(v || null)}
+            />
+          </ToolbarGrupo>
+          <ToolbarGrupo>
             {/* Sólo el operador del producto funda organizaciones: es el alta de
                 un cliente, no algo que un cliente se haga a sí mismo. */}
             {currentUser?.account_type === 'operator' && (
               <ToolbarBoton onClick={() => setCreandoOrg(true)}>+ Nueva organización</ToolbarBoton>
             )}
+            <ToolbarBoton onClick={() => setEditing('new')}>+ Nuevo usuario</ToolbarBoton>
           </ToolbarGrupo>
           <ToolbarUtiles>
-            {/* EL NÚMERO ES LA RAZÓN DEL BOTÓN: dice de un vistazo si hay gente
-                esperando organización sin abrir la lista. Los operadores salen
-                en la lista pero no cuentan — no esperan nada. */}
-            <ToolbarBoton
-              presionado={verSinAsignar}
-              onClick={() => setVerSinAsignar((v) => !v)}
-              title="Clientes que no pertenecen a ninguna organización, y los operadores"
-            >
-              {pendientes} sin asignar
-            </ToolbarBoton>
+            {/* Sumar a alguien con cuenta y sin organización. Entra con UN rol;
+                los demás se dan después con los chips de su fila. Sin nadie a
+                quien sumar, el botón queda y dice por qué no hace nada. */}
+            {orgSeleccionada && candidatos.length > 0 && rolesOrg.some((r) => r.scope === 'org') ? (
+              <>
+                <Combo
+                  rotulo="Agregar usuario"
+                  opciones={[{ id: '', label: 'Elegí a quién…' }, ...candidatos.map((u) => ({ id: u.id, label: u.username }))]}
+                  valor={nuevoMiembro.userId}
+                  alCambiar={(v) => setNuevoMiembro((n) => ({ ...n, userId: v }))}
+                />
+                <Combo
+                  rotulo="con el rol"
+                  opciones={[
+                    { id: '', label: 'Elegí un rol…' },
+                    ...rolesOrg.filter((r) => r.scope === 'org').map((r) => ({ id: r.id, label: r.name })),
+                  ]}
+                  valor={nuevoMiembro.roleId}
+                  alCambiar={(v) => setNuevoMiembro((n) => ({ ...n, roleId: v }))}
+                />
+                <ToolbarBoton
+                  primario
+                  disabled={!nuevoMiembro.userId || !nuevoMiembro.roleId}
+                  onClick={() => {
+                    const { userId, roleId } = nuevoMiembro;
+                    void cambiarMembresia(async () => {
+                      await setMemberRoles(orgSeleccionada, userId, [roleId]);
+                      setNuevoMiembro({ userId: '', roleId: '' });
+                    }, 'Error al agregar a la organización');
+                  }}
+                >
+                  Agregar
+                </ToolbarBoton>
+              </>
+            ) : (
+              <ToolbarBoton
+                disabled
+                title={
+                  candidatos.length === 0
+                    ? 'No hay nadie sin organización: todos los clientes ya pertenecen a una. Creá uno con «+ Nuevo usuario».'
+                    : 'Esta organización no tiene roles de organización: creá uno para poder sumar gente.'
+                }
+              >
+                Agregar usuario
+              </ToolbarBoton>
+            )}
           </ToolbarUtiles>
         </Toolbar>
       </div>
 
+      <div className="p-6">
       {error && (
         <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>
       )}
 
       <section className="mb-8">
         <h2 className="mb-3 text-sm font-semibold text-white">Configuración de la organización</h2>
+        {orgSeleccionada && (
         <OrganizationRolesPanel
           users={users}
-          focusOrganizationId={orgEnfocada}
-          onSelect={alElegirOrganizacion}
+          organizacionFija={orgSeleccionada}
           // Agregar o quitar un miembro cambia la columna «Organización» de la
           // tabla de abajo: sin esto quedaría vieja hasta el próximo refresh.
           onMembersChanged={() => void refresh()}
+          sinMiembros
+          onRolesChanged={() => {
+            setVersionRoles((v) => v + 1);
+            void refresh();
+          }}
         />
+        )}
       </section>
 
       <section className="border-t border-white/10 pt-6">
@@ -683,6 +817,23 @@ export function UsersPage(): React.ReactElement {
             {verSinAsignar ? 'Sin asignar' : 'Usuarios de la organización'}
           </h2>
           <div className="flex items-center gap-2">
+            {/* EL NÚMERO ES LA RAZÓN DEL BOTÓN: dice de un vistazo si hay gente
+                esperando organización sin abrir la lista. Va junto al buscador
+                porque es lo mismo: un filtro de esta tabla. Los operadores salen
+                en la lista pero no cuentan — no esperan nada. */}
+            <button
+              type="button"
+              aria-pressed={verSinAsignar}
+              onClick={() => setVerSinAsignar((v) => !v)}
+              title="Clientes que no pertenecen a ninguna organización, y los operadores"
+              className={`rounded-lg border px-3 py-2 text-sm ${
+                verSinAsignar
+                  ? 'border-transparent bg-primary text-primary-foreground'
+                  : 'border-border text-secondary-foreground hover:bg-accent'
+              }`}
+            >
+              {pendientes} sin asignar
+            </button>
             <input
               type="search"
               value={busqueda}
@@ -725,13 +876,16 @@ export function UsersPage(): React.ReactElement {
                     vacioPaso: 'Todos los clientes pertenecen a una organización.',
                   }
                 : {
-                    vacio: 'Esta organización todavía no tiene miembros',
-                    vacioPaso: 'Se suman desde «Miembros» en el panel de arriba, o se crean con «+ Nuevo usuario».',
+                    vacio: 'Esta organización todavía no tiene usuarios',
+                    vacioPaso: 'Se suman con «Agregar usuario» acá abajo, o se crean con «+ Nuevo usuario».',
                   }
             }
           />
         )}
       </section>
+
+
+      </div>
 
       {creandoOrg && (
         <OrganizationFormModal
@@ -739,7 +893,7 @@ export function UsersPage(): React.ReactElement {
           onClose={() => setCreandoOrg(false)}
           onCreated={(id) => {
             setCreandoOrg(false);
-            setOrgEnfocada(id);
+            void cargarOrganizaciones(id);
             // La organización nueva se lleva a su dueño adentro, así que la
             // columna «Organización» de la tabla cambió para esa persona.
             void refresh();

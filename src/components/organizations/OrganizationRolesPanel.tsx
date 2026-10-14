@@ -19,9 +19,11 @@ import type {
 } from '../../lib/organizations-api.js';
 import type { UserSummary } from '../../lib/users-api.js';
 import { mensajeDeError } from './errores.js';
-import { agruparPorModulo } from './permisos-por-modulo.js';
 import { Tabla, type ColumnaDeTabla } from '../ui/Tabla.js';
-import { StatusBadge } from '../ui/atoms/StatusBadge.js';
+import { RolesDelMiembro } from './RolesDelMiembro.js';
+import { PermisosCompactos } from './PermisosCompactos.js';
+import { listModules } from '../../lib/catalog-api.js';
+import { useActiveProject } from '../../hooks/useActiveProject.js';
 
 /** Controles DENTRO de un modal, que sigue siendo una tarjeta clara sobre el overlay. */
 const INPUT_CLASS =
@@ -218,8 +220,18 @@ export function OrganizationRolesPanel({
   onMembersChanged,
   organizacionFija,
   onSelect,
+  sinMiembros = false,
+  onRolesChanged,
 }: {
   users: UserSummary[];
+  /**
+   * Sin la tabla «Miembros»: la página de Usuarios ya muestra a esa misma gente
+   * —con sus roles editables— en «Usuarios de la organización». Dos tablas con
+   * las mismas filas hacían preguntar si eran cosas distintas.
+   */
+  sinMiembros?: boolean;
+  /** Avisar que los roles cambiaron: quien muestra los chips de roles en otra tabla los recarga. */
+  onRolesChanged?: () => void;
   /**
    * Una sola organización y sin selector: es el modo de «Mi organización», donde
    * la organización ya está elegida arriba y el panel es una sección más.
@@ -244,6 +256,23 @@ export function OrganizationRolesPanel({
   const [organizations, setOrganizations] = useState<OrganizationSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [catalog, setCatalog] = useState<PermissionInfo[]>([]);
+  /* Los nombres de los módulos, para los chips de permisos. El catálogo entero
+     es sólo del operador; si no se puede (un cliente en Ajustes), alcanzan los
+     módulos de las suites del espacio activo. Lo que no tenga nombre muestra su
+     código, que igual lo identifica. */
+  const { suites } = useActiveProject();
+  const [modulosDelCatalogo, setModulosDelCatalogo] = useState<Array<{ key: string | null; name: string }>>([]);
+  useEffect(() => {
+    void listModules()
+      .then(setModulosDelCatalogo)
+      .catch(() => setModulosDelCatalogo([]));
+  }, []);
+  const nombresDeModulo = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const x of [...suites.flatMap((s) => s.modules), ...modulosDelCatalogo]) if (x.key) m.set(x.key, x.name);
+    return m;
+  }, [suites, modulosDelCatalogo]);
+  const descripciones = useMemo(() => new Map(catalog.map((p) => [p.permission, p.description])), [catalog]);
   const [roles, setRoles] = useState<RoleSummary[]>([]);
   const [members, setMembers] = useState<OrganizationMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -342,6 +371,7 @@ export function OrganizationRolesPanel({
     try {
       await accion();
       if (selectedId) await refreshOrg(selectedId);
+      onRolesChanged?.();
       if (tocaMiembros) onMembersChanged?.();
     } catch (err) {
       setError(mensajeDeError(err, fallback));
@@ -352,10 +382,18 @@ export function OrganizationRolesPanel({
      `permisos` es la elástica: es la única columna de largo impredecible —un rol
      puede tener uno o quince— y el template es explícito en que sólo el texto
      libre aguanta puntos suspensivos. */
+  /* El alcance va como chip DEBAJO del nombre y no en una columna propia: es
+     un atributo del rol que se lee junto con él, y una columna de dos valores
+     posibles se comía ancho que necesita `permisos`. La descripción existe como
+     columna pero arranca OCULTA: se prende desde los tres puntos del encabezado
+     cuando alguien quiere ver de qué trata cada rol. */
   const COLUMNAS_ROL: ColumnaDeTabla[] = [
-    { id: 'name', label: 'Rol', dato: 'name', w: 220, tip: true },
-    { id: 'scope', label: 'Alcance', dato: 'scope', w: 130 },
-    { id: 'permisos', label: 'Permisos', w: 420, orden: false, elastica: true },
+    /* 300 contra 700: el ancho que sobra se reparte en proporción al ideal de
+       cada columna, así que el nombre queda en ~30% de la tabla. Arriba, para
+       no flotar en el medio cuando los permisos ocupan dos renglones. */
+    { id: 'name', label: 'Rol', dato: 'name', w: 300, tip: true, va: 'arriba' },
+    { id: 'permisos', label: 'Permisos', w: 700, orden: false, elastica: true },
+    { id: 'descripcion', label: 'Descripción', dato: 'description', w: 280, orden: false },
   ];
 
   /* Editar y Eliminar van al menú de fila y no a botones sueltos en una columna
@@ -380,14 +418,22 @@ export function OrganizationRolesPanel({
   function celdaDeRol(r: RoleSummary, c: ColumnaDeTabla): React.ReactNode {
     if (c.id === 'name') {
       return (
-        <div>
+        <div className="flex flex-col items-start gap-1 py-2">
           <span className="font-medium">{r.name}</span>
-          {r.description ? <span className="block text-xs opacity-70">{r.description}</span> : null}
+          {/* La `.badge` del tema (Basecoat + basecoat-ext.css), no el átomo
+              `Badge`: ése es del look anterior y sus tokens ya no existen. */}
+          <span className="badge" data-variant={r.scope === 'org' ? undefined : 'mute'}>
+            {r.scope === 'org' ? 'Organización' : 'Proyecto'}
+          </span>
         </div>
       );
     }
-    if (c.id === 'scope') {
-      return <StatusBadge label={r.scope === 'org' ? 'Organización' : 'Proyecto'} tone={r.scope === 'org' ? 'info' : 'neutral'} />;
+    if (c.id === 'descripcion') {
+      return r.description ? (
+        <span className="whitespace-normal text-xs opacity-80">{r.description}</span>
+      ) : (
+        <span className="text-xs opacity-50">Sin descripción</span>
+      );
     }
     if (c.id === 'permisos') {
       /* UN ROL SIN PERMISOS NO ES UNA CELDA VACÍA: es la causa del 403 que
@@ -396,22 +442,7 @@ export function OrganizationRolesPanel({
       if (r.permissions.length === 0) {
         return <span className="text-xs opacity-70">Sin permisos — nadie con este rol puede hacer nada</span>;
       }
-      /* Agrupados por módulo: la pregunta que se le hace a esta celda es "¿de
-         qué se puede ocupar este rol?", y una fila plana de nueve chips de tres
-         familias obliga a contarlos. El rótulo es la `key` cruda —con su id—
-         porque es lo que distingue un módulo de otro. */
-      return (
-        <div className="flex flex-col gap-1">
-          {agruparPorModulo(r.permissions).map((g) => (
-            <div key={g.titulo} className="flex flex-wrap items-center gap-1">
-              <span className="text-[10px] uppercase tracking-wide opacity-50">{g.titulo}</span>
-              {g.items.map((i) => (
-                <StatusBadge key={i.permiso} label={i.etiqueta} tone={g.plataforma ? 'neutral' : 'info'} />
-              ))}
-            </div>
-          ))}
-        </div>
-      );
+      return <PermisosCompactos permisos={r.permissions} nombres={nombresDeModulo} descripciones={descripciones} />;
     }
     return null;
   }
@@ -439,86 +470,16 @@ export function OrganizationRolesPanel({
   function celdaDeMiembro(m: OrganizationMember, c: ColumnaDeTabla): React.ReactNode {
     if (c.id === 'username') return <span className="font-medium">{m.username}</span>;
     if (c.id === 'rol') {
-      /* UN TOGGLE POR ROL, no un `<select multiple>`. Los permisos de un miembro
-         son la UNIÓN de sus roles, así que lo que hay que poder leer de un
-         vistazo es cuáles tiene — y un multi-select nativo esconde eso detrás
-         de un scroll y de un Ctrl+clic que nadie descubre. Acá cada rol es un
-         chip: encendido = lo tiene. */
-      /* SÓLO LOS DE ORGANIZACIÓN. Este eje no otorga nada sobre proyectos, así
-         que ofrecer acá un rol `scope: project` es ofrecer algo que se guarda
-         bien y no hace nada — el chip queda encendido y la persona sigue sin
-         poder entrar al proyecto. Pasó: «Colaborador» (que lleva `project:read`)
-         puesto acá en vez de en el proyecto, y la suite nunca apareció.
-         La API lo rechaza también (`RoleNotForOrganizationAxisError`); esto es
-         para que no se pueda ni intentar. */
-      const deOrganizacion = roles.filter((r) => r.scope === 'org');
-      const asignados = new Set(m.roles.map((r) => r.role_id));
-      const alternar = (roleId: string): void => {
-        if (!selectedId) return;
-        const siguiente = new Set(asignados);
-        if (siguiente.has(roleId)) siguiente.delete(roleId);
-        else siguiente.add(roleId);
-        void conManejoDeError(
-          () => setMemberRoles(selectedId, m.user_id, [...siguiente]),
-          'Error al cambiar los roles',
-          true,
-        );
-      };
-      /* Lo que está asignado pero NO se ofrece: un rol borrado por debajo, o
-         uno de proyecto que quedó colgado de acá antes de que esto se
-         filtrara. Se muestra igual —desaparecer sin decirlo dejaría una fila
-         que nadie puede limpiar— y se puede sacar con un clic. */
-      const colgados = m.roles.filter((r) => !deOrganizacion.some((x) => x.id === r.role_id));
       return (
-        <div className="flex flex-wrap gap-1">
-          {deOrganizacion.map((r) => {
-            const activo = asignados.has(r.id);
-            return (
-              <button
-                key={r.id}
-                type="button"
-                disabled={!puedeMiembros}
-                onClick={() => alternar(r.id)}
-                aria-pressed={activo}
-                title={activo ? `Sacarle «${r.name}»` : `Darle «${r.name}»`}
-                className={`rounded-full border px-2 py-0.5 text-[11px] disabled:opacity-40 ${
-                  activo
-                    ? 'border-transparent bg-[var(--sw-accent)] text-white'
-                    : 'border-white/20 opacity-60 hover:opacity-100'
-                }`}
-              >
-                {r.name}
-              </button>
-            );
-          })}
-          {colgados.map((r) => {
-            const deProyecto = roles.find((x) => x.id === r.role_id);
-            return (
-              <button
-                key={r.role_id}
-                type="button"
-                disabled={!puedeMiembros}
-                onClick={() => alternar(r.role_id)}
-                title={
-                  deProyecto
-                    ? `«${deProyecto.name}» es un rol de proyecto: acá no otorga nada. Sacalo y asignalo en el proyecto.`
-                    : 'Este rol ya no existe. Clic para sacarlo.'
-                }
-                className="rounded-full border border-amber-500/40 px-2 py-0.5 text-[11px] text-amber-300 disabled:opacity-40"
-              >
-                {r.role_name ?? '(rol desconocido)'} ✕
-              </button>
-            );
-          })}
-          {/* Pertenecer sin roles es un estado real y el que más confunde: la
-              persona entra y no puede nada. Se dice, no se deja en blanco. */}
-          {m.roles.length === 0 ? <span className="text-[11px] opacity-60">Sin roles — no puede nada</span> : null}
-          {/* Sin roles de organización no hay nada que ofrecer, y el vacío se
-              lee como un bug de la pantalla si no se dice por qué. */}
-          {deOrganizacion.length === 0 ? (
-            <span className="text-[11px] opacity-60">Esta organización no tiene roles de organización</span>
-          ) : null}
-        </div>
+        <RolesDelMiembro
+          roles={roles}
+          asignados={m.roles}
+          editable={puedeMiembros}
+          onCambiar={(ids) => {
+            if (!selectedId) return;
+            void conManejoDeError(() => setMemberRoles(selectedId, m.user_id, ids), 'Error al cambiar los roles', true);
+          }}
+        />
       );
     }
     return null;
@@ -591,6 +552,7 @@ export function OrganizationRolesPanel({
         <Tabla<RoleSummary>
           titulo="Roles"
           columnas={COLUMNAS_ROL}
+          ocultasInicial={['descripcion']}
           filas={roles}
           clave={(r) => r.id}
           nombreFila={(r) => r.name}
@@ -609,6 +571,7 @@ export function OrganizationRolesPanel({
         />
       </section>
 
+      {!sinMiembros && (
       <section>
         <h2 className="mb-2 text-sm font-semibold text-white">Miembros</h2>
         <Tabla<OrganizationMember>
@@ -686,6 +649,8 @@ export function OrganizationRolesPanel({
         )}
       </section>
 
+      )}
+
       {/* `key` por organización: el estado del formulario no tiene que
           sobrevivir al cambio de organización en el select de arriba. */}
 
@@ -698,6 +663,7 @@ export function OrganizationRolesPanel({
           onSaved={() => {
             setEditingRole(null);
             void refreshOrg(selectedId);
+            onRolesChanged?.();
           }}
         />
       )}
