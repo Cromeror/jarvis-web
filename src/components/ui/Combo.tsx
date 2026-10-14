@@ -71,22 +71,33 @@ export function Combo({
   opciones,
   valor,
   alCambiar,
+  placeholder,
 }: {
   rotulo: string;
   opciones: OpcionDeCombo[];
   valor: string;
   alCambiar: (v: string) => void;
+  /**
+   * Texto del disparador cuando no hay nada elegido, que NO es una opción. Para
+   * un combo que es una acción («Agregar un proyecto…»): poner ese texto como
+   * primera opción la mostraba en la lista, y elegirla no hacía nada. Con
+   * `placeholder`, `valor` vacío es «sin elegir» y la lista trae sólo lo elegible.
+   */
+  placeholder?: string;
 }): React.ReactElement {
   /* El template elige `opciones.find(o => o.id === actual) || opciones[0]`: un
      valor que ya no está en la lista —el proveedor que se fue al cambiar de
-     mes— cae en la primera opción, que es «todos». Mismo criterio acá. */
-  const elegida = opciones.find((o) => o.id === valor) ?? opciones[0];
+     mes— cae en la primera opción, que es «todos». Mismo criterio acá, salvo
+     con `placeholder`: ahí lo que no está en la lista es «sin elegir». */
+  const elegida = opciones.find((o) => o.id === valor) ?? (placeholder !== undefined ? undefined : opciones[0]);
 
   return (
     <div className="sw-ctb__campo">
       <span className="sw-ctb__lab">{rotulo}</span>
       <Select.Root
-        value={elegida?.id === '' ? TODOS : (elegida?.id ?? TODOS)}
+        // Con placeholder y nada elegido, la cadena vacía: es la forma de Radix
+        // de decir «sin valor».
+        value={elegida === undefined ? '' : elegida.id === '' ? TODOS : elegida.id}
         onValueChange={(v) => alCambiar(v === TODOS ? '' : v)}
       >
         <div className="select sw-ctb__sel">
@@ -94,9 +105,15 @@ export function Combo({
             <button type="button" aria-label={rotulo}>
               {/* `.truncate` lo pide el CSS del template: el nombre de un
                   tercero no entra en 128px y tiene que cortarse, no empujar. */}
-              <Select.Value asChild>
-                <span className="truncate">{elegida?.label ?? ''}</span>
-              </Select.Value>
+              {/* Sin valor, Radix no pinta los hijos de `Select.Value` sino su
+                  prop `placeholder`: por eso el sin-elegir va por ahí. */}
+              {elegida === undefined ? (
+                <Select.Value className="truncate text-muted-foreground" placeholder={placeholder} />
+              ) : (
+                <Select.Value asChild>
+                  <span className="truncate">{elegida.label}</span>
+                </Select.Value>
+              )}
               <Icon name="chevron" />
             </button>
           </Select.Trigger>

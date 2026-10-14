@@ -18,6 +18,7 @@ import { Icon } from '../components/Icon.js';
 import { CampoClave } from '../components/ui/CampoClave.js';
 import { Dialogo } from '../components/ui/Dialogo.js';
 import { ChipDeGrupo } from '../components/ui/ChipDeGrupo.js';
+import { MenuContextual } from '../components/ui/MenuContextual.js';
 import { Button } from '../components/ui/atoms/Button.js';
 import { filasDeUsuarios, pendientesDeAsignar } from '../lib/usuarios-por-organizacion.js';
 
@@ -150,6 +151,7 @@ function UserFormModal({
   const puedeElegirOrganizacion = !editing || !editing.organization;
   /** Qué proyecto tiene abierto el recuadro de roles (uno a la vez). */
   const [editandoProyecto, setEditandoProyecto] = useState<string | null>(null);
+  const [menuDeProyecto, setMenuDeProyecto] = useState<{ id: string; x: number; y: number } | null>(null);
   const idsAsignados = new Set(form.project_roles.map((a) => a.project_id));
   /* El que se está editando sigue en la lista aunque se le saquen todos los
      roles: si desapareciera al destildar el último, no habría dónde volver a
@@ -410,17 +412,36 @@ function UserFormModal({
         {form.account_type === 'client' && (
           <div className="grid gap-2">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-medium text-muted-foreground">Proyectos y sus roles</span>
+              <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                Proyectos y sus roles
+                {/* Lo que no aparece en la lista, y por qué, en un ícono de info
+                    con el tooltip del tema: es una explicación que se consulta,
+                    no algo que tenga que ocupar el modal. */}
+                {sinRolesDeProyecto > 0 && (
+                  <span
+                    tabIndex={0}
+                    className="inline-flex cursor-help text-muted-foreground"
+                    data-tooltip={`${sinRolesDeProyecto === 1 ? 'Un proyecto no aparece' : `${sinRolesDeProyecto} proyectos no aparecen`} en la lista: su organización no tiene roles de proyecto. Creá uno en «Roles» para poder asignarlos.`}
+                    data-tooltip-largo=""
+                    data-side="bottom"
+                    data-align="start"
+                    aria-label={`${sinRolesDeProyecto} proyectos sin roles de proyecto`}
+                  >
+                    <Icon name="info" />
+                  </span>
+                )}
+              </span>
               {/* UNA LISTA QUE SE DESPLIEGA, no una lista de casillas: una persona
                   tiene pocos proyectos de muchos posibles, y la lista entera
                   tildada escondía cuáles tenía entre los que no. Es el combo del
                   template —con scroll y búsqueda al teclear—, porque los
                   proyectos pueden ser decenas. Elegir uno lo agrega y el combo
-                  vuelve a «Agregar proyecto». */}
+                  vuelve a «Agregar un proyecto…». */}
               {rolesListos && asignables.length > 0 ? (
                 <Combo
                   rotulo=""
-                  opciones={[{ id: '', label: '+ Agregar proyecto' }, ...asignables.map((p) => ({ id: p.id, label: p.name }))]}
+                  placeholder="Agregar un proyecto…"
+                  opciones={asignables.map((p) => ({ id: p.id, label: p.name }))}
                   valor=""
                   alCambiar={(id) => {
                     const p = projects.find((x) => x.id === id);
@@ -461,34 +482,20 @@ function UserFormModal({
                         {deEsteProyecto.length === 0 ? (
                           <span className="text-[11px] text-[var(--sw-warning)]">sin roles — no podrá entrar</span>
                         ) : null}
-                        {/* ÍCONOS Y NO RÓTULOS: la fila es angosta y el chip con los
-                            roles es lo que se viene a leer. El rótulo queda en el
-                            title y en el aria-label. */}
+                        {/* LOS TRES PUNTOS DEL TEMPLATE (`.sw-tabla__puntos`), como el
+                            menú de fila de las tablas: las acciones con su nombre
+                            en un menú, sin ocupar la fila. */}
                         <button
                           type="button"
-                          className="btn"
-                          data-variant="ghost"
-                          data-size="icon-sm"
-                          aria-expanded={abierto}
-                          aria-label={abierto ? `Listo con ${p.name}` : `Editar los roles en ${p.name}`}
-                          title={abierto ? 'Listo' : 'Editar los roles'}
-                          onClick={() => setEditandoProyecto(abierto ? null : p.id)}
-                        >
-                          <Icon name={abierto ? 'check' : 'pen'} />
-                        </button>
-                        <button
-                          type="button"
-                          className="btn text-[var(--sw-error)]"
-                          data-variant="ghost"
-                          data-size="icon-sm"
-                          aria-label={`Quitar ${p.name}`}
-                          title="Quitar el proyecto"
-                          onClick={() => {
-                            toggleProject(p);
-                            if (abierto) setEditandoProyecto(null);
+                          className="sw-tabla__puntos sw-touch-target"
+                          aria-haspopup="menu"
+                          aria-label={`Acciones de ${p.name}`}
+                          onClick={(e) => {
+                            const r = e.currentTarget.getBoundingClientRect();
+                            setMenuDeProyecto({ id: p.id, x: r.right, y: r.bottom + 2 });
                           }}
                         >
-                          <Icon name="trash" />
+                          <Icon name="puntos" />
                         </button>
                       </div>
                       {/* LOS ROLES SE EDITAN DE A UN PROYECTO: el recuadro con todos
@@ -524,11 +531,32 @@ function UserFormModal({
               </ul>
             )}
 
-            {sinRolesDeProyecto > 0 && (
-              <p className="text-[11px] text-muted-foreground">
-                {sinRolesDeProyecto === 1 ? 'Un proyecto no aparece' : `${sinRolesDeProyecto} proyectos no aparecen`} en la
-                lista: su organización no tiene roles de proyecto. Creá uno en «Roles» para poder asignarlos.
-              </p>
+            {menuDeProyecto && (
+              <MenuContextual
+                x={menuDeProyecto.x}
+                y={menuDeProyecto.y}
+                onCerrar={() => setMenuDeProyecto(null)}
+                groups={[
+                  {
+                    items: [
+                      editandoProyecto === menuDeProyecto.id
+                        ? { id: 'listo', label: 'Terminar de editar' }
+                        : { id: 'editar', label: 'Editar roles' },
+                    ],
+                  },
+                  { items: [{ id: 'quitar', label: 'Quitar del usuario', danger: true }] },
+                ]}
+                onSelect={(accion) => {
+                  const p = projects.find((x) => x.id === menuDeProyecto.id);
+                  if (!p) return;
+                  if (accion === 'editar') setEditandoProyecto(p.id);
+                  if (accion === 'listo') setEditandoProyecto(null);
+                  if (accion === 'quitar') {
+                    toggleProject(p);
+                    if (editandoProyecto === p.id) setEditandoProyecto(null);
+                  }
+                }}
+              />
             )}
           </div>
         )}

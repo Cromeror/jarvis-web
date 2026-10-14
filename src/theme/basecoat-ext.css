@@ -620,3 +620,18 @@ input[type="radio"] {
   flex: 0 0 auto;
   align-self: center;
 }
+
+/* ---------------------------------------------------------------
+   EL TOOLTIP DE VARIAS LÍNEAS. El de Basecoat (`[data-tooltip]`) corta su
+   texto a una línea (`truncate`): sirve para un rótulo, no para una
+   explicación. Con `data-tooltip-largo` el texto baja de renglón dentro de un
+   ancho fijo legible, en vez de terminar en «…».
+   --------------------------------------------------------------- */
+[data-tooltip][data-tooltip-largo]::before {
+  white-space: normal;
+  width: max-content;
+  max-width: 18rem;
+  text-align: left;
+  overflow: visible;
+  text-overflow: clip;
+}
