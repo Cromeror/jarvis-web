@@ -216,11 +216,17 @@ export function TablaDeCarpetas({
                             : !p.tiene_root
                               ? " — sin carpeta"
                               : "";
+                    /* Sin carpeta en el servidor no hay dónde recibir: no se
+                       ofrece invitarlo. Sí se puede sacar si ya estaba. */
+                    const sinDondeRecibir = !p.tiene_root && !m;
                     return {
                       id: `espacio:${p.id}`,
-                      label: `${p.name}${sufijo}`,
+                      label: sinDondeRecibir
+                        ? `${p.name} — sin carpeta, no puede recibir`
+                        : `${p.name}${sufijo}`,
                       // Rechazada no cuenta como compartida: tocarla la vuelve a pedir.
                       checked: Boolean(m) && m?.estado !== "rechazada",
+                      disabled: sinDondeRecibir,
                     };
                   })
                 : [
