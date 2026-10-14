@@ -5,7 +5,7 @@
  * Revisar usuarios se piensa por organización; la lista global, revuelta, no
  * contestaba nada. Pero en una vista sólo por organización desaparecerían justo
  * los que hay que revisar —alguien los creó y nadie los metió en una—, y para
- * eso está «Sin asignar». Diseño en `docs/buckets-de-modulos.md` del workspace.
+ * eso está «Sin asignar». Diseño en el historial de git de `docs/buckets-de-modulos.md` del workspace.
  */
 
 export interface UsuarioParaFiltrar {

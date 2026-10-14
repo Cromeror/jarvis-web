@@ -3,9 +3,9 @@ import React from 'react';
 /**
  * LA TOOLBAR — una pieza OPCIONAL de la superficie, no del chasis.
  *
- * En el vocabulario de `SpaceMyWork-nombres.md` (propuesta del 24-sep) la
+ * En el vocabulario de `docs/01-definiciones.md` del workspace, la
  * superficie es todo lo que cambia con el riel, y todas sus partes son
- * opcionales: context, toolbar, área central, columna lateral, dock. Una
+ * opcionales: context, toolbar, columna lateral, dock. Una
  * superficie que necesita acciones arriba pone esta toolbar adentro de su área
  * de trabajo; una que no, no la pone, y no le cuesta alto a nadie.
  *
