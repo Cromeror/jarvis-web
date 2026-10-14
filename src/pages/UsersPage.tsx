@@ -442,7 +442,9 @@ function UserFormModal({
                 {rolesListos ? 'Sin proyectos: no va a ver ninguno.' : 'Cargando roles…'}
               </p>
             ) : (
-              <ul className="grid gap-2">
+              /* Con techo y scroll propio: una persona con muchos proyectos
+                 empujaba el pie del modal —y «Guardar»— fuera de la pantalla. */
+              <ul className="grid max-h-80 gap-2 overflow-y-auto pr-1">
                 {asignados.map((p) => {
                   const deEsteProyecto = form.project_roles.filter((a) => a.project_id === p.id);
                   const disponibles = rolesAsignables(p, rolesPorOrg);
@@ -459,19 +461,35 @@ function UserFormModal({
                         {deEsteProyecto.length === 0 ? (
                           <span className="text-[11px] text-[var(--sw-warning)]">sin roles — no podrá entrar</span>
                         ) : null}
-                        <Button variant="ghost" aria-expanded={abierto} onClick={() => setEditandoProyecto(abierto ? null : p.id)}>
-                          {abierto ? 'Listo' : 'Editar'}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          className="text-[var(--sw-error)]"
+                        {/* ÍCONOS Y NO RÓTULOS: la fila es angosta y el chip con los
+                            roles es lo que se viene a leer. El rótulo queda en el
+                            title y en el aria-label. */}
+                        <button
+                          type="button"
+                          className="btn"
+                          data-variant="ghost"
+                          data-size="icon-sm"
+                          aria-expanded={abierto}
+                          aria-label={abierto ? `Listo con ${p.name}` : `Editar los roles en ${p.name}`}
+                          title={abierto ? 'Listo' : 'Editar los roles'}
+                          onClick={() => setEditandoProyecto(abierto ? null : p.id)}
+                        >
+                          <Icon name={abierto ? 'check' : 'pen'} />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn text-[var(--sw-error)]"
+                          data-variant="ghost"
+                          data-size="icon-sm"
+                          aria-label={`Quitar ${p.name}`}
+                          title="Quitar el proyecto"
                           onClick={() => {
                             toggleProject(p);
                             if (abierto) setEditandoProyecto(null);
                           }}
                         >
-                          Quitar
-                        </Button>
+                          <Icon name="trash" />
+                        </button>
                       </div>
                       {/* LOS ROLES SE EDITAN DE A UN PROYECTO: el recuadro con todos
                           los posibles aparece sólo en el que se está editando.

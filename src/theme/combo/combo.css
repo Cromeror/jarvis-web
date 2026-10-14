@@ -60,3 +60,13 @@
 @media (pointer: coarse) {
   .sw-ctb__sel button { height: var(--sw-comp-h-tactil); }
 }
+
+/* EL DESPLEGABLE TIENE TECHO. Basecoat no le pone alto máximo, y una lista
+   larga —los proyectos al dar de alta a alguien pueden ser decenas— se salía
+   de la pantalla. Lo que no entra se desplaza adentro. El techo es el menor
+   entre 18rem y el alto que Radix calcula disponible hasta el borde de la
+   ventana, así que tampoco se corta abajo cuando el combo está cerca del pie. */
+.sw-ctb__sel [data-popover] {
+  max-height: min(18rem, var(--radix-select-content-available-height, 18rem));
+  overflow-y: auto;
+}
