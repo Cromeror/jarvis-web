@@ -56,8 +56,6 @@ export interface EspacioDeRed {
   name: string;
   /** Tiene carpeta en el servidor. Sin ella no hay dónde recibir. */
   tiene_root: boolean;
-  /** Desactivado en la red por la organización. */
-  desactivado: boolean;
 }
 
 export interface Publicado {
@@ -78,8 +76,6 @@ export interface ProyectoDeRed {
   con_modulo: boolean;
   /** Tiene carpeta en el disco. Sin ella no hay dónde publicar ni recibir. */
   tiene_root: boolean;
-  /** Desactivado en la red por la organización: no comparte ni recibe. */
-  desactivado?: { por: string | null; nota: string | null; desde: string } | null;
 }
 
 export interface RedDeOrganizacion {
@@ -102,8 +98,6 @@ export interface RedDeProyecto {
   propias: Array<{ circulo: Circulo; miembros: MiembroDeCirculo[] }>;
   /** Los demás espacios de la organización: a quién se puede invitar. */
   espacios: EspacioDeRed[];
-  /** Si la organización desactivó a este espacio en la red, y por qué. */
-  desactivado: { nota: string | null; desde: string } | null;
 }
 
 const jsonHeaders = { 'Content-Type': 'application/json' };
@@ -349,30 +343,6 @@ export async function decidirInvitacion(
       `${base(organizationId)}/circulos/${encodeURIComponent(circuloId)}/miembros/${encodeURIComponent(projectId)}/decision`,
       { method: 'POST', headers: jsonHeaders, body: JSON.stringify(decision) },
     ),
-  );
-}
-
-// ── Espacios desactivados en la red (`MOD-0007:manage`) ──────────────────
-// La cuarentena de un espacio entero: todo lo que comparte deja de verse y deja
-// de recibir. Se reactiva y vuelve como estaba.
-
-export async function desactivarEspacioEnLaRed(
-  organizationId: string,
-  projectId: string,
-  nota?: string,
-): Promise<void> {
-  await handleResponse(
-    await fetch(`${base(organizationId)}/espacios/${encodeURIComponent(projectId)}/desactivar`, {
-      method: 'POST',
-      headers: jsonHeaders,
-      body: JSON.stringify(nota ? { nota } : {}),
-    }),
-  );
-}
-
-export async function activarEspacioEnLaRed(organizationId: string, projectId: string): Promise<void> {
-  await handleResponse(
-    await fetch(`${base(organizationId)}/espacios/${encodeURIComponent(projectId)}/activar`, { method: 'POST' }),
   );
 }
 

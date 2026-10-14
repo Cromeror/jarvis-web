@@ -1,15 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  activarEspacioEnLaRed,
   agregarCarpetaDesdeDisco,
-  desactivarEspacioEnLaRed,
   listarCarpetasEnDisco,
   type CarpetaEnDisco,
   type Circulo,
   type MiembroDeCirculo,
   type ProyectoDeRed,
 } from '../../lib/red-de-contexto-api.js';
-import { timeAgo } from '../../lib/time-ago.js';
 import { Icon } from '../Icon.js';
 import { Tabla, type ColumnaDeTabla } from '../ui/Tabla.js';
 import { INPUT_CLASS } from './carpetas-compartidas.js';
@@ -29,15 +26,13 @@ const CHIP_DISCO =
   'inline-flex items-center gap-1 rounded-full border border-dashed border-border px-2 py-0.5 text-xs text-secondary-foreground';
 
 /**
- * LOS ESPACIOS EN LA RED, del lado de la organización: activarlos o
- * desactivarlos.
+ * LOS ESPACIOS EN LA RED, del lado de la organización: cuántas carpetas tiene y
+ * comparte cada uno, si puede participar, y las carpetas que tiene en el disco
+ * sin agregar a la red.
  *
- * Desactivar es la CUARENTENA DE UN ESPACIO ENTERO. La cuarentena retiene
- * archivos puntuales; desactivar deja invisible todo lo que el espacio comparte
- * —se retira lo que los demás recibieron de él— y deja de recibir. Su
- * `publicado/` y todo lo que está fuera de la red no se tocan, y reactivarlo
- * vuelve todo como estaba. Como afecta lo que ven OTROS espacios, pide
- * confirmación.
+ * Desactivar un espacio entero en la red existió y se quitó: nació de un
+ * malentendido —lo que se quería desactivar eran carpetas, y eso vive en
+ * «Carpetas compartidas»—.
  */
 export function OrganizationEspaciosSection({
   organizationId,
@@ -51,7 +46,6 @@ export function OrganizationEspaciosSection({
   onCambio: () => void;
 }): React.ReactElement {
   const [error, setError] = useState<string | null>(null);
-  const [aDesactivar, setADesactivar] = useState<ProyectoDeRed | null>(null);
   const [enDisco, setEnDisco] = useState<CarpetaEnDisco[] | null>(null);
   const [aAgregar, setAAgregar] = useState<CarpetaEnDisco | null>(null);
 
@@ -130,17 +124,6 @@ export function OrganizationEspaciosSection({
         );
       }
       case 'estado':
-        if (p.desactivado) {
-          return (
-            <span
-              className="inline-flex items-center gap-1 text-amber-300"
-              title={`Desactivado ${timeAgo(p.desactivado.desde)}${p.desactivado.nota ? ` — ${p.desactivado.nota}` : ''}`}
-            >
-              <Icon name="eyeOff" />
-              Desactivado
-            </span>
-          );
-        }
         if (!p.tiene_root) {
           return (
             <span
@@ -172,10 +155,6 @@ export function OrganizationEspaciosSection({
           agregue desde el menú del espacio.
         </div>
       )}
-      <p className="mb-3 text-xs text-muted-foreground">
-        Desactivar un espacio deja invisible todo lo que comparte en la red —lo que los demás recibieron de él se
-        retira— y deja de recibir. Es la cuarentena de un espacio entero; reactivarlo vuelve todo como estaba.
-      </p>
       {error && (
         <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
           {error}
@@ -189,10 +168,13 @@ export function OrganizationEspaciosSection({
         nombreFila={(p) => p.name}
         seleccion={false}
         celda={celda}
-        menuFila={(p) => ({
-          groups: [
-            ...(sinAgregar(p).length > 0
-              ? [
+        /* El menú de un espacio es agregar lo que tiene en el disco: sin nada
+           para agregar, no hay menú. */
+        menuFila={(p) =>
+          sinAgregar(p).length === 0
+            ? null
+            : {
+                groups: [
                   {
                     items: sinAgregar(p).map((c) => ({
                       id: `agregar:${c.slug}`,
@@ -203,38 +185,13 @@ export function OrganizationEspaciosSection({
                       disabled: !c.nombre_valido,
                     })),
                   },
-                ]
-              : []),
-            {
-              items: p.desactivado
-                ? [{ id: 'activar', label: 'Activar en la red', icon: 'eye' }]
-                : [
-                    {
-                      id: 'desactivar',
-                      label: 'Desactivar en la red…',
-                      icon: 'eyeOff',
-                      danger: true,
-                    },
-                  ],
-            },
-          ],
-          onSelect: (id, fila) => {
-            if (id.startsWith('agregar:')) {
-              const slug = id.slice('agregar:'.length);
-              setAAgregar(sinAgregar(fila).find((c) => c.slug === slug) ?? null);
-            }
-            if (id === 'desactivar') setADesactivar(fila);
-            if (id === 'activar') {
-              if (
-                !window.confirm(
-                  `¿Activar «${fila.name}» en la red? Vuelve a compartir y a recibir en la próxima sincronización, que corre ya.`,
-                )
-              )
-                return;
-              void accion(() => activarEspacioEnLaRed(organizationId, fila.id), 'No se pudo activar el espacio');
-            }
-          },
-        })}
+                ],
+                onSelect: (id, fila) => {
+                  const slug = id.slice('agregar:'.length);
+                  setAAgregar(sinAgregar(fila).find((c) => c.slug === slug) ?? null);
+                },
+              }
+        }
         textos={{ vacio: 'La organización no tiene espacios' }}
       />
 
@@ -256,108 +213,10 @@ export function OrganizationEspaciosSection({
             : Promise.resolve(false)
         }
       />
-
-      <ConfirmarDesactivar
-        espacio={aDesactivar}
-        onCerrar={() => setADesactivar(null)}
-        onConfirmar={(nota) =>
-          aDesactivar
-            ? accion(
-                () => desactivarEspacioEnLaRed(organizationId, aDesactivar.id, nota || undefined),
-                'No se pudo desactivar el espacio',
-              )
-            : Promise.resolve(false)
-        }
-      />
     </section>
   );
 }
 
-/**
- * Confirmar que se desactiva un espacio en la red. Es un diálogo con su propio
- * botón —y no un `confirm()`— porque afecta lo que ven OTROS espacios, y quien
- * confirma tiene que leer qué pasa antes de hacerlo. La nota la lee el equipo
- * del espacio en su pantalla.
- */
-function ConfirmarDesactivar({
-  espacio,
-  onCerrar,
-  onConfirmar,
-}: {
-  espacio: ProyectoDeRed | null;
-  onCerrar: () => void;
-  onConfirmar: (nota: string) => Promise<boolean>;
-}): React.ReactElement {
-  const ref = useRef<HTMLDialogElement>(null);
-  const [nota, setNota] = useState('');
-  const [enviando, setEnviando] = useState(false);
-
-  useEffect(() => {
-    const d = ref.current;
-    if (!d) return;
-    if (espacio) {
-      setNota('');
-      if (!d.open) d.showModal();
-    } else if (d.open) d.close();
-  }, [espacio]);
-
-  async function confirmar(): Promise<void> {
-    setEnviando(true);
-    const ok = await onConfirmar(nota.trim());
-    setEnviando(false);
-    if (ok) ref.current?.close();
-  }
-
-  return (
-    <dialog
-      ref={ref}
-      className="dialog"
-      onClose={onCerrar}
-      onClick={(e) => {
-        if (e.target === ref.current) ref.current?.close();
-      }}
-    >
-      <article style={{ width: '100%', maxWidth: 'min(560px, calc(100vw - 2rem))' }}>
-        <header>
-          <h2>Desactivar «{espacio?.name}» en la red</h2>
-          <p>Afecta lo que ven los demás espacios.</p>
-        </header>
-        <section className="space-y-3 text-sm">
-          <ul className="list-disc space-y-1 pl-5 text-secondary-foreground">
-            <li>Lo que los demás espacios recibieron de él se les retira.</li>
-            <li>Deja de recibir lo que comparten los demás.</li>
-            <li>Su carpeta publicado/ y todo lo que está fuera de la red no se tocan.</li>
-            <li>Se puede volver a activar, y todo vuelve como estaba.</li>
-          </ul>
-          <label className="block">
-            <span className="mb-1 block text-xs text-muted-foreground">
-              Por qué (opcional) — lo lee el equipo del espacio
-            </span>
-            <textarea
-              className={`${INPUT_CLASS} min-h-20 text-xs`}
-              value={nota}
-              onChange={(e) => setNota(e.target.value)}
-            />
-          </label>
-        </section>
-        <footer>
-          <button type="button" className="btn" data-variant="outline" onClick={() => ref.current?.close()}>
-            Cancelar
-          </button>
-          <button
-            type="button"
-            className="btn"
-            data-variant="destructive"
-            disabled={enviando}
-            onClick={() => void confirmar()}
-          >
-            {enviando ? 'Desactivando…' : 'Desactivar'}
-          </button>
-        </footer>
-      </article>
-    </dialog>
-  );
-}
 
 /** Tamaño legible: lo que viajaría si se comparte. */
 function tamano(bytes: number): string {
