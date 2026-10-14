@@ -159,6 +159,7 @@
    la base de Tailwind estan en duracion 0s — inertes, no animan nada, y
    perseguirlos seria ruido. Se corrigen los que se mueven. */
 .dialog > article,
+.dialog > form,
 .alert-dialog > article,
 .accordion summary,
 .accordion > details > summary {
@@ -171,6 +172,7 @@
    la misma de las cajas de la pantalla de entrar (decisión del dueño: una
    sombra para todo lo que es modal). */
 .dialog > article,
+.dialog > form,
 .alert-dialog > article {
   box-shadow: var(--sw-e-modal);
 }

@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useCierrePorFondo } from '../../hooks/useCierrePorFondo.js';
 import {
   createRole,
   deleteRole,
@@ -22,14 +21,11 @@ import type { UserSummary } from '../../lib/users-api.js';
 import { mensajeDeError } from './errores.js';
 import { Tabla, type ColumnaDeTabla } from '../ui/Tabla.js';
 import { RolesDelMiembro } from './RolesDelMiembro.js';
+import { Dialogo } from '../ui/Dialogo.js';
 import { PermisosCompactos } from './PermisosCompactos.js';
 import { listModules } from '../../lib/catalog-api.js';
 import { useActiveProject } from '../../hooks/useActiveProject.js';
 import { Icon } from '../Icon.js';
-
-/** Controles DENTRO de un modal, que sigue siendo una tarjeta clara sobre el overlay. */
-const INPUT_CLASS =
-  'w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-indigo-400';
 
 /**
  * Controles que van directo sobre la página, que es oscura (`--app-bg`).
@@ -88,8 +84,7 @@ function RoleFormModal({
     }));
   }
 
-  async function handleSubmit(e: React.FormEvent): Promise<void> {
-    e.preventDefault();
+  async function handleSubmit(): Promise<void> {
     setError(null);
     setSaving(true);
     try {
@@ -116,94 +111,96 @@ function RoleFormModal({
     }
   }
 
-  const cierrePorFondo = useCierrePorFondo(onClose);
-
   return (
-    <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-900/30 px-4" {...cierrePorFondo}>
-      <form
-        onSubmit={(e) => void handleSubmit(e)}
-        onClick={(e) => e.stopPropagation()}
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-xl"
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-slate-900">{editing ? 'Editar rol' : 'Nuevo rol'}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg px-2 py-1 text-sm text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-          >
-            Cerrar
+    <Dialogo
+      abierto
+      onCerrar={onClose}
+      titulo={editing ? 'Editar rol' : 'Nuevo rol'}
+      onSubmit={() => void handleSubmit()}
+      ancho={600}
+      pie={
+        <>
+          <button type="button" className="btn" data-variant="outline" onClick={onClose}>
+            Cancelar
           </button>
+          <button type="submit" className="btn" disabled={saving}>
+            {saving ? 'Guardando…' : 'Guardar'}
+          </button>
+        </>
+      }
+    >
+      <div className="grid gap-4">
+        {error && (
+          <div className="rounded-lg border border-[var(--sw-error)] bg-[var(--sw-error-bg)] px-3 py-2 text-xs text-[var(--sw-on-error)]">
+            {error}
+          </div>
+        )}
+
+        <label className="grid gap-1.5">
+          <span className="text-xs font-medium text-muted-foreground">Nombre</span>
+          <input
+            type="text"
+            className="input w-full"
+            value={form.name}
+            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            placeholder="Lector, Operador, Administrador…"
+          />
+        </label>
+
+        <label className="grid gap-1.5">
+          <span className="text-xs font-medium text-muted-foreground">Descripción</span>
+          <input
+            type="text"
+            className="input w-full"
+            value={form.description}
+            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+          />
+        </label>
+
+        <label className="grid gap-1.5">
+          <span className="text-xs font-medium text-muted-foreground">Alcance</span>
+          <select
+            className="select w-full"
+            value={form.scope}
+            disabled={!!editing}
+            onChange={(e) => setForm((f) => ({ ...f, scope: e.target.value as RoleScope }))}
+          >
+            <option value="project">Por proyecto — se asigna en un proyecto puntual</option>
+            <option value="org">De organización — vale en todos sus proyectos</option>
+          </select>
+          <span className="text-[11px] text-muted-foreground">
+            Los permisos SUMAN: el rol de organización es un piso que un rol de proyecto no puede recortar.
+          </span>
+        </label>
+
+        <div className="grid gap-1.5">
+          <span className="text-xs font-medium text-muted-foreground">Permisos</span>
+          {/* Con scroll propio: el catálogo es largo y el modal tiene que dejar
+              ver el pie con «Guardar» sin bajar hasta el final. */}
+          <div className="max-h-72 space-y-1 overflow-y-auto rounded-lg border border-border p-2">
+            {catalog.map((p) => (
+              <label key={p.permission} className="flex cursor-pointer items-start gap-2 rounded px-1 py-1 text-sm hover:bg-accent">
+                <input
+                  type="checkbox"
+                  className="input mt-0.5"
+                  checked={form.permissions.includes(p.permission)}
+                  onChange={() => togglePermission(p.permission)}
+                />
+                <span>
+                  <span className="font-mono text-xs text-foreground">{p.permission}</span>
+                  {p.governance && (
+                    <span className="badge ml-1" data-variant="warning">
+                      gobierno
+                    </span>
+                  )}
+                  <span className="block text-xs text-muted-foreground">{p.description}</span>
+                </span>
+              </label>
+            ))}
+          </div>
         </div>
-
-        {error && <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>}
-
-        <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">Nombre</label>
-        <input
-          type="text"
-          value={form.name}
-          onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-          placeholder="Lector, Operador, Administrador…"
-          className={`mb-3 ${INPUT_CLASS}`}
-        />
-
-        <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">Descripción</label>
-        <input
-          type="text"
-          value={form.description}
-          onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-          className={`mb-3 ${INPUT_CLASS}`}
-        />
-
-        <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">Alcance</label>
-        <select
-          value={form.scope}
-          disabled={!!editing}
-          onChange={(e) => setForm((f) => ({ ...f, scope: e.target.value as RoleScope }))}
-          className={`mb-1 ${INPUT_CLASS} disabled:bg-slate-100`}
-        >
-          <option value="project">Por proyecto — se asigna en un proyecto puntual</option>
-          <option value="org">De organización — vale en todos sus proyectos</option>
-        </select>
-        <p className="mb-3 text-[11px] text-slate-400">
-          Los permisos SUMAN: el rol de organización es un piso que un rol de proyecto no puede recortar.
-        </p>
-
-        <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">Permisos</label>
-        <div className="mb-4 space-y-1 rounded-lg border border-slate-200 p-2">
-          {catalog.map((p) => (
-            <label
-              key={p.permission}
-              className="flex cursor-pointer items-start gap-2 rounded px-1 py-1 text-sm text-slate-700 hover:bg-slate-50"
-            >
-              <input
-                type="checkbox"
-                className="mt-1"
-                checked={form.permissions.includes(p.permission)}
-                onChange={() => togglePermission(p.permission)}
-              />
-              <span>
-                <span className="font-mono text-xs text-slate-900">{p.permission}</span>
-                {p.governance && (
-                  <span className="ml-1 rounded bg-amber-100 px-1 py-0.5 text-[10px] font-medium text-amber-700">
-                    gobierno
-                  </span>
-                )}
-                <span className="block text-xs text-slate-500">{p.description}</span>
-              </span>
-            </label>
-          ))}
-        </div>
-
-        <button
-          type="submit"
-          disabled={saving}
-          className="w-full rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-        >
-          {saving ? 'Guardando…' : 'Guardar'}
-        </button>
-      </form>
-    </div>
+      </div>
+    </Dialogo>
   );
 }
 

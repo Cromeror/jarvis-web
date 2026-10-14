@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useCierrePorFondo } from '../hooks/useCierrePorFondo.js';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
 import { listProjects } from '../lib/projects-api.js';
@@ -17,6 +16,7 @@ import { Toolbar, ToolbarBoton, ToolbarGrupo } from '../components/ui/molecules/
 import { Combo } from '../components/ui/Combo.js';
 import { Icon } from '../components/Icon.js';
 import { CampoClave } from '../components/ui/CampoClave.js';
+import { Dialogo } from '../components/ui/Dialogo.js';
 import { filasDeUsuarios, pendientesDeAsignar } from '../lib/usuarios-por-organizacion.js';
 
 /**
@@ -220,8 +220,7 @@ function UserFormModal({
     });
   }
 
-  async function handleSubmit(e: React.FormEvent): Promise<void> {
-    e.preventDefault();
+  async function handleSubmit(): Promise<void> {
     setError(null);
     setSaving(true);
     try {
@@ -248,71 +247,87 @@ function UserFormModal({
     }
   }
 
-  const cierrePorFondo = useCierrePorFondo(onClose);
+  /* Un campo: su rótulo arriba y el control. Agrupados con `gap` y no con
+     márgenes, que el reset del template anula. */
+  const campo = (rotulo: React.ReactNode, control: React.ReactNode, ayuda?: React.ReactNode): React.ReactElement => (
+    <label className="grid gap-1.5">
+      <span className="text-xs font-medium text-muted-foreground">{rotulo}</span>
+      {control}
+      {ayuda ? <span className="text-xs text-muted-foreground">{ayuda}</span> : null}
+    </label>
+  );
 
   return (
-    <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-900/30 px-4" {...cierrePorFondo}>
-      <form
-        autoComplete="off"
-        onSubmit={(e) => void handleSubmit(e)}
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-xl"
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-slate-900">{editing ? 'Editar usuario' : 'Nuevo usuario'}</h2>
-          <button type="button" onClick={onClose} className="rounded-lg px-2 py-1 text-sm text-slate-400 hover:bg-slate-100 hover:text-slate-700">
-            Cerrar
+    <Dialogo
+      abierto
+      onCerrar={onClose}
+      titulo={editing ? 'Editar usuario' : 'Nuevo usuario'}
+      onSubmit={() => void handleSubmit()}
+      // Las credenciales de ESTE formulario son de OTRA persona: sin esto el
+      // navegador lo toma por un login y completa el usuario y la clave
+      // guardados de quien está dando el alta (y ofrece guardarlos).
+      autoComplete="off"
+      ancho={520}
+      pie={
+        <>
+          <button type="button" className="btn" data-variant="outline" onClick={onClose}>
+            Cancelar
           </button>
-        </div>
+          <button type="submit" className="btn" disabled={saving}>
+            {saving ? 'Guardando…' : 'Guardar'}
+          </button>
+        </>
+      }
+    >
+      <div className="grid gap-4">
+        {error && (
+          <div className="rounded-lg border border-[var(--sw-error)] bg-[var(--sw-error-bg)] px-3 py-2 text-xs text-[var(--sw-on-error)]">
+            {error}
+          </div>
+        )}
 
-        {error && <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>}
+        {campo(
+          'Usuario',
+          <input
+            type="text"
+            name="nuevo-usuario"
+            autoComplete="off"
+            className="input w-full"
+            value={form.username}
+            disabled={!!editing}
+            onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
+          />,
+        )}
 
-        <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">Usuario</label>
-        {/* Las credenciales de ESTE formulario son de OTRA persona: sin esto el
-            navegador lo toma por un login y completa el usuario y la clave
-            guardados de quien está dando el alta (y ofrece guardarlos). */}
-        <input
-          type="text"
-          name="nuevo-usuario"
-          autoComplete="off"
-          value={form.username}
-          disabled={!!editing}
-          onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
-          className="mb-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-indigo-400 disabled:bg-slate-100"
-        />
-
-        <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">
-          {editing ? 'Nueva contraseña (opcional)' : 'Contraseña'}
-        </label>
-        <div className="mb-3">
+        {campo(
+          editing ? 'Nueva contraseña (opcional)' : 'Contraseña',
           <CampoClave
             value={form.password}
             onChange={(v) => setForm((f) => ({ ...f, password: v }))}
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-indigo-400"
-          />
-        </div>
+            className="input w-full"
+          />,
+        )}
 
-        <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">Tipo de cuenta</label>
-        <select
-          value={form.account_type}
-          onChange={(e) => setForm((f) => ({ ...f, account_type: e.target.value as AccountType }))}
-          className="mb-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-indigo-400"
-        >
-          <option value="client">Cliente</option>
-          <option value="operator">Operador del producto</option>
-        </select>
+        {campo(
+          'Tipo de cuenta',
+          <select
+            className="select w-full"
+            value={form.account_type}
+            onChange={(e) => setForm((f) => ({ ...f, account_type: e.target.value as AccountType }))}
+          >
+            <option value="client">Cliente</option>
+            <option value="operator">Operador del producto</option>
+          </select>,
+        )}
 
-        {form.account_type === 'client' && !editing && (
-          <>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">
-              Organización
-            </label>
+        {form.account_type === 'client' &&
+          !editing &&
+          campo(
+            'Organización',
             <select
+              className="select w-full"
               value={form.organization_id}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, organization_id: e.target.value, organization_role_id: '' }))
-              }
-              className="mb-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-indigo-400"
+              onChange={(e) => setForm((f) => ({ ...f, organization_id: e.target.value, organization_role_id: '' }))}
             >
               <option value="">Una organización propia</option>
               {organizaciones.map((o) => (
@@ -320,42 +335,35 @@ function UserFormModal({
                   {o.name}
                 </option>
               ))}
-            </select>
+            </select>,
+          )}
 
-            {form.organization_id && (
-              <>
-                <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">
-                  Rol en la organización
-                </label>
-                <select
-                  value={form.organization_role_id}
-                  onChange={(e) => setForm((f) => ({ ...f, organization_role_id: e.target.value }))}
-                  className="mb-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-indigo-400"
-                >
-                  <option value="">Elegí un rol</option>
-                  {(rolesPorOrg[form.organization_id] ?? [])
-                    .filter((r) => r.scope === 'org')
-                    .map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.name}
-                      </option>
-                    ))}
-                </select>
-                <p className="mb-3 px-1 text-xs text-slate-400">
-                  El rol de organización delimita: administra miembros, roles y auditoría. Lo que la persona
-                  puede hacer en cada proyecto sale del rol que se le dé abajo.
-                </p>
-              </>
-            )}
-          </>
-        )}
+        {form.account_type === 'client' &&
+          !editing &&
+          form.organization_id &&
+          campo(
+            'Rol en la organización',
+            <select
+              className="select w-full"
+              value={form.organization_role_id}
+              onChange={(e) => setForm((f) => ({ ...f, organization_role_id: e.target.value }))}
+            >
+              <option value="">Elegí un rol</option>
+              {(rolesPorOrg[form.organization_id] ?? [])
+                .filter((r) => r.scope === 'org')
+                .map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
+                ))}
+            </select>,
+            'El rol de organización delimita: administra miembros, roles y auditoría. Lo que la persona puede hacer en cada proyecto sale del rol que se le dé abajo.',
+          )}
 
         {form.account_type === 'client' && (
-          <>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">
-              Proyectos y rol en cada uno
-            </label>
-            <div className="mb-4 max-h-52 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
+          <div className="grid gap-1.5">
+            <span className="text-xs font-medium text-muted-foreground">Proyectos y rol en cada uno</span>
+            <div className="max-h-52 space-y-1 overflow-y-auto rounded-lg border border-border p-2">
               {projects.map((p) => {
                 const deEsteProyecto = form.project_roles.filter((a) => a.project_id === p.id);
                 const asignado = deEsteProyecto.length > 0;
@@ -365,9 +373,10 @@ function UserFormModal({
                 // de dejar tildar algo que el backend va a rechazar.
                 const sinRoles = rolesListos && disponibles.length === 0;
                 return (
-                  <div key={p.id} className="flex items-center gap-2 rounded px-1 py-1 text-sm text-slate-700 hover:bg-slate-50">
+                  <div key={p.id} className="flex items-center gap-2 rounded px-1 py-1 text-sm hover:bg-accent">
                     <input
                       type="checkbox"
+                      className="input"
                       checked={asignado}
                       disabled={sinRoles || !rolesListos}
                       onChange={() => toggleProject(p)}
@@ -389,8 +398,8 @@ function UserFormModal({
                               aria-pressed={activo}
                               className={`rounded-full border px-2 py-0.5 text-[11px] ${
                                 activo
-                                  ? 'border-transparent bg-indigo-600 text-white'
-                                  : 'border-slate-300 text-slate-500 hover:border-slate-400'
+                                  ? 'border-transparent bg-primary text-primary-foreground'
+                                  : 'border-border text-muted-foreground hover:text-foreground'
                               }`}
                             >
                               {r.name}
@@ -398,33 +407,30 @@ function UserFormModal({
                           );
                         })}
                         {deEsteProyecto.length === 0 ? (
-                          <span className="text-[11px] text-amber-600">sin roles — no podrá entrar</span>
+                          <span className="text-[11px] text-[var(--sw-warning)]">sin roles — no podrá entrar</span>
                         ) : null}
                       </span>
                     )}
                     {sinRoles && (
-                      <span className="text-xs text-slate-400" title="Creá un rol de scope 'proyecto' en la pestaña «Roles por organización»">
+                      <span
+                        className="text-xs text-muted-foreground"
+                        title="Creá un rol de scope 'proyecto' en la pestaña «Roles por organización»"
+                      >
                         sin roles de proyecto
                       </span>
                     )}
                   </div>
                 );
               })}
-              {projects.length === 0 && <p className="px-1 text-xs text-slate-400">No hay proyectos todavía</p>}
-              {!rolesListos && projects.length > 0 && <p className="px-1 text-xs text-slate-400">Cargando roles…</p>}
+              {projects.length === 0 && <p className="px-1 text-xs text-muted-foreground">No hay proyectos todavía</p>}
+              {!rolesListos && projects.length > 0 && (
+                <p className="px-1 text-xs text-muted-foreground">Cargando roles…</p>
+              )}
             </div>
-          </>
+          </div>
         )}
-
-        <button
-          type="submit"
-          disabled={saving}
-          className="w-full rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-        >
-          {saving ? 'Guardando…' : 'Guardar'}
-        </button>
-      </form>
-    </div>
+      </div>
+    </Dialogo>
   );
 }
 

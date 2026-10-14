@@ -1,12 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { useCierrePorFondo } from '../../hooks/useCierrePorFondo.js';
 import { createOrganization } from '../../lib/organizations-api.js';
 import type { UserSummary } from '../../lib/users-api.js';
 import { mensajeDeError } from './errores.js';
-
-/** Controles DENTRO del modal, que es una tarjeta clara sobre el overlay. */
-const INPUT_CLASS =
-  'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-indigo-400 [&>option]:bg-white [&>option]:text-slate-700';
+import { Dialogo } from '../ui/Dialogo.js';
 
 /**
  * Alta de una organización, con su administrador fundador o vacía.
@@ -58,8 +54,7 @@ export function OrganizationFormModal({
   );
   const hayElegibles = candidatos.some((c) => c.elegible);
 
-  async function handleSubmit(e: React.FormEvent): Promise<void> {
-    e.preventDefault();
+  async function handleSubmit(): Promise<void> {
     setError(null);
     setSaving(true);
     try {
@@ -78,83 +73,82 @@ export function OrganizationFormModal({
     }
   }
 
-  const cierrePorFondo = useCierrePorFondo(onClose);
-
   return (
-    <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-900/30 px-4" {...cierrePorFondo}>
-      <form
-        onSubmit={(e) => void handleSubmit(e)}
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-xl"
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-slate-900">Nueva organización</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg px-2 py-1 text-sm text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-          >
-            Cerrar
+    <Dialogo
+      abierto
+      onCerrar={onClose}
+      titulo="Nueva organización"
+      onSubmit={() => void handleSubmit()}
+      ancho={480}
+      pie={
+        <>
+          <button type="button" className="btn" data-variant="outline" onClick={onClose}>
+            Cancelar
           </button>
-        </div>
+          <button type="submit" className="btn" disabled={saving}>
+            {saving ? 'Creando…' : 'Crear'}
+          </button>
+        </>
+      }
+    >
+      <div className="grid gap-4">
+        {error && (
+          <div className="rounded-lg border border-[var(--sw-error)] bg-[var(--sw-error-bg)] px-3 py-2 text-xs text-[var(--sw-on-error)]">
+            {error}
+          </div>
+        )}
 
-        {error && <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>}
-
-        <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">Nombre</label>
-        <input
-          type="text"
-          value={form.name}
-          onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-          className={`mb-3 ${INPUT_CLASS}`}
-        />
-
-        <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">Slug (opcional)</label>
-        <input
-          type="text"
-          value={form.slug}
-          onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))}
-          placeholder="se deriva del nombre"
-          className={`mb-3 ${INPUT_CLASS}`}
-        />
-
-        <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">
-          Administrador (opcional)
+        <label className="grid gap-1.5">
+          <span className="text-xs font-medium text-muted-foreground">Nombre</span>
+          <input
+            type="text"
+            className="input w-full"
+            value={form.name}
+            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+          />
         </label>
-        <select
-          value={form.owner_user_id}
-          onChange={(e) => setForm((f) => ({ ...f, owner_user_id: e.target.value }))}
-          className={`mb-1 ${INPUT_CLASS}`}
-        >
-          <option value="">Sin administrador — se agrega después</option>
-          {candidatos.map(({ user, elegible, motivo }) => (
-            <option key={user.id} value={user.id} disabled={!elegible}>
-              {user.username}
-              {motivo ? ` — ${motivo}` : ''}
-            </option>
-          ))}
-        </select>
+
+        <label className="grid gap-1.5">
+          <span className="text-xs font-medium text-muted-foreground">Slug (opcional)</span>
+          <input
+            type="text"
+            className="input w-full"
+            value={form.slug}
+            onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))}
+            placeholder="se deriva del nombre"
+          />
+        </label>
+
+        <label className="grid gap-1.5">
+          <span className="text-xs font-medium text-muted-foreground">Administrador (opcional)</span>
+          <select
+            className="select w-full"
+            value={form.owner_user_id}
+            onChange={(e) => setForm((f) => ({ ...f, owner_user_id: e.target.value }))}
+          >
+            <option value="">Sin administrador — se agrega después</option>
+            {candidatos.map(({ user, elegible, motivo }) => (
+              <option key={user.id} value={user.id} disabled={!elegible}>
+                {user.username}
+                {motivo ? ` — ${motivo}` : ''}
+              </option>
+            ))}
+          </select>
+        </label>
 
         {!hayElegibles && (
-          <p className="mb-3 mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+          <p className="rounded-lg border border-[var(--sw-warning)] bg-[var(--sw-warning-bg)] px-3 py-2 text-[11px] text-[var(--sw-on-warning)]">
             Ninguna persona está disponible como administrador: todas pertenecen ya a una organización, y cada una
             pertenece a una sola. Creala vacía y después dá de alta usuarios adentro.
           </p>
         )}
 
-        <p className="mb-4 text-[11px] text-slate-400">
+        <p className="text-[11px] text-muted-foreground">
           {form.owner_user_id
             ? 'Nace con un rol «Administrador» con todos los permisos de organización, y esta persona adentro.'
-            : 'Nace con su rol «Administrador» pero sin miembros. Para poblarla, dá de alta un usuario eligiéndola como su organización, o sumá a alguien desde «Miembros».'}
+            : 'Nace con su rol «Administrador» pero sin miembros. Para poblarla, dá de alta un usuario eligiéndola como su organización, o sumá a alguien con «Agregar usuario».'}
         </p>
-
-        <button
-          type="submit"
-          disabled={saving}
-          className="w-full rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-        >
-          {saving ? 'Creando…' : 'Crear'}
-        </button>
-      </form>
-    </div>
+      </div>
+    </Dialogo>
   );
 }
