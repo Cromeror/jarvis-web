@@ -211,7 +211,7 @@ export interface MenuContextualProps extends EspecDeMenu {
 /**
  * `showContextMenu(x, y, spec)`: el menú anclado a un punto, con reencuadre.
  *
- * Va en un portal al `<body>` porque en el template se hace `document.body.appendChild`
+ * Va en un portal al `<body>` (o al modal abierto, ver `contenedorDelMenu`) porque en el template se hace `document.body.appendChild`
  * — y por la misma razón práctica: el ancla suele estar dentro de algo que
  * recorta (el encabezado de una tabla con scroll), y ahí un popover en el flujo
  * se corta contra el borde.
@@ -229,6 +229,27 @@ export interface MenuContextualProps extends EspecDeMenu {
  * Por lo mismo, Escape con el menú abierto cierra SÓLO el menú: el `<dialog>`
  * nativo también escucha Escape, y sin cortarlo se cerraba el modal entero.
  */
+/**
+ * Dónde se monta el menú: dentro del `<dialog>` modal abierto más arriba, si
+ * hay uno; si no, en el `<body>`.
+ *
+ * Estar en la capa superior no alcanza: con un modal abierto, TODO lo que está
+ * fuera de él es inerte. Un menú en el `<body>` se veía encima del modal pero
+ * no recibía clics — atravesaban al elemento de abajo. Dentro de Ajustes eso
+ * significaba que «Desactivar carpeta…» apretaba el «Cerrar» del pie (el modal
+ * se cerraba sin confirmación) o los chips de la fila siguiente.
+ */
+function contenedorDelMenu(): HTMLElement {
+  let modales: NodeListOf<HTMLDialogElement> | HTMLDialogElement[];
+  try {
+    modales = document.querySelectorAll<HTMLDialogElement>('dialog:modal');
+  } catch {
+    // Sin soporte de `:modal` (jsdom, navegadores viejos), el `[open]` es la mejor aproximación.
+    modales = Array.from(document.querySelectorAll<HTMLDialogElement>('dialog[open]'));
+  }
+  return modales[modales.length - 1] ?? document.body;
+}
+
 export function MenuContextual({
   x,
   y,
@@ -327,6 +348,6 @@ export function MenuContextual({
         }}
       />
     </div>,
-    document.body,
+    contenedorDelMenu(),
   );
 }
