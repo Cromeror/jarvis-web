@@ -23,12 +23,92 @@ import {
 } from '../lib/catalog-api.js';
 import type { CatalogModule, CatalogSuite, CatalogToolOption, CatalogModuleTool } from '../lib/catalog-api.js';
 import { StatusBadge } from '../components/ui/atoms/StatusBadge.js';
+import { fichaDeModulo, nombreDistinguible, paraQuienDe } from '../lib/ficha-de-modulo.js';
 
-const PANEL_CLASS = 'rounded-xl border border-white/10 bg-white/[0.03] p-4';
+const PANEL_CLASS = 'rounded-xl border border-border bg-muted p-4';
 const INPUT_CLASS =
-  'w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 outline-none focus:border-indigo-400 [&>option]:bg-[#221f1d] [&>option]:text-white';
-const BOTON_PRIMARIO = 'rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50';
-const BOTON_SECUNDARIO = 'rounded-lg border border-white/15 px-3 py-2 text-sm font-medium text-white hover:bg-white/10 disabled:opacity-40';
+  'w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary [&>option]:bg-popover [&>option]:text-popover-foreground';
+const BOTON_PRIMARIO =
+  'rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50';
+const BOTON_SECUNDARIO =
+  'rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-accent disabled:opacity-40';
+
+const PASTILLA = 'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium leading-none';
+
+/**
+ * Para quién es y dónde aparece, en dos pastillas. Van en cada fila porque es
+ * lo único que separa dos módulos con el mismo nombre (`ficha-de-modulo.ts`).
+ */
+function EjesDelModulo({ m }: { m: CatalogModule }): React.ReactElement {
+  const deOrg = paraQuienDe(m) === 'organizacion';
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1">
+      <span
+        className={`${PASTILLA} ${deOrg ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border bg-muted text-secondary-foreground'}`}
+        title={
+          deOrg
+            ? 'Catálogo de organización: lo usa la organización como tal'
+            : 'Catálogo de espacio: lo usa el equipo de un espacio'
+        }
+      >
+        {deOrg ? 'Organización' : 'Espacio'}
+      </span>
+      <span className={`${PASTILLA} border-border text-muted-foreground`} title="Dónde se muestra">
+        {m.superficie === 'ajustes' ? 'Ajustes' : 'Riel'}
+      </span>
+    </span>
+  );
+}
+
+/** El código del módulo, o un aviso si es manual y todavía no lo tiene. */
+function CodigoDelModulo({ m }: { m: CatalogModule }): React.ReactElement {
+  return m.key ? (
+    <code className="shrink-0 text-[11px] text-muted-foreground">{m.key}</code>
+  ) : (
+    <span className="shrink-0 text-[11px] italic text-muted-foreground" title="Módulo manual: no lo declara el código">
+      sin código
+    </span>
+  );
+}
+
+/**
+ * LA FICHA del módulo elegido: qué es cada uno de los dos ejes para ESTE
+ * módulo, y por qué suites le llega a alguien. Responde «¿a dónde va y de quién
+ * es?» sin tener que conocer el modelo.
+ */
+function FichaDelModulo({ m, suites }: { m: CatalogModule; suites: CatalogSuite[] }): React.ReactElement {
+  const f = fichaDeModulo(m, suites);
+  const fila = (rotulo: string, valor: React.ReactNode): React.ReactElement => (
+    <div className="grid grid-cols-[8rem_minmax(0,1fr)] gap-3 py-1.5">
+      <dt className="text-xs text-muted-foreground">{rotulo}</dt>
+      <dd className="text-sm text-foreground">{valor}</dd>
+    </div>
+  );
+  return (
+    <div className="rounded-lg border border-border bg-muted p-3">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <h3 className="text-sm font-semibold text-foreground">{m.name}</h3>
+        <CodigoDelModulo m={m} />
+        <EjesDelModulo m={m} />
+      </div>
+      <dl className="divide-y divide-border">
+        {fila(
+          'Para quién',
+          <>
+            <span className="font-medium">{f.paraQuienCorto}.</span> {f.quienLoUsa}
+          </>,
+        )}
+        {fila('Dónde aparece', f.dondeAparece)}
+        {fila(
+          'Lo traen',
+          f.suites.length > 0 ? f.suites.join(', ') : <span className="text-muted-foreground">ninguna suite</span>,
+        )}
+        {fila('Cómo llega', f.comoLlega)}
+        {fila('Origen', m.origin === 'code' ? 'Lo declara el código' : 'Creado a mano en esta pantalla')}
+      </dl>
+    </div>
+  );
+}
 
 function mensajeDeError(err: unknown, fallback: string): string {
   if (err instanceof CatalogApiError) return err.message;
@@ -89,7 +169,12 @@ function AltaRapida({
           ))}
         </select>
       )}
-      <button type="button" disabled={guardando || !name.trim()} onClick={() => void crear()} className={BOTON_PRIMARIO}>
+      <button
+        type="button"
+        disabled={guardando || !name.trim()}
+        onClick={() => void crear()}
+        className={BOTON_PRIMARIO}
+      >
         Agregar
       </button>
     </div>
@@ -135,7 +220,7 @@ function Composicion<T extends { id: string; name: string }>({
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{titulo}</h3>
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{titulo}</h3>
         <button
           type="button"
           disabled={!sucio || guardando}
@@ -149,11 +234,14 @@ function Composicion<T extends { id: string; name: string }>({
         </button>
       </div>
       {opciones.length === 0 ? (
-        <p className="text-xs text-slate-500">{vacio}</p>
+        <p className="text-xs text-muted-foreground">{vacio}</p>
       ) : (
-        <div className="max-h-56 space-y-1 overflow-y-auto rounded-lg border border-white/10 p-2">
+        <div className="max-h-56 space-y-1 overflow-y-auto rounded-lg border border-border p-2">
           {opciones.map((o) => (
-            <label key={o.id} className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-sm text-slate-200 hover:bg-white/5">
+            <label
+              key={o.id}
+              className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-sm text-secondary-foreground hover:bg-accent"
+            >
               <input type="checkbox" checked={ids.includes(o.id)} onChange={() => toggle(o.id)} />
               <span className="flex-1 truncate">{etiqueta ? etiqueta(o) : o.name}</span>
             </label>
@@ -238,37 +326,39 @@ export function CatalogPage(): React.ReactElement {
   return (
     <div className="h-full overflow-y-auto bg-[var(--app-bg)] p-6">
       <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-lg font-semibold text-white">Suites, módulos y herramientas</h1>
+        <h1 className="text-lg font-semibold text-foreground">Suites, módulos y herramientas</h1>
       </div>
-      <p className="mb-4 max-w-3xl text-xs text-slate-400">
+      <p className="mb-4 max-w-3xl text-xs text-muted-foreground">
         Una suite contiene módulos y un módulo contiene herramientas. Nada de eso viene dado: se arma acá y se le asigna
         a cada proyecto, y eso es lo que termina siendo su menú.
       </p>
 
       {error && (
-        <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>
+        <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+          {error}
+        </div>
       )}
 
       {loading ? (
-        <p className="text-sm text-slate-400">Cargando…</p>
+        <p className="text-sm text-muted-foreground">Cargando…</p>
       ) : (
         <div className="space-y-4">
           <section className={PANEL_CLASS}>
-            <h2 className="text-sm font-semibold text-white">Suites</h2>
+            <h2 className="text-sm font-semibold text-foreground">Suites</h2>
             <div className="mt-3 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
               <div>
-                <div className="max-h-56 space-y-1 overflow-y-auto rounded-lg border border-white/10 p-2">
-                  {suites.length === 0 && <p className="px-1 py-2 text-xs text-slate-500">Todavía no hay suites.</p>}
+                <div className="max-h-56 space-y-1 overflow-y-auto rounded-lg border border-border p-2">
+                  {suites.length === 0 && <p className="px-1 py-2 text-xs text-muted-foreground">Todavía no hay suites.</p>}
                   {suites.map((p) => (
                     <div
                       key={p.id}
                       className={`flex items-center gap-2 rounded px-2 py-1 text-sm ${
-                        p.id === suiteId ? 'bg-indigo-500/20 text-white' : 'text-slate-200 hover:bg-white/5'
+                        p.id === suiteId ? 'bg-primary/15 text-foreground' : 'text-secondary-foreground hover:bg-accent'
                       }`}
                     >
                       <button type="button" onClick={() => setSuiteId(p.id)} className="flex-1 truncate text-left">
                         {p.name}
-                        <span className="ml-2 text-xs text-slate-400">{p.modules.length} módulos</span>
+                        <span className="ml-2 text-xs text-muted-foreground">{p.modules.length} módulos</span>
                       </button>
                       <button
                         type="button"
@@ -302,6 +392,13 @@ export function CatalogPage(): React.ReactElement {
                     opciones={modules}
                     seleccionados={suite.modules.map((m) => m.id)}
                     onGuardar={(ids) => conManejoDeError(() => setSuiteModules(suite.id, ids))}
+                    etiqueta={(m) => (
+                      <span className="flex items-center gap-2">
+                        <span className="truncate">{nombreDistinguible(m, modules)}</span>
+                        <CodigoDelModulo m={m} />
+                        <EjesDelModulo m={m} />
+                      </span>
+                    )}
                   />
                   <Composicion
                     titulo="Proyectos que la tienen"
@@ -332,39 +429,56 @@ export function CatalogPage(): React.ReactElement {
                   />
                 </div>
               ) : (
-                <p className="text-xs text-slate-500">Elegí una suite para configurarla.</p>
+                <p className="text-xs text-muted-foreground">Elegí una suite para configurarla.</p>
               )}
             </div>
           </section>
 
           <section className={PANEL_CLASS}>
-            <h2 className="text-sm font-semibold text-white">Módulos</h2>
+            <h2 className="text-sm font-semibold text-foreground">Módulos</h2>
+            <p className="mt-1 max-w-3xl text-xs text-muted-foreground">
+              Cada módulo es para <span className="font-medium text-foreground">un espacio</span> (lo usa el equipo que
+              trabaja en él) o para <span className="font-medium text-foreground">la organización</span> (lo usa quien
+              la administra), y se muestra en el <span className="font-medium text-foreground">riel</span> o en{' '}
+              <span className="font-medium text-foreground">Ajustes</span>. Los dos se venden igual: por suite. Los del
+              operador (la instalación) no se venden y por eso no están en esta lista.
+            </p>
             <div className="mt-3 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
               <div>
-                <div className="max-h-56 space-y-1 overflow-y-auto rounded-lg border border-white/10 p-2">
-                  {modules.length === 0 && <p className="px-1 py-2 text-xs text-slate-500">Todavía no hay módulos.</p>}
+                <div className="max-h-56 space-y-1 overflow-y-auto rounded-lg border border-border p-2">
+                  {modules.length === 0 && <p className="px-1 py-2 text-xs text-muted-foreground">Todavía no hay módulos.</p>}
                   {modules.map((m) => (
                     <div
                       key={m.id}
                       className={`flex items-center gap-2 rounded px-2 py-1 text-sm ${
-                        m.id === moduleId ? 'bg-indigo-500/20 text-white' : 'text-slate-200 hover:bg-white/5'
+                        m.id === moduleId ? 'bg-primary/15 text-foreground' : 'text-secondary-foreground hover:bg-accent'
                       }`}
                     >
-                      <button type="button" onClick={() => setModuleId(m.id)} className="flex-1 truncate text-left">
-                        {m.name}
-                        <span className="ml-2 text-xs text-slate-400">{m.module_tools.length} herramientas</span>
+                      <button
+                        type="button"
+                        onClick={() => setModuleId(m.id)}
+                        className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 text-left"
+                      >
+                        <span className="truncate">{nombreDistinguible(m, modules)}</span>
+                        <CodigoDelModulo m={m} />
+                        <EjesDelModulo m={m} />
+                        <span className="text-xs text-muted-foreground">{m.module_tools.length} herramientas</span>
                         {/* De dónde salió la fila. Un módulo `code` lo declara el
                             código y tiene vista; uno `manual` sirve para diseñar
                             el menú pero no resuelve nada todavía. */}
                         {m.origin === 'code' && <span className="ml-2 text-xs text-emerald-400">código</span>}
-                        {m.status === 'missing' && <span className="ml-2 text-xs text-amber-400">ya no existe en el código</span>}
+                        {m.status === 'missing' && (
+                          <span className="ml-2 text-xs text-amber-400">ya no existe en el código</span>
+                        )}
                       </button>
                       <button
                         type="button"
                         // Un módulo del código no se borra desde acá: el próximo
                         // arranque lo recrearía, y el botón mentiría.
                         disabled={m.origin === 'code'}
-                        title={m.origin === 'code' ? 'Lo declara el código: se va cuando se lo saque de ahí' : undefined}
+                        title={
+                          m.origin === 'code' ? 'Lo declara el código: se va cuando se lo saque de ahí' : undefined
+                        }
                         onClick={() => {
                           if (!window.confirm(`¿Eliminar el módulo '${m.name}'?`)) return;
                           void conManejoDeError(async () => {
@@ -388,55 +502,65 @@ export function CatalogPage(): React.ReactElement {
               </div>
 
               {modulo ? (
-                <Composicion
-                  titulo={`Herramientas de ${modulo.name}`}
-                  vacio={
-                    moduleTools.length === 0
-                      ? 'Creá una herramienta abajo para poder ponerla en este módulo.'
-                      : 'Ninguna herramienta es compatible con este módulo. Una herramienta declara con qué módulos sirve; las abiertas sólo entran si el módulo acepta abiertas.'
-                  }
-                  // Sólo las compatibles: ofrecer una que el backend va a
-                  // rechazar hace perder el tiempo y enseña mal el modelo.
-                  opciones={moduleTools.filter((u) => esCompatible(u, modulo))}
-                  seleccionados={modulo.module_tools.map((u) => u.id)}
-                  onGuardar={(ids) => conManejoDeError(() => asignarHerramientasAlModulo(modulo.id, ids))}
-                  etiqueta={(u) => {
-                    const util = moduleTools.find((x) => x.id === u.id);
-                    return (
-                      <span className="flex items-center gap-2">
-                        {u.name}
-                        {util?.tool_name ? (
-                          <span className="text-xs text-slate-400">{util.tool_name}</span>
-                        ) : (
-                          <StatusBadge label="sin tool" tone="warning" />
-                        )}
-                      </span>
-                    );
-                  }}
-                />
+                <div className="space-y-4">
+                  <FichaDelModulo m={modulo} suites={suites} />
+                  <Composicion
+                    titulo={`Herramientas de ${modulo.name}`}
+                    vacio={
+                      moduleTools.length === 0
+                        ? 'Creá una herramienta abajo para poder ponerla en este módulo.'
+                        : 'Ninguna herramienta es compatible con este módulo. Una herramienta declara con qué módulos sirve; las abiertas sólo entran si el módulo acepta abiertas.'
+                    }
+                    // Sólo las compatibles: ofrecer una que el backend va a
+                    // rechazar hace perder el tiempo y enseña mal el modelo.
+                    opciones={moduleTools.filter((u) => esCompatible(u, modulo))}
+                    seleccionados={modulo.module_tools.map((u) => u.id)}
+                    onGuardar={(ids) => conManejoDeError(() => asignarHerramientasAlModulo(modulo.id, ids))}
+                    etiqueta={(u) => {
+                      const util = moduleTools.find((x) => x.id === u.id);
+                      return (
+                        <span className="flex items-center gap-2">
+                          {u.name}
+                          {util?.tool_name ? (
+                            <span className="text-xs text-muted-foreground">{util.tool_name}</span>
+                          ) : (
+                            <StatusBadge label="sin tool" tone="warning" />
+                          )}
+                        </span>
+                      );
+                    }}
+                  />
+                </div>
               ) : (
-                <p className="text-xs text-slate-500">Elegí un módulo para configurarlo.</p>
+                <p className="text-xs text-muted-foreground">Elegí un módulo para configurarlo.</p>
               )}
             </div>
           </section>
 
           <section className={PANEL_CLASS}>
-            <h2 className="text-sm font-semibold text-white">Herramientas</h2>
-            <p className="mt-1 text-xs text-slate-400">
+            <h2 className="text-sm font-semibold text-foreground">Herramientas</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
               Una herramienta es la presentación de una tool que ya existe. Puede declararse antes que su tool: mientras
               tanto se muestra, pero no ejecuta nada.
             </p>
-            <div className="mt-3 max-h-64 space-y-1 overflow-y-auto rounded-lg border border-white/10 p-2">
-              {moduleTools.length === 0 && <p className="px-1 py-2 text-xs text-slate-500">Todavía no hay herramientas.</p>}
+            <div className="mt-3 max-h-64 space-y-1 overflow-y-auto rounded-lg border border-border p-2">
+              {moduleTools.length === 0 && (
+                <p className="px-1 py-2 text-xs text-muted-foreground">Todavía no hay herramientas.</p>
+              )}
               {moduleTools.map((u) => (
-                <div key={u.id} className="flex items-center gap-2 rounded px-2 py-1 text-sm text-slate-200 hover:bg-white/5">
+                <div
+                  key={u.id}
+                  className="flex items-center gap-2 rounded px-2 py-1 text-sm text-secondary-foreground hover:bg-accent"
+                >
                   <span className="flex-1 truncate">
                     {u.name}
                     {u.origin === 'code' && <span className="ml-2 text-xs text-emerald-400">código</span>}
-                    {u.status === 'missing' && <span className="ml-2 text-xs text-amber-400">ya no existe en el código</span>}
+                    {u.status === 'missing' && (
+                      <span className="ml-2 text-xs text-amber-400">ya no existe en el código</span>
+                    )}
                     {/* La compatibilidad es lo que decide en qué módulos se puede
                         colgar, así que se ve en la lista y no sólo al componer. */}
-                    <span className="ml-2 text-xs text-slate-500">
+                    <span className="ml-2 text-xs text-muted-foreground">
                       {u.compatible_with === '*'
                         ? 'abierta'
                         : Array.isArray(u.compatible_with)

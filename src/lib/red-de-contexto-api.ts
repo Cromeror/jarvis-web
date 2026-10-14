@@ -121,7 +121,11 @@ export async function crearCirculo(
   input: { slug: string; nombre: string; contexto?: string },
 ): Promise<Circulo> {
   return handleResponse<Circulo>(
-    await fetch(`${base(organizationId)}/circulos`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify(input) }),
+    await fetch(`${base(organizationId)}/circulos`, {
+      method: 'POST',
+      headers: jsonHeaders,
+      body: JSON.stringify(input),
+    }),
   );
 }
 
@@ -145,7 +149,11 @@ export async function borrarCirculo(organizationId: string, circuloId: string): 
   if (!res.ok) throw new ApiError(res.status, await readError(res));
 }
 
-export async function conectarProyecto(organizationId: string, circuloId: string, projectId: string): Promise<MiembroDeCirculo> {
+export async function conectarProyecto(
+  organizationId: string,
+  circuloId: string,
+  projectId: string,
+): Promise<MiembroDeCirculo> {
   return handleResponse<MiembroDeCirculo>(
     await fetch(`${base(organizationId)}/circulos/${encodeURIComponent(circuloId)}/miembros`, {
       method: 'POST',
@@ -233,7 +241,11 @@ export async function guardarAuditoria(
   patch: { activa?: boolean; reglas?: string; umbral_bytes?: number },
 ): Promise<Omit<Auditoria, 'conteos' | 'auditor'>> {
   return handleResponse(
-    await fetch(`${base(organizationId)}/auditoria`, { method: 'PUT', headers: jsonHeaders, body: JSON.stringify(patch) }),
+    await fetch(`${base(organizationId)}/auditoria`, {
+      method: 'PUT',
+      headers: jsonHeaders,
+      body: JSON.stringify(patch),
+    }),
   );
 }
 
@@ -269,7 +281,11 @@ export async function crearCarpetaDeEspacio(
   input: { slug: string; nombre: string; contexto?: string },
 ): Promise<Circulo> {
   return handleResponse<Circulo>(
-    await fetch(`${baseEspacio(projectId)}/carpetas`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify(input) }),
+    await fetch(`${baseEspacio(projectId)}/carpetas`, {
+      method: 'POST',
+      headers: jsonHeaders,
+      body: JSON.stringify(input),
+    }),
   );
 }
 
@@ -304,7 +320,11 @@ export async function invitarEspacio(projectId: string, circuloId: string, otroI
 }
 
 /** Deja de compartir con un espacio, o retira una invitación. */
-export async function dejarDeCompartirDesdeEspacio(projectId: string, circuloId: string, otroId: string): Promise<void> {
+export async function dejarDeCompartirDesdeEspacio(
+  projectId: string,
+  circuloId: string,
+  otroId: string,
+): Promise<void> {
   const res = await fetch(
     `${baseEspacio(projectId)}/carpetas/${encodeURIComponent(circuloId)}/miembros/${encodeURIComponent(otroId)}`,
     { method: 'DELETE' },
@@ -336,7 +356,11 @@ export async function decidirInvitacion(
 // La cuarentena de un espacio entero: todo lo que comparte deja de verse y deja
 // de recibir. Se reactiva y vuelve como estaba.
 
-export async function desactivarEspacioEnLaRed(organizationId: string, projectId: string, nota?: string): Promise<void> {
+export async function desactivarEspacioEnLaRed(
+  organizationId: string,
+  projectId: string,
+  nota?: string,
+): Promise<void> {
   await handleResponse(
     await fetch(`${base(organizationId)}/espacios/${encodeURIComponent(projectId)}/desactivar`, {
       method: 'POST',
@@ -378,5 +402,39 @@ export async function desactivarCarpetaDeEspacio(projectId: string, circuloId: s
 export async function activarCarpetaDeEspacio(projectId: string, circuloId: string): Promise<Circulo> {
   return handleResponse<Circulo>(
     await fetch(`${baseEspacio(projectId)}/carpetas/${encodeURIComponent(circuloId)}/activar`, { method: 'POST' }),
+  );
+}
+
+/** Un directorio `contexto-org/<carpeta>/` en el disco de un espacio que ninguna carpeta compartida nombra. */
+export interface CarpetaEnDisco {
+  project_id: string;
+  slug: string;
+  /** Archivos en `publicado/`: lo que compartiría si se agrega. */
+  publicados: number;
+  bytes_publicados: number;
+  /** Todos los archivos de la carpeta, también fuera de `publicado/` (esos no viajan nunca). */
+  archivos: number;
+  /** Si el nombre sirve como slug; si no, hay que renombrar la carpeta antes de agregarla. */
+  nombre_valido: boolean;
+}
+
+/** Lee el disco de los espacios: no cambia nada. */
+export async function listarCarpetasEnDisco(
+  organizationId: string,
+): Promise<{ carpetas: CarpetaEnDisco[]; errores: Array<{ project_id: string; error: string }> }> {
+  return handleResponse(await fetch(`${base(organizationId)}/en-disco`));
+}
+
+/** La registra como carpeta del espacio donde está, sin compartirla con nadie. */
+export async function agregarCarpetaDesdeDisco(
+  organizationId: string,
+  input: { proyecto: string; slug: string; nombre: string },
+): Promise<Circulo> {
+  return handleResponse<Circulo>(
+    await fetch(`${base(organizationId)}/en-disco/agregar`, {
+      method: 'POST',
+      headers: jsonHeaders,
+      body: JSON.stringify(input),
+    }),
   );
 }
