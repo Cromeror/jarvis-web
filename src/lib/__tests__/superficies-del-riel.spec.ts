@@ -107,7 +107,7 @@ describe('superficiesDe — son dos rieles disjuntos, no uno con recortes', () =
       suites: [],
       projectId: 'acme',
       esOperador: true,
-      modulosDeInstalacion: [{ key: 'port-grants-003', name: 'Puertos' }],
+      modulosDeInstalacion: [{ key: 'MOD-0003', name: 'Puertos' }],
     });
     const puertos = s.find((x) => x.id === '/puertos');
     expect(puertos?.label).toBe('Puertos');
@@ -132,7 +132,7 @@ describe('superficiesDe — son dos rieles disjuntos, no uno con recortes', () =
       suites: [],
       projectId: 'acme',
       esOperador: false,
-      modulosDeInstalacion: [{ key: 'port-grants-003', name: 'Puertos' }],
+      modulosDeInstalacion: [{ key: 'MOD-0003', name: 'Puertos' }],
     });
     expect(s.map((x) => x.id)).not.toContain('/puertos');
   });

@@ -32,7 +32,7 @@ import { usePreferenciasDeModulo } from '../../hooks/usePreferenciasDeModulo.js'
 import { usePublicarMedida } from '../../components/layout/medida-de-superficie.js';
 
 /**
- * Área de trabajo de `causacion-facturas-001`: subir soportes y verlos.
+ * Área de trabajo de `MOD-0001`: subir soportes y verlos.
  *
  * ESCRITA CON LA ANATOMÍA DEL TEMPLATE — clases semánticas `sw-*` y su hoja en
  * `theme/modulos/soportes.css`, no utilidades sueltas. La versión anterior era
@@ -106,7 +106,7 @@ const COLUMNAS_MAS: ColumnaDeTabla[] = COLUMNAS.filter(
 ).map(aColumnaDeTabla);
 
 /** La `key` del módulo — la misma que nombra sus permisos y sus tablas. */
-const MODULE_KEY = 'causacion-facturas-001';
+const MODULE_KEY = 'MOD-0001';
 
 
 /** El dominio pinta la celda; la tabla arma la grilla. */

@@ -20,7 +20,7 @@ import {
 import { mensajeDeError } from '../../components/organizations/errores.js';
 
 /**
- * LA RED DE CONTEXTO, del lado del ESPACIO (`red-de-contexto-004`, Ajustes →
+ * LA RED DE CONTEXTO, del lado del ESPACIO (`MOD-0004`, Ajustes →
  * «Espacio»): donde el espacio activo arma su parte de la red.
  *
  * Crea carpetas compartidas —queda como su dueño— e invita a otros espacios de

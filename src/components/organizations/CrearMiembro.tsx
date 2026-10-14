@@ -9,7 +9,7 @@ const BOTON_PRIMARIO =
   'rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50';
 
 /**
- * El administrador de la organización CREA un usuario (`miembros-006:create`).
+ * El administrador de la organización CREA un usuario (`MOD-0006:create`).
  *
  * Nace como miembro de esta organización y SIN ROL: pertenece y no puede nada
  * hasta que se le asigne uno en la tabla de miembros. La pantalla lo dice al

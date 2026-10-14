@@ -2,12 +2,12 @@
  * Agrupa una lista de permisos por el módulo al que pertenecen.
  *
  * Existe porque una fila de chips planos —`project:read`, `chat:write`,
- * `environments-002:read`, `environments-002:run`…— no deja ver lo único que se
+ * `MOD-0002:read`, `MOD-0002:run`…— no deja ver lo único que se
  * mira en esa celda: de qué puede ocuparse este rol. Con nueve permisos de tres
  * familias mezclados, contar cuáles son de un módulo es trabajo del lector.
  *
  * **La partición es por la forma del nombre, no por una tabla.** Un permiso de
- * módulo es `<nombre>-<NNN>:<acción>` (`causacion-facturas-001:read`); el id de
+ * módulo es `<nombre>-<NNN>:<acción>` (`MOD-0001:read`); el id de
  * tres dígitos es justamente lo que lo separa de uno transversal
  * (`chat:write`). Es la misma convención que `assertModulePermissions` verifica
  * al arrancar, así que acá no se inventa un criterio nuevo: se lee el que ya
@@ -23,7 +23,7 @@
 export const GRUPO_PLATAFORMA = 'Plataforma';
 
 export interface GrupoDePermisos {
-  /** `Plataforma`, o la `key` del módulo (`causacion-facturas-001`). */
+  /** `Plataforma`, o la `key` del módulo (`MOD-0001`). */
   titulo: string;
   /** `true` sólo para el grupo transversal. */
   plataforma: boolean;
@@ -31,8 +31,8 @@ export interface GrupoDePermisos {
   items: Array<{ permiso: string; etiqueta: string }>;
 }
 
-/** `<algo>-<tres dígitos>:<acción>` — ver el comentario de arriba. */
-const DE_MODULO = /^(.+-\d{3}):(.+)$/;
+/** `MOD-<cuatro dígitos>:<acción>`: el key de un módulo es un código. */
+const DE_MODULO = /^(MOD-\d{4}):(.+)$/;
 
 export function agruparPorModulo(permisos: readonly string[]): GrupoDePermisos[] {
   const plataforma: GrupoDePermisos = { titulo: GRUPO_PLATAFORMA, plataforma: true, items: [] };

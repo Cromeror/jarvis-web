@@ -109,7 +109,7 @@ const ADMINISTRACION: Superficie[] = [
  * entero por una ruta que no existe.
  */
 const PANTALLAS_DE_INSTALACION: Record<string, { to: string; icono: string }> = {
-  'port-grants-003': { to: '/puertos', icono: 'enchufe' },
+  'MOD-0003': { to: '/puertos', icono: 'enchufe' },
 };
 
 /**

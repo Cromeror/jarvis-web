@@ -6,8 +6,8 @@ const SUITES = [
   {
     slug: 'contabilidad',
     modules: [
-      { slug: 'causacion', key: 'causacion-facturas-001' },
-      { slug: 'entornos', key: 'environments-002' },
+      { slug: 'causacion', key: 'MOD-0001' },
+      { slug: 'entornos', key: 'MOD-0002' },
     ],
   },
 ] as unknown as CatalogSuite[];
@@ -16,12 +16,12 @@ describe('ubicacionDe', () => {
   it('traduce el slug del módulo a su key — el slug se renombra, la key no', () => {
     expect(ubicacionDe('/suites/jarvis-dev/contabilidad/causacion', SUITES)).toEqual({
       surface: 'contabilidad',
-      module: 'causacion-facturas-001',
+      module: 'MOD-0001',
     });
   });
 
   it('sin módulo en la URL toma el primero, igual que la pantalla', () => {
-    expect(ubicacionDe('/suites/jarvis-dev/contabilidad', SUITES)?.module).toBe('causacion-facturas-001');
+    expect(ubicacionDe('/suites/jarvis-dev/contabilidad', SUITES)?.module).toBe('MOD-0001');
   });
 
   it('sin suites cargadas manda el slug: saber menos es mejor que inventar', () => {
@@ -50,7 +50,7 @@ describe('selección', () => {
   it('viaja junto a la ubicación', () => {
     expect(ubicacionDe('/suites/p/contabilidad/causacion', SUITES, SEL)).toEqual({
       surface: 'contabilidad',
-      module: 'causacion-facturas-001',
+      module: 'MOD-0001',
       selection: SEL,
     });
   });

@@ -22,16 +22,16 @@ import type { SeccionDeOrganizacion } from './secciones-visibles.js';
  * nuevo que este bundle.
  */
 export const SECCIONES_DE_ORGANIZACION: Record<string, SeccionDeOrganizacion<React.ReactNode>> = {
-  'miembros-006': {
-    permisos: ['miembros-006:roles', 'miembros-006:members', 'miembros-006:create'],
+  'MOD-0006': {
+    permisos: ['MOD-0006:roles', 'MOD-0006:members', 'MOD-0006:create'],
     render: (organizationId, permisos) => <SeccionMiembros organizationId={organizationId} permisos={permisos} />,
   },
-  'puertos-005': {
-    permisos: ['puertos-005:manage'],
+  'MOD-0005': {
+    permisos: ['MOD-0005:manage'],
     render: (organizationId) => <OrganizationPortsSection organizationId={organizationId} />,
   },
-  'red-de-contexto-org-007': {
-    permisos: ['red-de-contexto-org-007:manage'],
+  'MOD-0007': {
+    permisos: ['MOD-0007:manage'],
     render: (organizationId) => <OrganizationRedContextoSection organizationId={organizationId} />,
   },
 };
@@ -50,7 +50,7 @@ function SeccionMiembros({ organizationId, permisos }: { organizationId: string;
     <section className="space-y-4">
       <h2 className="text-sm font-semibold text-white">Miembros y roles</h2>
       <OrganizationRolesPanel key={version} users={[]} organizacionFija={organizationId} />
-      {permisos.includes('miembros-006:create') && (
+      {permisos.includes('MOD-0006:create') && (
         <CrearMiembro organizationId={organizationId} onCreado={() => setVersion((v) => v + 1)} />
       )}
     </section>

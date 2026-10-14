@@ -1,10 +1,10 @@
 /**
- * Cliente del módulo `red-de-contexto-004`: los círculos de documentación que
+ * Cliente del módulo `MOD-0004`: los círculos de documentación que
  * los proyectos de una organización comparten entre sí.
  *
  * Dos alcances, como en el backend:
  * - **organización** (`api/organizations/:id/red-contexto`) — lo administra
- *   quien tiene `red-de-contexto-org-007:manage`: armar círculos, escribir su
+ *   quien tiene `MOD-0007:manage`: armar círculos, escribir su
  *   contexto general, conectar proyectos.
  * - **proyecto** (`api/projects/:id/red-contexto`) — lo que ve un proyecto:
  *   sus círculos, con quién comparte y qué publicó cada uno.
@@ -165,7 +165,7 @@ export async function getRedDeProyecto(projectId: string): Promise<RedDeProyecto
 }
 
 // ── El auditor (docs/auditor-red-de-contexto.md del core) ──────────────────
-// Configuración y bandeja: lo opera la organización desde `red-de-contexto-org-007`.
+// Configuración y bandeja: lo opera la organización desde `MOD-0007`.
 
 export type EstadoRevision = 'pendiente' | 'aprobado' | 'cuarentena' | 'rechazado';
 export type MotivoRevision = 'auditor' | 'secreto' | 'tamano' | 'ilegible' | 'formato' | 'alcance' | 'persona';
@@ -248,7 +248,7 @@ export async function decidirRevision(
   );
 }
 
-// ── Compartir desde el espacio (`red-de-contexto-004:share`) ───────────────
+// ── Compartir desde el espacio (`MOD-0004:share`) ───────────────
 // La red la arman los espacios: crean sus carpetas e invitan a otros. Cada
 // invitación queda pendiente hasta que la organización la aprueba.
 
@@ -304,7 +304,7 @@ export async function dejarDeCompartirDesdeEspacio(projectId: string, circuloId:
   if (!res.ok) throw new ApiError(res.status, await readError(res));
 }
 
-// ── Las invitaciones, del lado de la organización (`red-de-contexto-org-007:manage`) ──
+// ── Las invitaciones, del lado de la organización (`MOD-0007:manage`) ──
 
 export async function listarInvitaciones(organizationId: string): Promise<MiembroDeCirculo[]> {
   return handleResponse<MiembroDeCirculo[]>(await fetch(`${base(organizationId)}/invitaciones`));

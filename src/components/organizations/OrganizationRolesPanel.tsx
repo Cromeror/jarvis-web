@@ -259,11 +259,11 @@ export function OrganizationRolesPanel({
   const [nuevoMiembro, setNuevoMiembro] = useState<{ userId: string; roleId: string }>({ userId: '', roleId: '' });
 
   const selected = organizations.find((o) => o.id === selectedId) ?? null;
-  /* Los permisos del módulo de organización Miembros (`miembros-006`). Puertos y
+  /* Los permisos del módulo de organización Miembros (`MOD-0006`). Puertos y
      la red de contexto ya no viven acá: son módulos de organización propios y se
      muestran en «Mi organización». */
-  const puedeRoles = selected?.permissions.includes('miembros-006:roles') ?? false;
-  const puedeMiembros = selected?.permissions.includes('miembros-006:members') ?? false;
+  const puedeRoles = selected?.permissions.includes('MOD-0006:roles') ?? false;
+  const puedeMiembros = selected?.permissions.includes('MOD-0006:members') ?? false;
 
   useEffect(() => {
     onSelect?.(selectedId);

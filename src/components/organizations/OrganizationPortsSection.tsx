@@ -31,8 +31,8 @@ const COLUMNAS: ColumnaDeTabla[] = [
  *
  * Es el segundo nivel de `PortGrantsPage`: allá el superadmin le da un bloque a
  * la organización, acá la organización decide qué proyecto usa qué parte. Es la
- * sección del módulo de ORGANIZACIÓN `puertos-005` en «Mi organización», y la
- * gobierna su permiso `puertos-005:manage`. Vivió en Usuarios —página del
+ * sección del módulo de ORGANIZACIÓN `MOD-0005` en «Mi organización», y la
+ * gobierna su permiso `MOD-0005:manage`. Vivió en Usuarios —página del
  * operador— y por eso el administrador de la organización, para quien existe,
  * no la veía.
  *

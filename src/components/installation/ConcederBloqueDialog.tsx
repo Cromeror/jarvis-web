@@ -17,7 +17,7 @@ import type { OrganizationSummary } from '../../lib/organizations-api.js';
  *
  * **Se concede a una ORGANIZACIÓN, no a un proyecto.** Es el eje que delimita:
  * la organización contrata y después parte su bloque entre sus proyectos con
- * el módulo de organización `puertos-005`. Ofrecer acá un selector de proyecto le haría al
+ * el módulo de organización `MOD-0005`. Ofrecer acá un selector de proyecto le haría al
  * superadmin el trabajo que el modelo le sacó a propósito.
  */
 export function ConcederBloqueDialog({

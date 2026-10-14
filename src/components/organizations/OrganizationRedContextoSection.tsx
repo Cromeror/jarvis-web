@@ -23,7 +23,7 @@ import { OrganizationAuditorSection } from "./OrganizationAuditorSection.js";
 import { OrganizationInvitacionesSection } from "./OrganizationInvitacionesSection.js";
 
 /**
- * LA RED DE CONTEXTO, del lado de la ORGANIZACIÓN (`red-de-contexto-org-007`,
+ * LA RED DE CONTEXTO, del lado de la ORGANIZACIÓN (`MOD-0007`,
  * Ajustes → «Organización»): la supervisa.
  *
  * La red la arman los ESPACIOS, desde su propia superficie (Ajustes →

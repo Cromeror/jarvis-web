@@ -43,7 +43,7 @@ const FILTROS: Array<{ valor: EstadoRevision; etiqueta: string }> = [
 
 /**
  * EL AUDITOR DE LA RED DE CONTEXTO, del lado de la organización
- * (`red-de-contexto-org-007:manage`).
+ * (`MOD-0007:manage`).
  *
  * Revisa lo que cada espacio publica antes de que llegue a los demás: con la
  * auditoría prendida, a un círculo sólo le llega lo aprobado. Todo lo que no

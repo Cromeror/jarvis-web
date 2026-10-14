@@ -13,7 +13,7 @@ import type { CatalogSuite } from './catalog-api.js';
  *   ubicación viaja con el mensaje que ya se iba a mandar. Navegar en silencio
  *   cuesta exactamente cero.
  * - **Va la `key` del módulo, no su slug.** El slug es la URL y se renombra
- *   desde la pantalla del catálogo; la `key` lleva el id (`causacion-facturas-001`),
+ *   desde la pantalla del catálogo; la `key` lleva el id (`MOD-0001`),
  *   no cambia nunca, y es lo que nombra sus permisos y sus tablas. Decirle al
  *   modelo el slug sería darle un identificador que mañana apunta a otra cosa.
  * - **Lo que no se puede resolver, no se inventa.** Sin suites cargadas no hay
