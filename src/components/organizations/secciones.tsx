@@ -49,7 +49,7 @@ function SeccionMiembros({ organizationId, permisos }: { organizationId: string;
   return (
     <section className="space-y-4">
       <h2 className="text-sm font-semibold text-foreground">Miembros y roles</h2>
-      <OrganizationRolesPanel key={version} users={[]} organizacionFija={organizationId} />
+      <OrganizationRolesPanel key={version} organizacionFija={organizationId} />
       {permisos.includes('MOD-0006:create') && (
         <CrearMiembro organizationId={organizationId} onCreado={() => setVersion((v) => v + 1)} />
       )}

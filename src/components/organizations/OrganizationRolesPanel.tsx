@@ -17,7 +17,6 @@ import type {
   RoleScope,
   RoleSummary,
 } from '../../lib/organizations-api.js';
-import type { UserSummary } from '../../lib/users-api.js';
 import { mensajeDeError } from './errores.js';
 import { Tabla, type ColumnaDeTabla } from '../ui/Tabla.js';
 import { RolesDelMiembro } from './RolesDelMiembro.js';
@@ -33,16 +32,6 @@ import { Button } from '../ui/atoms/Button.js';
  * Son dos clases y no una porque son dos superficies: un input claro sobre el
  * fondo oscuro —o uno oscuro dentro del modal blanco— se lee mal en el otro.
  */
-/**
- * `[&>option]` no es cosmético: el popup de un `<select>` lo pinta el sistema,
- * no la tarjeta, y las opciones heredan sólo el COLOR del control. Con
- * `text-white` heredado sobre el fondo claro del popup el texto queda blanco
- * sobre blanco — invisible salvo el ítem resaltado. Por eso las opciones llevan
- * su propia superficie, explícita.
- */
-const PAGE_INPUT_CLASS =
-  'w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-indigo-400 [&>option]:bg-[#221f1d] [&>option]:text-white';
-
 interface RoleFormState {
   name: string;
   description: string;
@@ -227,15 +216,10 @@ function resumenDeRoles(roles: RoleSummary[]): string {
  * página, junto al de nuevo usuario. Acá sólo se configura la ya elegida.
  */
 export function OrganizationRolesPanel({
-  users,
-  focusOrganizationId,
-  onMembersChanged,
   organizacionFija,
-  onSelect,
   sinMiembros = false,
   onRolesChanged,
 }: {
-  users: UserSummary[];
   /**
    * Sin la tabla «Miembros»: la página de Usuarios ya muestra a esa misma gente
    * —con sus roles editables— en «Usuarios de la organización». Dos tablas con
@@ -245,25 +229,10 @@ export function OrganizationRolesPanel({
   /** Avisar que los roles cambiaron: quien muestra los chips de roles en otra tabla los recarga. */
   onRolesChanged?: () => void;
   /**
-   * Una sola organización y sin selector: es el modo de «Mi organización», donde
-   * la organización ya está elegida arriba y el panel es una sección más.
+   * La organización que se configura. La elige quien monta el panel —la barra
+   * de Usuarios, o la organización de Ajustes—; el panel no tiene selector.
    */
-  organizacionFija?: string;
-  /** Avisar qué organización quedó elegida: la página de Usuarios filtra su tabla con eso. */
-  onSelect?: (organizationId: string | null) => void;
-  /**
-   * La organización que hay que mostrar, cuando la elige la página (recién
-   * creada desde la cabecera). Es un pedido de enfoque, no estado controlado:
-   * el panel sigue siendo dueño de la selección, así que cambiarla desde su
-   * propio select no obliga a la página a re-renderizar.
-   */
-  focusOrganizationId?: string | null;
-  /**
-   * Avisar que la membresía cambió. La tabla de usuarios de la página muestra a
-   * qué organización pertenece cada uno: sin esto, agregar o quitar un miembro
-   * acá deja esa columna mintiendo hasta el próximo refresh.
-   */
-  onMembersChanged?: () => void;
+  organizacionFija: string;
 }): React.ReactElement {
   const [organizations, setOrganizations] = useState<OrganizationSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -298,7 +267,6 @@ export function OrganizationRolesPanel({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [editingRole, setEditingRole] = useState<RoleSummary | 'new' | null>(null);
   const [rolesAbiertos, setRolesAbiertos] = useState(false);
-  const [nuevoMiembro, setNuevoMiembro] = useState<{ userId: string; roleId: string }>({ userId: '', roleId: '' });
 
   const selected = organizations.find((o) => o.id === selectedId) ?? null;
   /* Los permisos del módulo de organización Miembros (`MOD-0006`). Puertos y
@@ -306,10 +274,6 @@ export function OrganizationRolesPanel({
      muestran en «Mi organización». */
   const puedeRoles = selected?.permissions.includes('MOD-0006:roles') ?? false;
   const puedeMiembros = selected?.permissions.includes('MOD-0006:members') ?? false;
-
-  useEffect(() => {
-    onSelect?.(selectedId);
-  }, [selectedId, onSelect]);
 
   useEffect(() => {
     void (async () => {
@@ -354,38 +318,14 @@ export function OrganizationRolesPanel({
     if (selectedId) void refreshOrg(selectedId);
   }, [selectedId, refreshOrg]);
 
-  // Una organización recién creada desde la cabecera todavía no está en la
-  // lista local: hay que recargarla, no sólo seleccionar un id que el select no
-  // tiene (se vería vacío, con los roles de la anterior).
-  useEffect(() => {
-    if (focusOrganizationId) void refreshOrganizations(focusOrganizationId);
-  }, [focusOrganizationId, refreshOrganizations]);
 
-  /**
-   * A quién se puede agregar: los que no pertenecen a NINGUNA organización.
-   *
-   * No alcanza con excluir a los miembros de ésta. Una persona pertenece a una
-   * sola, así que alguien que ya está en otra vuelve con un 409 — ofrecerlo es
-   * ofrecer una opción que siempre falla. Y a los de esta misma organización no
-   * se los agrega: se les cambia el rol en su fila.
-   */
-  const candidatos = useMemo(
-    () => users.filter((u) => !u.organization && !members.some((m) => m.user_id === u.id)),
-    [users, members],
-  );
 
-  async function conManejoDeError(
-    accion: () => Promise<void>,
-    fallback: string,
-    /** Si la acción tocó miembros, la tabla de usuarios de la página quedó vieja. */
-    tocaMiembros = false,
-  ): Promise<void> {
+  async function conManejoDeError(accion: () => Promise<void>, fallback: string): Promise<void> {
     setError(null);
     try {
       await accion();
       if (selectedId) await refreshOrg(selectedId);
       onRolesChanged?.();
-      if (tocaMiembros) onMembersChanged?.();
     } catch (err) {
       setError(mensajeDeError(err, fallback));
     }
@@ -475,7 +415,7 @@ export function OrganizationRolesPanel({
           onSelect: () => {
             if (!selectedId) return;
             if (!window.confirm(`¿Sacar a '${m.username}' de la organización?`)) return;
-            void conManejoDeError(() => removeMember(selectedId, m.user_id), 'Error al quitar el miembro', true);
+            void conManejoDeError(() => removeMember(selectedId, m.user_id), 'Error al quitar el miembro');
           },
         }
       : null;
@@ -490,7 +430,7 @@ export function OrganizationRolesPanel({
           editable={puedeMiembros}
           onCambiar={(ids) => {
             if (!selectedId) return;
-            void conManejoDeError(() => setMemberRoles(selectedId, m.user_id, ids), 'Error al cambiar los roles', true);
+            void conManejoDeError(() => setMemberRoles(selectedId, m.user_id, ids), 'Error al cambiar los roles');
           }}
         />
       );
@@ -521,22 +461,6 @@ export function OrganizationRolesPanel({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end gap-3">
-        {!organizacionFija && (
-        <div>
-          <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">Organización</label>
-          <select
-            value={selectedId ?? ''}
-            onChange={(e) => setSelectedId(e.target.value)}
-            className={`${PAGE_INPUT_CLASS} min-w-64`}
-          >
-            {organizations.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.name} ({o.slug})
-              </option>
-            ))}
-          </select>
-        </div>
-        )}
       </div>
 
       {organizations.length === 0 && (
@@ -643,59 +567,10 @@ export function OrganizationRolesPanel({
             dos salidas están en pantallas distintas. */}
         {selected && members.length === 0 && (
           <p className="mt-2 text-xs text-slate-400">
-            Esta organización todavía no tiene miembros. Sumá a alguien acá abajo, o dá de alta un usuario nuevo
-            eligiéndola como su organización.
+            Esta organización todavía no tiene miembros. Dá de alta un usuario eligiéndola como su organización.
           </p>
         )}
 
-        {puedeMiembros && candidatos.length > 0 && roles.length > 0 && (
-          <div className="mt-3 flex flex-wrap items-end gap-2">
-            <select
-              value={nuevoMiembro.userId}
-              onChange={(e) => setNuevoMiembro((n) => ({ ...n, userId: e.target.value }))}
-              className={`${PAGE_INPUT_CLASS} w-56`}
-            >
-              <option value="">Agregar usuario…</option>
-              {candidatos.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.username}
-                </option>
-              ))}
-            </select>
-            <select
-              value={nuevoMiembro.roleId}
-              onChange={(e) => setNuevoMiembro((n) => ({ ...n, roleId: e.target.value }))}
-              className={`${PAGE_INPUT_CLASS} w-56`}
-            >
-              <option value="">con el rol…</option>
-              {roles.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
-            <Button
-              disabled={!nuevoMiembro.userId || !nuevoMiembro.roleId}
-              onClick={() => {
-                if (!selectedId) return;
-                const { userId, roleId } = nuevoMiembro;
-                void conManejoDeError(
-                  async () => {
-                    // El alta entra con UN rol; los demás se suman después
-                    // desde los chips de su fila.
-                    await setMemberRoles(selectedId, userId, [roleId]);
-                    setNuevoMiembro({ userId: '', roleId: '' });
-                  },
-                  'Error al agregar el miembro',
-                  true,
-                );
-              }}
-              variant="primary"
-            >
-              Agregar
-            </Button>
-          </div>
-        )}
       </section>
 
       )}

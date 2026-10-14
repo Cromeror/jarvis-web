@@ -17,6 +17,7 @@ import { Combo } from '../components/ui/Combo.js';
 import { Icon } from '../components/Icon.js';
 import { CampoClave } from '../components/ui/CampoClave.js';
 import { Dialogo } from '../components/ui/Dialogo.js';
+import { Button } from '../components/ui/atoms/Button.js';
 import { filasDeUsuarios, pendientesDeAsignar } from '../lib/usuarios-por-organizacion.js';
 
 /**
@@ -134,6 +135,10 @@ function UserFormModal({
   const [rolesListos, setRolesListos] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  /* La organización se elige al dar el alta, o al editar a alguien que todavía
+     no tiene: ésa es la forma de asignar a los «sin asignar». A quien ya
+     pertenece a una no se lo muda desde acá. */
+  const puedeElegirOrganizacion = !editing || !editing.organization;
 
   // Los roles de cada organización dueña de un proyecto: son las opciones del
   // select. Se piden una vez por organización y no una por proyecto — varios
@@ -224,15 +229,21 @@ function UserFormModal({
     setError(null);
     setSaving(true);
     try {
+      if (form.account_type === 'client' && puedeElegirOrganizacion && form.organization_id && !form.organization_role_id) {
+        throw new Error('Elegí con qué rol entra a la organización');
+      }
       if (editing) {
         await updateUser(editing.id, {
           account_type: form.account_type,
-          ...(form.account_type === 'client' && form.organization_id && form.organization_role_id
-            ? { organization_id: form.organization_id, organization_role_id: form.organization_role_id }
-            : {}),
           password: form.password || undefined,
           project_roles: form.project_roles,
         });
+        /* Asignar a alguien sin organización. El PATCH de usuarios no la toca
+           (mudar de organización tiene su propio invariante de gobierno), así
+           que va por la membresía: el mismo camino que sumarlo desde la tabla. */
+        if (form.account_type === 'client' && !editing.organization && form.organization_id) {
+          await setMemberRoles(form.organization_id, editing.id, [form.organization_role_id]);
+        }
       } else {
         if (!form.username.trim() || !form.password.trim()) {
           throw new Error('Usuario y contraseña son obligatorios');
@@ -321,7 +332,7 @@ function UserFormModal({
         )}
 
         {form.account_type === 'client' &&
-          !editing &&
+          puedeElegirOrganizacion &&
           campo(
             'Organización',
             <select
@@ -329,7 +340,9 @@ function UserFormModal({
               value={form.organization_id}
               onChange={(e) => setForm((f) => ({ ...f, organization_id: e.target.value, organization_role_id: '' }))}
             >
-              <option value="">Una organización propia</option>
+              {/* Al dar el alta, sin organización es «una propia»; al editar a
+                  alguien sin asignar, es dejarlo como está. */}
+              <option value="">{editing ? 'Sin organización (como está)' : 'Una organización propia'}</option>
               {organizaciones.map((o) => (
                 <option key={o.id} value={o.id}>
                   {o.name}
@@ -339,7 +352,7 @@ function UserFormModal({
           )}
 
         {form.account_type === 'client' &&
-          !editing &&
+          puedeElegirOrganizacion &&
           form.organization_id &&
           campo(
             'Rol en la organización',
@@ -473,35 +486,6 @@ function textoBuscable(user: UserSummary, projects: ProjectSummary[]): string {
   return normalizar(partes.join(' '));
 }
 
-/** El botón de «Agregar usuario» junto al título: el mismo botón del sistema, fuera de la barra. */
-function BotonDeAgregar({
-  children,
-  onClick,
-  disabled,
-  primario,
-  title,
-}: {
-  children: React.ReactNode;
-  onClick?: () => void;
-  disabled?: boolean;
-  primario?: boolean;
-  title?: string;
-}): React.ReactElement {
-  return (
-    <button
-      type="button"
-      className="btn"
-      data-variant={primario ? undefined : 'outline'}
-      data-size="sm"
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-    >
-      {children}
-    </button>
-  );
-}
-
 /**
  * Una sola pantalla para las dos mitades de la misma pregunta: quién entra
  * (usuarios, con la organización a la que pertenece cada uno) y qué puede hacer
@@ -547,7 +531,6 @@ export function UsersPage(): React.ReactElement {
   /** Los roles de la organización elegida: los chips de la columna «Roles en la organización». */
   const [rolesOrg, setRolesOrg] = useState<RoleSummary[]>([]);
   const [versionRoles, setVersionRoles] = useState(0);
-  const [nuevoMiembro, setNuevoMiembro] = useState<{ userId: string; roleId: string }>({ userId: '', roleId: '' });
 
   useEffect(() => {
     if (!orgSeleccionada) {
@@ -567,10 +550,6 @@ export function UsersPage(): React.ReactElement {
     };
   }, [orgSeleccionada, versionRoles]);
 
-  /* A quién se puede sumar: clientes que no pertenecen a NINGUNA organización.
-     Una persona pertenece a una sola, así que ofrecer a alguien de otra es
-     ofrecer un 409 seguro; y a los de ésta se les cambia el rol en su fila. */
-  const candidatos = useMemo(() => users.filter((u) => u.account_type === 'client' && !u.organization), [users]);
 
   /** Corre un cambio de membresía y recarga la tabla. */
   async function cambiarMembresia(accion: () => Promise<void>, fallback: string): Promise<void> {
@@ -782,7 +761,6 @@ export function UsersPage(): React.ReactElement {
             {currentUser?.account_type === 'operator' && (
               <ToolbarBoton onClick={() => setCreandoOrg(true)}>+ Nueva organización</ToolbarBoton>
             )}
-            <ToolbarBoton onClick={() => setEditing('new')}>+ Nuevo usuario</ToolbarBoton>
           </ToolbarGrupo>
         </Toolbar>
       </div>
@@ -795,11 +773,7 @@ export function UsersPage(): React.ReactElement {
       <section className="mb-8">
         {orgSeleccionada && (
         <OrganizationRolesPanel
-          users={users}
           organizacionFija={orgSeleccionada}
-          // Agregar o quitar un miembro cambia la columna «Organización» de la
-          // tabla de abajo: sin esto quedaría vieja hasta el próximo refresh.
-          onMembersChanged={() => void refresh()}
           sinMiembros
           onRolesChanged={() => {
             setVersionRoles((v) => v + 1);
@@ -820,56 +794,12 @@ export function UsersPage(): React.ReactElement {
               ? 'Sin asignar'
               : `Usuarios de ${organizaciones.find((o) => o.id === orgSeleccionada)?.name ?? 'la organización'}`}
           </h2>
-            {/* Sumar a esta organización a alguien con cuenta y sin organización.
-                Va junto al título porque actúa sobre ESTA tabla. Entra con UN
-                rol; los demás se dan después con los chips de su fila. */}
-            {!verSinAsignar && (
-              <div className="flex flex-wrap items-center gap-2">
-                {orgSeleccionada && candidatos.length > 0 && rolesOrg.some((r) => r.scope === 'org') ? (
-              <>
-                <Combo
-                  rotulo="Agregar usuario"
-                  opciones={[{ id: '', label: 'Elegí a quién…' }, ...candidatos.map((u) => ({ id: u.id, label: u.username }))]}
-                  valor={nuevoMiembro.userId}
-                  alCambiar={(v) => setNuevoMiembro((n) => ({ ...n, userId: v }))}
-                />
-                <Combo
-                  rotulo="con el rol"
-                  opciones={[
-                    { id: '', label: 'Elegí un rol…' },
-                    ...rolesOrg.filter((r) => r.scope === 'org').map((r) => ({ id: r.id, label: r.name })),
-                  ]}
-                  valor={nuevoMiembro.roleId}
-                  alCambiar={(v) => setNuevoMiembro((n) => ({ ...n, roleId: v }))}
-                />
-                <BotonDeAgregar
-                  primario
-                  disabled={!nuevoMiembro.userId || !nuevoMiembro.roleId}
-                  onClick={() => {
-                    const { userId, roleId } = nuevoMiembro;
-                    void cambiarMembresia(async () => {
-                      await setMemberRoles(orgSeleccionada, userId, [roleId]);
-                      setNuevoMiembro({ userId: '', roleId: '' });
-                    }, 'Error al agregar a la organización');
-                  }}
-                >
-                  Agregar
-                </BotonDeAgregar>
-              </>
-            ) : (
-              <BotonDeAgregar
-                disabled
-                title={
-                  candidatos.length === 0
-                    ? 'No hay nadie sin organización: todos los clientes ya pertenecen a una. Creá uno con «+ Nuevo usuario».'
-                    : 'Esta organización no tiene roles de organización: creá uno para poder sumar gente.'
-                }
-              >
-                Agregar usuario
-              </BotonDeAgregar>
-            )}
-              </div>
-            )}
+            {/* El alta va junto a la tabla en la que aparece la persona. Para
+                asignar a alguien que ya tiene cuenta y está «sin asignar», se lo
+                edita desde su fila y se le elige la organización. */}
+            <Button variant="outline" onClick={() => setEditing('new')}>
+              Agregar usuario
+            </Button>
           </div>
           <div className="flex items-center gap-2">
             {/* EL NÚMERO ES LA RAZÓN DEL BOTÓN: dice de un vistazo si hay gente
