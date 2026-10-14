@@ -13,6 +13,7 @@ import {
   type PortGrantsResponse,
 } from '../lib/installation-api.js';
 import { listOrganizations, type OrganizationSummary } from '../lib/organizations-api.js';
+import { Button } from '../components/ui/atoms/Button.js';
 
 const COLUMNAS: ColumnaDeTabla[] = [
   { id: 'organizacion', label: 'Organización', w: 220 },
@@ -167,7 +168,7 @@ export function PortGrantsPage(): React.ReactElement {
         : `${reparto.libre} puertos libres.`;
 
   return (
-    <div className="h-full min-h-0 bg-[var(--app-bg)] p-6">
+    <div className="h-full min-h-0 bg-[var(--sw-ink)] p-6">
       <div className="sw-puertos">
         {/* LA FRANJA DE ARRIBA. El aviso y la tarjeta son la misma cosa —el
             estado del reparto— así que la superficie tiene DOS hijos y no tres:
@@ -176,7 +177,7 @@ export function PortGrantsPage(): React.ReactElement {
             la hace llenar la pantalla. */}
         <div className="sw-puertos__franja">
           {error && (
-            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+            <div className="rounded-lg border border-[var(--sw-error)] bg-[var(--sw-error-bg)] px-3 py-2 text-sm text-[var(--sw-on-error)]">
               {error}
             </div>
           )}
@@ -200,10 +201,10 @@ export function PortGrantsPage(): React.ReactElement {
                   mismo lugar donde contable aloja el navegador de período. El
                   control que actúa sobre lo que la tarjeta narra tiene que estar
                   donde se lee el resultado, no dos cajas más arriba. */}
-              <button type="button" className="btn" onClick={() => setConcediendo(true)}>
+              <Button onClick={() => setConcediendo(true)}>
                 <Icon name="plus" />
                 Conceder
-              </button>
+              </Button>
 
               {tramos.length > 0 ? (
                 <>
@@ -234,7 +235,7 @@ export function PortGrantsPage(): React.ReactElement {
 
         <div className="sw-puertos__tabla">
           {cargando ? (
-            <p className="text-sm text-slate-400">Cargando…</p>
+            <p className="text-sm text-muted-foreground">Cargando…</p>
           ) : (
             <Tabla<PortGrant>
               titulo="Bloques concedidos"

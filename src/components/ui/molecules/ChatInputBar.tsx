@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Spinner } from '../atoms/Spinner.js';
+import { Button } from '../atoms/Button.js';
+import { Icon } from '../../Icon.js';
 import {
   ACCEPTED_ATTACHMENT_EXTENSIONS as ADJUNTOS_ACEPTADOS,
   formatAttachmentSize as formatFileSize,
@@ -110,27 +112,27 @@ export function ChatInputBar({
   };
 
   return (
-    <div className="border-t border-[var(--chatcontent-border-subtle)] p-4">
-      <div className="mx-auto max-w-3xl">
+    <div className="border-t border-border p-4">
+      <div className="mx-auto flex max-w-3xl flex-col gap-2">
         {rechazados.length > 0 && (
-          <div className="mb-2 rounded-md bg-red-500/10 px-3 py-2 text-xs text-red-300" role="alert">
+          <div className="rounded-[var(--sw-r-md)] bg-[var(--sw-error-bg)] px-3 py-2 text-xs text-[var(--sw-on-error)]" role="alert">
             No se puede adjuntar {rechazados.join(', ')}: el chat sólo lee imágenes, PDF y Markdown (
             {ADJUNTOS_ACEPTADOS.join(', ')}).
           </div>
         )}
         {attachments.length > 0 && (
-          <div className="mb-2 flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2">
             {attachments.map((file, i) => (
               <span
                 key={`${file.name}-${i}`}
-                className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-xs text-[var(--tab-text-hover)]"
+                className="flex items-center gap-1 rounded-[var(--sw-r-pill)] bg-muted px-3 py-1 text-xs text-foreground"
               >
                 {file.name}
-                <span className="text-[var(--chatcontent-text-muted)]">{formatFileSize(file.size)}</span>
+                <span className="text-muted-foreground">{formatFileSize(file.size)}</span>
                 <button
                   type="button"
                   onClick={() => removeAttachment(i)}
-                  className="text-[var(--chatcontent-text-muted)] hover:text-[var(--tab-text-hover)]"
+                  className="text-muted-foreground hover:text-foreground"
                   aria-label={`Quitar ${file.name}`}
                 >
                   ×
@@ -139,10 +141,15 @@ export function ChatInputBar({
             ))}
           </div>
         )}
+        {/* El foco lo marca el CONTENEDOR (borde de acento) y no el textarea: si
+            no, el anillo global de :focus-visible dibuja una segunda línea
+            adentro de la caja. Mismo criterio que `.sw-comp__campo` del chat
+            flotante. El `!` hace falta porque esa regla global no está en una
+            capa y le gana a cualquier utilidad de Tailwind sin él. */}
         <div
-          className={`relative flex items-end gap-[var(--chatinput-gap)] rounded-[var(--chatinput-radius)] border bg-[var(--chatinput-bg)] px-[var(--chatinput-padding-h)] py-[var(--chatinput-padding-v)] transition-colors ${
+          className={`relative flex items-end gap-[var(--sw-s-2)] rounded-[var(--sw-r-lg)] border bg-[var(--sw-raised)] px-[var(--sw-s-2)] py-[var(--sw-s-2)] transition-colors ${
             showExpandButton ? 'pr-10' : ''
-          } ${focused ? 'border-[var(--sidebar2-accent-default)]' : 'border-[var(--chatinput-border)]'}`}
+          } ${focused ? 'border-[var(--sw-accent)]' : 'border-[var(--sw-line-strong)]'}`}
         >
           {showExpandButton && (
             <button
@@ -151,9 +158,11 @@ export function ChatInputBar({
               disabled={disabled}
               title="Expandir a pantalla completa"
               aria-label="Expandir a pantalla completa"
-              className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-md text-[var(--chatcontent-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--tab-text-hover)] disabled:opacity-30"
+              className="btn absolute right-2 top-2 text-muted-foreground"
+              data-variant="ghost"
+              data-size="icon-sm"
             >
-              <i className="pi pi-window-maximize text-xs" />
+              <Icon name="maximize" />
             </button>
           )}
           <input
@@ -173,22 +182,16 @@ export function ChatInputBar({
               fileInputRef.current?.click();
             }}
             disabled={disabled}
-            className="flex shrink-0 items-center justify-center rounded-[8px] p-2 text-[var(--tab-text-default)] transition-colors hover:bg-white/10 hover:text-[var(--tab-text-hover)] disabled:opacity-30"
+            className="btn shrink-0 text-secondary-foreground"
+            data-variant="ghost"
+            data-size="icon-sm"
             aria-label="Adjuntar archivo"
           >
-            <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
-              <path
-                d="M21.44 11.05l-9.19 9.19a5 5 0 01-7.07-7.07l9.19-9.19a3.5 3.5 0 014.95 4.95l-9.2 9.19a1.5 1.5 0 01-2.12-2.12l8.49-8.48"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+            <Icon name="clip" />
           </button>
           <textarea
             ref={textareaRef}
-            className="max-h-[40vh] flex-1 resize-none overflow-y-auto bg-transparent px-1 py-2 text-[16px] text-white placeholder:text-[var(--chatinput-placeholder-text)] focus:outline-none disabled:opacity-50"
+            className="max-h-[40vh] flex-1 resize-none overflow-y-auto bg-transparent px-1 py-2 text-[16px] text-foreground placeholder:text-[var(--sw-placeholder)] focus-visible:!outline-none disabled:opacity-50"
             rows={1}
             placeholder="Escribí un mensaje..."
             value={value}
@@ -203,36 +206,30 @@ export function ChatInputBar({
             type="button"
             onClick={handleSend}
             disabled={disabled || (!value.trim() && attachments.length === 0)}
-            className="flex shrink-0 items-center justify-center rounded-[8px] bg-[var(--sidebar2-accent-default)] p-2 text-white transition-colors hover:bg-[var(--buttonicon-primary-bg-hover)] disabled:opacity-30"
+            className="btn shrink-0"
+            data-size="icon-sm"
             aria-label="Enviar mensaje"
           >
-            <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
-              <path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            <Icon name="send" />
           </button>
         </div>
       </div>
 
       {expanded && (
         <div
-          className="fixed inset-0 z-50 flex flex-col bg-[var(--chatcontent-bg-base)] bg-gradient-to-b from-[var(--chatcontent-bg-from)] to-[var(--chatcontent-bg-to)]"
+          className="fixed inset-0 z-50 flex flex-col bg-[var(--sw-ink)]"
           style={{ paddingTop: 'env(safe-area-inset-top)' }}
         >
-          <div className="flex items-center justify-between border-b border-[var(--chatcontent-border-subtle)] px-4 py-3">
-            <span className="text-sm font-medium text-[var(--chatcontent-text-muted)]">Escribir mensaje</span>
-            <button
-              type="button"
-              onClick={() => setExpanded(false)}
-              aria-label="Minimizar"
-              className="flex h-10 items-center gap-1.5 rounded-full border border-[var(--chatcontent-border-subtle)] px-3 text-sm font-medium text-[var(--tab-text-hover)] hover:bg-white/10"
-            >
-              <i className="pi pi-window-minimize text-sm" />
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <span className="text-sm font-medium text-muted-foreground">Escribir mensaje</span>
+            <Button variant="outline" size="md" onClick={() => setExpanded(false)} aria-label="Minimizar">
+              <Icon name="minus" />
               Minimizar
-            </button>
+            </Button>
           </div>
           <textarea
             ref={expandedTextareaRef}
-            className="flex-1 resize-none bg-transparent px-4 py-3 text-[17px] leading-relaxed text-white placeholder:text-[var(--chatcontent-text-muted)] focus:outline-none"
+            className="flex-1 resize-none bg-transparent px-4 py-3 text-[17px] leading-relaxed text-foreground placeholder:text-[var(--sw-placeholder)] focus:outline-none"
             placeholder="Escribí un mensaje..."
             value={value}
             disabled={disabled}
@@ -240,38 +237,29 @@ export function ChatInputBar({
             onKeyDown={handleExpandedKeyDown}
             onPaste={handlePaste}
           />
-          <div className="flex items-center justify-end gap-2 border-t border-[var(--chatcontent-border-subtle)] px-4 py-3">
+          <div className="flex items-center justify-end gap-2 border-t border-border px-4 py-3">
             {turnInFlight && onStop && (
               // A la izquierda del resto: el overlay tapa el Detener de la
               // lista, así que sin esto no habría cómo cortar el turno sin
               // salir del composer primero.
-              <button
-                type="button"
-                onClick={onStop}
-                className="mr-auto flex items-center gap-1.5 rounded-full border border-[var(--chatcontent-border-subtle)] px-4 py-2 text-sm font-medium text-[var(--tab-text-hover)] hover:bg-white/10"
-              >
+              <Button variant="outline" size="md" onClick={onStop} className="mr-auto">
                 <Spinner className="h-3 w-3" />
                 Detener
-              </button>
+              </Button>
             )}
-            <button
-              type="button"
-              onClick={() => setExpanded(false)}
-              className="rounded-full px-4 py-2 text-sm font-medium text-[var(--tab-text-default)] hover:bg-white/10"
-            >
+            <Button variant="ghost" size="md" onClick={() => setExpanded(false)}>
               Seguir editando
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              size="md"
               onClick={() => {
                 handleSend();
                 setExpanded(false);
               }}
               disabled={disabled || (!value.trim() && attachments.length === 0)}
-              className="rounded-full bg-[var(--sidebar2-accent-default)] px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--buttonicon-primary-bg-hover)] disabled:opacity-30"
             >
               Enviar
-            </button>
+            </Button>
           </div>
         </div>
       )}

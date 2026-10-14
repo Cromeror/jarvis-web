@@ -33,17 +33,17 @@ export function QueuedMessageRow({ order, content, state, onRemove }: QueuedMess
   const removable = isRemovableFromQueue(state) && Boolean(onRemove);
 
   return (
-    <div className="flex items-center gap-2.5 rounded-[10px] bg-white/4 px-2.5 py-2">
-      <span className="shrink-0 text-[11px] font-semibold text-white/40">{order}</span>
-      <span className="min-w-0 flex-1 truncate text-xs text-white">{content}</span>
-      <span className="shrink-0 text-[10px] text-white/50">{STATE_LABEL[state]}</span>
+    <div className="flex items-center gap-2.5 rounded-[var(--sw-r-md)] bg-muted px-2.5 py-2">
+      <span className="shrink-0 text-[11px] font-semibold text-muted-foreground">{order}</span>
+      <span className="min-w-0 flex-1 truncate text-xs text-foreground">{content}</span>
+      <span className="shrink-0 text-[10px] text-muted-foreground">{STATE_LABEL[state]}</span>
       {removable ? (
         <button
           type="button"
           onClick={onRemove}
           aria-label={`Quitar de la cola: ${content}`}
           title="Quitar de la cola"
-          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/8 text-white/70 hover:bg-white/15 hover:text-white"
+          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-secondary-foreground hover:bg-accent hover:text-foreground"
         >
           <Icons icon="x-circle" size={12} />
         </button>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Button } from './Button.js';
 
 interface RailButtonProps {
   label: string;
@@ -7,20 +8,16 @@ interface RailButtonProps {
 }
 
 /**
- * Botón XS del FocusCard (Figma "Button", instancias "Aprobar"/"Lanzar ahora"
- * — variante Type=Neutral, sin íconos en las dos instancias reales del frame).
- * `Button.tsx` (legado) usa clases `.btn-*` globales que no matchean este
- * estilo — átomo nuevo, mismo criterio que Sidebar2/CardBase de no tocar
- * componentes legacy para portar un frame nuevo de Figma.
+ * Botón chico del FocusCard y de las filas de ATENCIÓN ("Aprobar", "Lanzar
+ * ahora"). Es el `Button` del sistema en `outline`: antes era un átomo propio
+ * pintado con variables `--chatoptionsrail-*` que nunca se definieron, así que
+ * salía sin borde ni fondo. Se conserva el nombre para no tocar a los dos
+ * llamadores, pero el aspecto lo decide el sistema y no este archivo.
  */
 export function RailButton({ label, onClick, className = '' }: RailButtonProps): React.ReactElement {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex items-center justify-center gap-[var(--chatoptionsrail-button-gap)] rounded-[var(--chatoptionsrail-button-radius)] border border-[var(--chatoptionsrail-button-border)] bg-[var(--chatoptionsrail-button-bg)] px-[var(--chatoptionsrail-button-padding-h)] py-[var(--chatoptionsrail-button-padding-v)] text-xs font-bold whitespace-nowrap text-[var(--chatoptionsrail-button-text)] ${className}`}
-    >
+    <Button variant="outline" size="xs" onClick={onClick} className={`whitespace-nowrap ${className}`}>
       {label}
-    </button>
+    </Button>
   );
 }

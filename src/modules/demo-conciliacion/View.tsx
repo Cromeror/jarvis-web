@@ -5,8 +5,7 @@ import type { ModuleViewProps } from '../registry.js';
 import { StatusBadge } from '../../components/ui/atoms/StatusBadge.js';
 import { Button } from '../../components/ui/atoms/Button.js';
 
-const INPUT_CLASS =
-  'w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 font-mono text-xs text-white outline-none focus:border-indigo-400';
+const INPUT_CLASS = 'textarea w-full font-mono text-xs';
 
 const EXTRACTO_EJEMPLO = `[
   { "concepto": "Alquiler", "monto": 1200 },
@@ -69,11 +68,11 @@ export function View({ projectId, module }: ModuleViewProps): React.ReactElement
     <div className="space-y-4">
       <div className="grid gap-3 md:grid-cols-2">
         <div>
-          <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">Extracto</label>
+          <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-muted-foreground">Extracto</label>
           <textarea rows={8} value={extracto} onChange={(e) => setExtracto(e.target.value)} className={INPUT_CLASS} />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">Libro</label>
+          <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-muted-foreground">Libro</label>
           <textarea rows={8} value={libro} onChange={(e) => setLibro(e.target.value)} className={INPUT_CLASS} />
         </div>
       </div>
@@ -95,8 +94,8 @@ export function View({ projectId, module }: ModuleViewProps): React.ReactElement
           {corriendo && conciliar && corriendo === conciliar.id ? 'Conciliando…' : 'Conciliar'}
         </Button>
 
-        <button
-          type="button"
+        <Button
+          variant="outline"
           // La herramienta ABIERTA: no sabe nada de conciliación, exporta lo que
           // haya a la vista. Es la mitad del ejemplo que prueba que una herramienta
           // sirve en cualquier módulo que acepte abiertas.
@@ -105,22 +104,21 @@ export function View({ projectId, module }: ModuleViewProps): React.ReactElement
             const filas = Array.isArray(salida) ? salida : [salida as Record<string, unknown>];
             if (exportar) void ejecutar(exportar, { filas });
           }}
-          className="rounded-lg border border-white/15 px-3 py-2 text-sm font-medium text-white hover:bg-white/10 disabled:opacity-40"
         >
           Exportar a CSV
-        </button>
+        </Button>
 
         {!conciliar && <StatusBadge label="la herramienta de conciliar no está en este módulo" tone="warning" />}
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>
+        <div className="rounded-lg border border-[var(--sw-error)] bg-[var(--sw-error-bg)] px-3 py-2 text-sm text-[var(--sw-on-error)]">{error}</div>
       )}
 
       {salida !== null && (
         <div>
-          <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">Resultado</h3>
-          <pre className="max-h-72 overflow-auto rounded-lg border border-white/10 bg-black/30 p-3 font-mono text-xs text-slate-200">
+          <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Resultado</h3>
+          <pre className="max-h-72 overflow-auto rounded-lg border border-border bg-muted p-3 font-mono text-xs text-secondary-foreground">
             {typeof salida === 'string' ? salida : JSON.stringify(salida, null, 2)}
           </pre>
         </div>

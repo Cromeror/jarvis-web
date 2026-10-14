@@ -82,15 +82,15 @@ export function RailListPanel({
         <RailSectionHeader label={label} icon={icon} />
       </button>
       {/* El scroll lo maneja el contenedor del rail, no la tarjeta. */}
-      <div className="flex w-full flex-col rounded-[var(--chatoptionsrail-list-radius)] bg-[var(--chatoptionsrail-list-bg)] p-[var(--chatoptionsrail-list-padding)]">
+      <div className="flex w-full flex-col rounded-[var(--sw-r-md)] bg-muted p-[var(--sw-s-2)]">
         {placeholder !== null ? (
-          <p className="py-[var(--chatoptionsrail-listrow-padding-v)] text-[12px] text-[var(--chatoptionsrail-listrow-subtitle-text)]">
+          <p className="py-[var(--sw-s-2)] text-[12px] text-muted-foreground">
             {placeholder}
           </p>
         ) : (
           items.map((item, index) => (
             <React.Fragment key={item.id}>
-              {index > 0 && <div className="h-px w-full shrink-0 bg-[var(--chatoptionsrail-list-divider)]" />}
+              {index > 0 && <div className="h-px w-full shrink-0 bg-border" />}
               <RailListRow
                 title={item.title}
                 subtitle={item.subtitle}
@@ -108,12 +108,12 @@ export function RailListPanel({
         )}
         {footer && placeholder === null && (
           <>
-            <div className="h-px w-full shrink-0 bg-[var(--chatoptionsrail-list-divider)]" />
+            <div className="h-px w-full shrink-0 bg-border" />
             <button
               type="button"
               onClick={footer.onClick}
               disabled={!footer.onClick}
-              className="w-full py-[var(--chatoptionsrail-listrow-padding-v)] pl-2 text-left text-[11px] font-medium leading-[14px] text-[var(--chatoptionsrail-listrow-status-text)] transition-opacity hover:opacity-80 disabled:cursor-default disabled:opacity-100"
+              className="w-full py-[var(--sw-s-2)] pl-2 text-left text-[11px] font-medium leading-[14px] text-primary transition-opacity hover:opacity-80 disabled:cursor-default disabled:opacity-100"
             >
               {footer.label}
             </button>

@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Spinner } from '../components/ui/atoms/Spinner.js';
-import { Markdown } from '../components/ui/atoms/Markdown.js';
+import { PlanMarkdown } from '../components/Plan/PlanMarkdown.js';
 import { RawEditor } from '../components/Editor/RawEditor.js';
 import { WorkspaceTree, type DirState } from '../components/Workspaces/WorkspaceTree.js';
 import { listWorkspaceDir, readWorkspaceFile, type WorkspaceFileResponse } from '../lib/workspace-files-api.js';
+import { Icon } from '../components/Icon.js';
 import { toTreeNodes, parseExplorerPath, toExplorerPath, toPreviewState, humanSize } from '../lib/explorer-view.js';
 
 interface ExplorerPageProps {
@@ -29,15 +30,10 @@ interface ExplorerPageProps {
  * si tuviera su propia ruta tendria que resolver el contexto otra vez, y
  * habria dos lugares decidiendo contra que directorio se lee.
  *
- * El visor de la derecha es el mismo de EditorPage: `Markdown` para .md (el
- * atomo que ya usan el chat y los planes) y `RawEditor` en modo lectura para
- * el resto. NO se reusa el componente `Editor` completo, y no es por comodidad:
- * `Editor` autoguarda contra `PUT /api/file` a los 1500ms y abre un
- * `EventSource` sobre `/api/file/watch`, y las dos rutas resuelven contra
- * `<WORKSPACE_ROOT>/docs` por el PathGuardMiddleware, NO contra el root del
- * workspace. Montarlo aca haria que mirar un archivo de una replica escriba
- * un archivo distinto bajo docs/ — perdida de datos en un apartado que es de
- * consulta.
+ * El visor de la derecha: el markdown de los planes (`PlanMarkdown`, que ya
+ * trae los colores de `prose` apuntados a los tokens del tema) para .md, y
+ * `RawEditor` en modo lectura para el resto. Solo lectura de punta a punta:
+ * nada de aca escribe en el workspace — es un apartado de consulta.
  */
 export function ExplorerPage({ projectId, replicaId, openPath, onOpenPath }: ExplorerPageProps): React.ReactElement {
   const [dirs, setDirs] = useState<Map<string, DirState>>(new Map());
@@ -155,14 +151,17 @@ export function ExplorerPage({ projectId, replicaId, openPath, onOpenPath }: Exp
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(240px,320px)_1fr]">
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
-          <h2 className="text-sm font-semibold text-slate-700">Archivos</h2>
+      <div className="overflow-hidden rounded-[var(--sw-r-lg)] border border-border bg-card">
+        <div className="flex items-center justify-between border-b border-border px-3 py-1.5">
+          <h2 className="text-sm font-semibold text-foreground">Archivos</h2>
           <button
             type="button"
             onClick={() => { setDirs(new Map()); setExpanded(new Set()); loadDir(''); onOpenPath(undefined); }}
             title="Recargar"
-            className="text-slate-400 hover:text-slate-600"
+            aria-label="Recargar"
+            className="btn"
+            data-variant="ghost"
+            data-size="icon-sm"
           >
             <i className="pi pi-refresh text-xs" />
           </button>
@@ -179,9 +178,9 @@ export function ExplorerPage({ projectId, replicaId, openPath, onOpenPath }: Exp
         </div>
       </div>
 
-      <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="min-w-0 rounded-[var(--sw-r-lg)] border border-border bg-card p-4">
         {!selectedFile ? (
-          <p className="p-6 text-center text-sm text-slate-400">
+          <p className="p-6 text-center text-sm text-muted-foreground">
             {location.selectedDir
               ? `Estas en ${location.selectedDir}. Elegi un archivo para verlo.`
               : 'Elegi un archivo del arbol para verlo.'}
@@ -189,20 +188,20 @@ export function ExplorerPage({ projectId, replicaId, openPath, onOpenPath }: Exp
         ) : (
           <>
             <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-              <h3 className="min-w-0 truncate font-mono text-sm text-slate-700" title={selectedFile}>{selectedFile}</h3>
+              <h3 className="min-w-0 truncate font-mono text-sm text-foreground" title={selectedFile}>{selectedFile}</h3>
               {preview?.size !== null && preview?.size !== undefined && (
-                <span className="shrink-0 text-xs text-slate-400">{humanSize(preview.size)}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">{humanSize(preview.size)}</span>
               )}
             </div>
 
             {previewLoading && !preview ? (
-              <div className="flex items-center gap-2 p-6 text-sm text-slate-500"><Spinner /> Leyendo el archivo…</div>
+              <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground"><Spinner /> Leyendo el archivo…</div>
             ) : state === null ? null : state.content !== null ? (
               state.kind === 'markdown' ? (
-                <Markdown invert={false}>{state.content}</Markdown>
+                <PlanMarkdown>{state.content}</PlanMarkdown>
               ) : (
-                // El mismo visor crudo de EditorPage, en modo lectura.
-                <div className="h-[60vh] overflow-hidden rounded-lg border border-slate-200">
+                // El visor crudo, en modo lectura.
+                <div className="h-[60vh] overflow-hidden rounded-[var(--sw-r-md)] border border-border">
                   <RawEditor content={state.content} onChange={() => undefined} readOnly />
                 </div>
               )
@@ -210,15 +209,15 @@ export function ExplorerPage({ projectId, replicaId, openPath, onOpenPath }: Exp
               // Binario, demasiado grande, vacio o error: aviso explicito. Lo
               // que NO se hace nunca es pintar el contenido igual.
               <div
-                className={`rounded-lg border px-4 py-3 text-sm ${
+                className={`flex items-center gap-2 rounded-[var(--sw-r-md)] border px-4 py-3 text-sm ${
                   state.kind === 'error'
-                    ? 'border-red-200 bg-red-50 text-red-700'
+                    ? 'border-[var(--sw-error)] bg-[var(--sw-error-bg)] text-[var(--sw-on-error)]'
                     : state.kind === 'too_large'
-                      ? 'border-orange-200 bg-orange-50 text-orange-700'
-                      : 'border-slate-200 bg-slate-50 text-slate-600'
+                      ? 'border-[var(--sw-warning)] bg-[var(--sw-warning-bg)] text-[var(--sw-on-warning)]'
+                      : 'border-border bg-muted text-secondary-foreground'
                 }`}
               >
-                <i className={`pi mr-2 ${state.kind === 'binary' ? 'pi-file' : 'pi-info-circle'}`} />
+                <Icon name={state.kind === 'binary' ? 'archivo' : 'info'} />
                 {state.message}
               </div>
             )}

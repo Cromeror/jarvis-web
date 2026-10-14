@@ -93,8 +93,8 @@ export function ChatContent({
   const canChoose = canChooseWorkspace(activeSession, activeSessionReplicas ?? []);
 
   return (
-    <div className="relative flex h-full min-w-0 flex-1 flex-col overflow-hidden rounded-[var(--chatcontent-radius)] bg-[var(--chatcontent-bg-base)] bg-gradient-to-b from-[var(--chatcontent-bg-from)] to-[var(--chatcontent-bg-to)]">
-      <div className="flex items-center gap-2 border-b border-[var(--chatcontent-border-subtle)] px-3 py-2">
+    <div className="relative flex h-full min-w-0 flex-1 flex-col overflow-hidden rounded-[var(--sw-r-lg)] border border-border bg-card">
+      <div className="flex items-center gap-2 border-b border-border px-3 py-2">
         <ProjectTabStrip sessions={sessions} projects={projects} activeProjectId={activeProjectId} onSelectProject={onSelectProject} />
         {/*
           El tab strip dice en qué PROYECTO estás; esto, en cuál de sus
@@ -103,7 +103,7 @@ export function ChatContent({
         */}
         {activeSession && (
           <>
-            <span aria-hidden className="shrink-0 text-[var(--tab-text-default)] opacity-40">/</span>
+            <span aria-hidden className="shrink-0 text-[var(--sw-faint)]">/</span>
             <ConversationTitle session={activeSession} onRename={onRenameSession} />
           </>
         )}

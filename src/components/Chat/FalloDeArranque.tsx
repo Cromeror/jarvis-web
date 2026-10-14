@@ -71,11 +71,11 @@ export function FalloDeArranque({
   if (loguear) return <ExecutorLoginPrompt projectId={projectId} onResuelto={onResuelto} />;
 
   return (
-    <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-100">
+    <div className="rounded-[var(--sw-r-md)] border border-[var(--sw-warning)] bg-[var(--sw-warning-bg)] p-3 text-xs text-[var(--sw-on-warning)]">
       {explicacion ? (
         <>
           <p className="mb-1 font-medium">{explicacion.titulo}</p>
-          <p className="mb-2 text-amber-100/80">{explicacion.queHacer}</p>
+          <p className="mb-2 opacity-80">{explicacion.queHacer}</p>
         </>
       ) : (
         /* Sin causa conocida NO se inventa una explicación: se muestra el error
@@ -83,7 +83,7 @@ export function FalloDeArranque({
            lo que no está roto — que es exactamente lo que pasaba antes. */
         <p className="mb-2 font-medium">Jarvis no pudo arrancar.</p>
       )}
-      {detalle && <p className="mb-2 font-mono text-[11px] text-amber-200/70">{detalle}</p>}
+      {detalle && <p className="mb-2 font-mono text-[11px] opacity-70">{detalle}</p>}
 
       {/* EL LOGIN SIGUE A MANO PARA LO NO CLASIFICADO, pero como OFERTA y no
           como diagnóstico. Hoy ninguna causa se marca todavía como sesión

@@ -7,6 +7,7 @@ import type {
   GrupoDeDocumentos,
   RelacionDeDocumento,
 } from '../../lib/causacion-documentos-api.js';
+import { Button } from '../../components/ui/atoms/Button.js';
 
 
 /**
@@ -118,6 +119,7 @@ export function Visor({
   onCerrar: () => void;
 }): React.ReactElement | null {
   const ref = useRef<HTMLDialogElement>(null);
+  const empezoEnElFondo = useRef(false);
   const documento = grupo?.duenio ?? null;
   /* LA LISTA VIENE RESUELTA DEL SERVIDOR. El grupo que arma el backend ya trae
      sus miembros hidratados —cruza períodos y páginas por su cuenta—, así que
@@ -267,12 +269,19 @@ export function Visor({
       className="dialog sw-soportes__visor"
       data-ancho={hayGrupo ? 'grupo' : 'solo'}
       onClose={onCerrar}
-      /* CLIC AFUERA CIERRA. El `<dialog>` nativo no lo trae —sólo Escape— y el
-         backdrop es parte del PROPIO dialog, no un nodo aparte: por eso el
-         clic se escucha acá y se compara el target contra el elemento. Un clic
-         adentro cae en el `<article>` o en sus hijos, así que nunca iguala. */
+      /* CLIC AFUERA CIERRA, pero sólo si EMPIEZA y TERMINA afuera. El backdrop
+         es parte del propio dialog, así que el clic se escucha acá y se compara
+         el target contra el elemento. Y como el navegador manda el `click` al
+         ancestro común de donde se apretó y donde se soltó, arrastrar la imagen
+         con zoom y soltar fuera del artículo cerraba el visor: por eso se exige
+         que también el `mousedown` haya caído en el fondo (el mismo criterio que
+         `ui/Dialogo.tsx`). */
+      onMouseDown={(e) => {
+        empezoEnElFondo.current = e.target === ref.current;
+      }}
       onClick={(e) => {
-        if (e.target === ref.current) ref.current?.close();
+        if (empezoEnElFondo.current && e.target === ref.current) ref.current?.close();
+        empezoEnElFondo.current = false;
       }}
     >
       <article>
@@ -497,21 +506,19 @@ export function Visor({
 
         <footer>
           {soporte ? (
-            <button
-              type="button"
-              className="btn"
-              data-variant="outline"
+            <Button
+              variant="outline"
               onClick={() =>
                 void descargarSoporte(projectId, soporte.soporte_id, soporte.filename ?? 'documento')
               }
             >
               <Icon name="bajar" />
               Descargar
-            </button>
+            </Button>
           ) : null}
-          <button type="button" className="btn" onClick={() => ref.current?.close()}>
+          <Button onClick={() => ref.current?.close()}>
             Cerrar
-          </button>
+          </Button>
         </footer>
       </article>
     </dialog>

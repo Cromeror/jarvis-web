@@ -3,6 +3,7 @@ import type { ChatSession } from '../../lib/chat-api.js';
 import { sessionOwnerMark } from '../../lib/session-owner.js';
 import { OwnerBadge } from './OwnerBadge.js';
 import { useInlineRename } from '../../hooks/useInlineRename.js';
+import { Icon } from '../Icon.js';
 
 interface ConversationTitleProps {
   session: ChatSession | null;
@@ -52,7 +53,7 @@ export function ConversationTitle({ session, onRename }: ConversationTitleProps)
           }
         }}
         aria-label="Nombre de la conversación"
-        className="min-w-0 max-w-[18rem] flex-1 rounded-md border border-indigo-300 bg-white/95 px-2 py-1 text-sm text-slate-700 outline-none"
+        className="input min-w-0 max-w-[18rem] flex-1"
       />
     );
   }
@@ -63,14 +64,14 @@ export function ConversationTitle({ session, onRename }: ConversationTitleProps)
         type="button"
         onClick={() => rename.start(session.id, session.title)}
         title="Renombrar conversación"
-        className="group flex min-w-0 max-w-[18rem] items-center gap-1.5 rounded-md px-2 py-1 text-left transition-colors hover:bg-white/10"
+        className="group flex min-w-0 max-w-[18rem] items-center gap-1.5 rounded-md px-2 py-1 text-left transition-colors hover:bg-accent"
       >
         <span
-          className={`min-w-0 truncate text-sm ${session.title ? 'text-[var(--tab-text-hover)]' : 'italic text-[var(--tab-text-default)]'}`}
+          className={`min-w-0 truncate text-sm ${session.title ? 'text-foreground' : 'italic text-muted-foreground'}`}
         >
           {label}
         </span>
-        <i className="pi pi-pencil shrink-0 text-[10px] text-[var(--tab-text-default)] opacity-0 transition-opacity group-hover:opacity-100" />
+        <Icon name="pen" className="shrink-0 text-muted-foreground opacity-0 transition-opacity [--sw-ico:var(--sw-ico-xs)] group-hover:opacity-100" />
       </button>
       {/* Fuera del botón: es información, no un disparador del rename. */}
       <OwnerBadge mark={owner} size="xs" />

@@ -68,7 +68,7 @@ export function RailFocusPanel({
   className = '',
 }: RailFocusPanelProps): React.ReactElement {
   return (
-    <div className={`flex w-full flex-col gap-[var(--chatoptionsrail-panel-gap)] ${className}`}>
+    <div className={`flex w-full flex-col gap-[var(--sw-s-4)] ${className}`}>
       <div className="flex w-full flex-col items-start gap-2">
         <button type="button" onClick={onToggle} className="w-full text-left" title="Plegar focus">
           <RailSectionHeader label="FOCUS" icon="target" />
@@ -78,8 +78,8 @@ export function RailFocusPanel({
         ) : (
           // El diseño no tiene variante vacía de la card; se reusa la misma
           // superficie/tono que el estado vacío de LIVE para no inventar una.
-          <div className="flex w-full flex-col items-center rounded-[var(--chatoptionsrail-livequeue-radius)] bg-[var(--chatoptionsrail-livequeue-bg)] px-[var(--chatoptionsrail-livequeue-padding-h)] py-[var(--chatoptionsrail-livequeue-empty-padding-v)]">
-            <p className="text-center text-xs text-[var(--chatoptionsrail-livequeue-empty-text)]">
+          <div className="flex w-full flex-col items-center rounded-[var(--sw-r-md)] bg-muted px-[var(--sw-s-3)] py-[var(--sw-s-3)]">
+            <p className="text-center text-xs text-muted-foreground">
               Sin foco reportado en esta conversación
             </p>
           </div>
@@ -89,8 +89,8 @@ export function RailFocusPanel({
       <div className="flex w-full flex-col items-start gap-2.5">
         <RailSectionHeader label="ATENCIÓN" icon="warning" />
         {attentionItems.length === 0 && (
-          <div className="flex w-full flex-col items-center rounded-[var(--chatoptionsrail-livequeue-radius)] bg-[var(--chatoptionsrail-livequeue-bg)] px-[var(--chatoptionsrail-livequeue-padding-h)] py-[var(--chatoptionsrail-livequeue-empty-padding-v)]">
-            <p className="text-center text-xs text-[var(--chatoptionsrail-livequeue-empty-text)]">Nada pendiente</p>
+          <div className="flex w-full flex-col items-center rounded-[var(--sw-r-md)] bg-muted px-[var(--sw-s-3)] py-[var(--sw-s-3)]">
+            <p className="text-center text-xs text-muted-foreground">Nada pendiente</p>
           </div>
         )}
         {attentionItems.map((item) => (
@@ -111,11 +111,11 @@ export function RailFocusPanel({
       <div className="flex w-full flex-col items-start gap-2">
         <RailSectionHeader label="LIVE" />
         {liveEvents.length === 0 ? (
-          <div className="flex w-full flex-col items-center rounded-[var(--chatoptionsrail-livequeue-radius)] bg-[var(--chatoptionsrail-livequeue-bg)] px-[var(--chatoptionsrail-livequeue-padding-h)] py-[var(--chatoptionsrail-livequeue-empty-padding-v)]">
-            <p className="text-center text-xs text-[var(--chatoptionsrail-livequeue-empty-text)]">Sin actividad reciente</p>
+          <div className="flex w-full flex-col items-center rounded-[var(--sw-r-md)] bg-muted px-[var(--sw-s-3)] py-[var(--sw-s-3)]">
+            <p className="text-center text-xs text-muted-foreground">Sin actividad reciente</p>
           </div>
         ) : (
-          <div className="flex w-full flex-col gap-[var(--chatoptionsrail-livequeue-gap)] rounded-[var(--chatoptionsrail-livequeue-radius)] bg-[var(--chatoptionsrail-livequeue-bg)] px-[var(--chatoptionsrail-livequeue-padding-h)] py-[var(--chatoptionsrail-livequeue-padding-v)]">
+          <div className="flex w-full flex-col gap-[var(--sw-s-2)] rounded-[var(--sw-r-md)] bg-muted px-[var(--sw-s-3)] py-[var(--sw-s-2)]">
             {liveEvents.map((event) => (
               <RailLiveEventRow key={event.id} status={event.status} text={event.text} timestamp={event.timestamp} />
             ))}

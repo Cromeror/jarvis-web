@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   agregarCarpetaDesdeDisco,
   listarCarpetasEnDisco,
@@ -10,6 +10,8 @@ import {
 import { Icon } from '../Icon.js';
 import { Tabla, type ColumnaDeTabla } from '../ui/Tabla.js';
 import { INPUT_CLASS } from './carpetas-compartidas.js';
+import { Button } from '../ui/atoms/Button.js';
+import { Dialogo } from '../ui/Dialogo.js';
 import { mensajeDeError } from './errores.js';
 
 type Carpeta = Circulo & { miembros: MiembroDeCirculo[] };
@@ -136,7 +138,7 @@ export function OrganizationEspaciosSection({
           );
         }
         return (
-          <span className="inline-flex items-center gap-1 text-emerald-300">
+          <span className="inline-flex items-center gap-1 text-[var(--sw-success)]">
             <Icon name="check" />
             Activo
           </span>
@@ -156,7 +158,7 @@ export function OrganizationEspaciosSection({
         </div>
       )}
       {error && (
-        <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+        <div className="mb-3 rounded-lg border border-[var(--sw-error)] bg-[var(--sw-error-bg)] px-3 py-2 text-sm text-[var(--sw-on-error)]">
           {error}
         </div>
       )}
@@ -247,17 +249,11 @@ function AgregarDesdeDisco({
   onCerrar: () => void;
   onConfirmar: (nombre: string) => Promise<boolean>;
 }): React.ReactElement {
-  const ref = useRef<HTMLDialogElement>(null);
   const [nombre, setNombre] = useState('');
   const [enviando, setEnviando] = useState(false);
 
   useEffect(() => {
-    const d = ref.current;
-    if (!d) return;
-    if (carpeta) {
-      setNombre(nombreSugerido(carpeta.slug));
-      if (!d.open) d.showModal();
-    } else if (d.open) d.close();
+    if (carpeta) setNombre(nombreSugerido(carpeta.slug));
   }, [carpeta]);
 
   async function confirmar(): Promise<void> {
@@ -265,53 +261,50 @@ function AgregarDesdeDisco({
     setEnviando(true);
     const ok = await onConfirmar(nombre.trim());
     setEnviando(false);
-    if (ok) ref.current?.close();
+    if (ok) onCerrar();
   }
 
   return (
-    <dialog
-      ref={ref}
-      className="dialog"
-      onClose={onCerrar}
-      onClick={(e) => {
-        if (e.target === ref.current) ref.current?.close();
-      }}
-    >
-      <article style={{ width: '100%', maxWidth: 'min(560px, calc(100vw - 2rem))' }}>
-        <header>
-          <h2>Agregar «{carpeta?.slug}» a la red</h2>
-          <p>
-            Está en el disco de {espacio}: <code>contexto-org/{carpeta?.slug}/</code>
-          </p>
-        </header>
-        <section className="space-y-3 text-sm">
-          {carpeta && (
-            <p className="text-secondary-foreground">
-              {carpeta.publicados} archivo(s) en <code>publicado/</code> ({tamano(carpeta.bytes_publicados)})
-              {carpeta.archivos > carpeta.publicados
-                ? ` y ${carpeta.archivos - carpeta.publicados} fuera de publicado/, que no se comparten nunca.`
-                : '.'}
-            </p>
-          )}
-          <ul className="list-disc space-y-1 pl-5 text-secondary-foreground">
-            <li>Queda como carpeta compartida de {espacio}, y sin compartir con nadie.</li>
-            <li>A otro espacio le llega recién cuando se lo invite y, con auditoría, cuando el auditor lo apruebe.</li>
-            <li>Los archivos no se mueven ni se copian: quedan donde están.</li>
-          </ul>
-          <label className="block">
-            <span className="mb-1 block text-xs text-muted-foreground">Nombre en la red</span>
-            <input className={INPUT_CLASS} value={nombre} onChange={(e) => setNombre(e.target.value)} />
-          </label>
-        </section>
-        <footer>
-          <button type="button" className="btn" data-variant="outline" onClick={() => ref.current?.close()}>
+    <Dialogo
+      abierto={carpeta !== null}
+      onCerrar={onCerrar}
+      onSubmit={() => void confirmar()}
+      titulo={<>Agregar «{carpeta?.slug}» a la red</>}
+      descripcion={
+        <>
+          Está en el disco de {espacio}: <code>contexto-org/{carpeta?.slug}/</code>
+        </>
+      }
+      pie={
+        <>
+          <Button variant="outline" onClick={onCerrar}>
             Cancelar
-          </button>
-          <button type="button" className="btn" disabled={enviando || !nombre.trim()} onClick={() => void confirmar()}>
+          </Button>
+          <Button type="submit" disabled={enviando || !nombre.trim()}>
             {enviando ? 'Agregando…' : 'Agregar a la red'}
-          </button>
-        </footer>
-      </article>
-    </dialog>
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-3 text-sm">
+        {carpeta && (
+          <p className="text-secondary-foreground">
+            {carpeta.publicados} archivo(s) en <code>publicado/</code> ({tamano(carpeta.bytes_publicados)})
+            {carpeta.archivos > carpeta.publicados
+              ? ` y ${carpeta.archivos - carpeta.publicados} fuera de publicado/, que no se comparten nunca.`
+              : '.'}
+          </p>
+        )}
+        <ul className="list-disc space-y-1 pl-5 text-secondary-foreground">
+          <li>Queda como carpeta compartida de {espacio}, y sin compartir con nadie.</li>
+          <li>A otro espacio le llega recién cuando se lo invite y, con auditoría, cuando el auditor lo apruebe.</li>
+          <li>Los archivos no se mueven ni se copian: quedan donde están.</li>
+        </ul>
+        <label className="block">
+          <span className="mb-1 block text-xs text-muted-foreground">Nombre en la red</span>
+          <input className={INPUT_CLASS} value={nombre} onChange={(e) => setNombre(e.target.value)} />
+        </label>
+      </div>
+    </Dialogo>
   );
 }

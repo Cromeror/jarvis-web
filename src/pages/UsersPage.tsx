@@ -328,20 +328,18 @@ function UserFormModal({
       ancho={480}
       pie={
         <>
-          <button type="button" className="btn" data-variant="outline" onClick={() => setConfirmando(false)}>
+          <Button variant="outline" onClick={() => setConfirmando(false)}>
             Volver
-          </button>
+          </Button>
           {/* Con algo que se quita, el botón es el de peligro: es la acción que
               le saca acceso a alguien y no se nota en la tabla hasta que falta. */}
-          <button
-            type="button"
-            className="btn"
-            data-variant={resumen.hayQuitas ? 'destructive' : undefined}
+          <Button
+            variant={resumen.hayQuitas ? 'destructive' : 'primary'}
             disabled={saving}
             onClick={() => void handleSubmit()}
           >
             {saving ? 'Guardando…' : resumen.hayQuitas ? 'Guardar y quitar' : 'Guardar'}
-          </button>
+          </Button>
         </>
       }
     >
@@ -448,17 +446,16 @@ function UserFormModal({
       ancho={520}
       pie={
         <>
-          <button type="button" className="btn" data-variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose}>
             Cancelar
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
-            className="btn"
             disabled={saving || resumen.vacio}
             title={resumen.vacio ? 'No hay cambios para guardar' : undefined}
           >
             {saving ? 'Guardando…' : 'Guardar'}
-          </button>
+          </Button>
         </>
       }
     >
@@ -1017,12 +1014,11 @@ export function UsersPage(): React.ReactElement {
   }
 
   return (
-    // Fondo oscuro y no `bg-white`: es la superficie de la app
-    // (`--app-bg`, la misma que el shell y que ChatContent). Lo que vive acá ya
-    // estaba pensado para fondo oscuro y sobre blanco se veía mal — la `Tabla`
-    // del template resuelve su propio tema por tokens (`--sw-tabla-*`), que es
-    // lo que deja ponerla sobre esta superficie sin pedirle un fondo aparte.
-    <div className="h-full overflow-y-auto bg-[var(--app-bg)]">
+    // El fondo es el de la app (`--sw-ink`), el mismo que el shell, en los dos
+    // temas. La `Tabla` del template resuelve su propio tema por tokens
+    // (`--sw-tabla-*`), que es lo que deja ponerla sobre esta superficie sin
+    // pedirle un fondo aparte.
+    <div className="h-full overflow-y-auto bg-[var(--sw-ink)]">
       {/* LA TOOLBAR DE LA SUPERFICIE (`ui/molecules/Toolbar.tsx`), a todo el
           ancho y pegada arriba —como en el template—, fuera del relleno de la
           página. A la izquierda, sobre qué organización se trabaja y las altas;
@@ -1050,7 +1046,7 @@ export function UsersPage(): React.ReactElement {
 
       <div className="p-6">
       {error && (
-        <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>
+        <div className="mb-3 rounded-lg border border-[var(--sw-error)] bg-[var(--sw-error-bg)] px-3 py-2 text-sm text-[var(--sw-on-error)]">{error}</div>
       )}
 
       <section className="mb-8">

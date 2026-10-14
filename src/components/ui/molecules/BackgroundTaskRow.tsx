@@ -32,10 +32,10 @@ const STATE_ICON: Record<BackgroundTaskState, IconName> = {
 
 /** Una terminada se atenúa: sigue informando, pero ya no pide atención. */
 const STATE_TEXT_CLASS: Record<BackgroundTaskState, string> = {
-  running: 'text-[var(--chatcontent-text-primary,#fff)]',
-  done: 'text-white/70',
-  failed: 'text-white/70',
-  stopped: 'text-white/70',
+  running: 'text-foreground',
+  done: 'text-secondary-foreground',
+  failed: 'text-secondary-foreground',
+  stopped: 'text-secondary-foreground',
 };
 
 /**
@@ -59,17 +59,17 @@ export function BackgroundTaskRow({
   const meta = [taskType, elapsed, note].filter(Boolean).join(' · ');
 
   return (
-    <div className="flex items-center gap-2 rounded-[10px] px-2 py-1.5 hover:bg-white/5">
+    <div className="flex items-center gap-2 rounded-[var(--sw-r-md)] px-2 py-1.5 hover:bg-accent">
       <Icons icon={STATE_ICON[state]} size={14} className="shrink-0 opacity-90" />
       <span className={`min-w-0 flex-1 truncate text-xs ${STATE_TEXT_CLASS[state]}`}>{description}</span>
-      {meta && <span className="shrink-0 text-[11px] text-white/50">{meta}</span>}
+      {meta && <span className="shrink-0 text-[11px] text-muted-foreground">{meta}</span>}
       {onStop && (
         <button
           type="button"
           onClick={onStop}
           aria-label={`Detener ${description}`}
           title="Detener esta tarea"
-          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/8 text-white/70 hover:bg-white/15 hover:text-white"
+          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-secondary-foreground hover:bg-accent hover:text-foreground"
         >
           <Icons icon="x-circle" size={12} />
         </button>

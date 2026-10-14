@@ -9,17 +9,17 @@ interface RailSectionHeaderProps {
 
 /**
  * Header de sección del rail derecho (Figma "FocusSectionTitle" / header
- * ATENCIÓN / label LIVE). Con ícono → texto muted (11px, white/55%, como
- * FOCUS/ATENCIÓN); sin ícono → texto fuerte (11px, white 100%, como LIVE en
+ * ATENCIÓN / label LIVE). Con ícono → texto apagado (11px, como
+ * FOCUS/ATENCIÓN); sin ícono → texto fuerte (11px, como LIVE en
  * el frame) — dos variantes reales en Figma, no una elección de diseño propia.
  */
 export function RailSectionHeader({ label, icon, className = '' }: RailSectionHeaderProps): React.ReactElement {
   return (
     <div className={`flex w-full shrink-0 items-center gap-1.5 ${className}`}>
-      {icon && <RailIcon name={icon} size={14} className="text-[var(--chatoptionsrail-header-text)]" />}
+      {icon && <RailIcon name={icon} size={14} className="text-muted-foreground" />}
       <p
         className={`whitespace-nowrap text-[11px] font-semibold ${
-          icon ? 'text-[var(--chatoptionsrail-header-text)]' : 'text-[var(--chatoptionsrail-header-text-strong)]'
+          icon ? 'text-muted-foreground' : 'text-foreground'
         }`}
       >
         {label}

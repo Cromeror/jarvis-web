@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChatSession } from '../../lib/chat-api.js';
 import type { ProjectSummary } from '../../lib/projects-api.js';
-import { toneForProject } from '../../lib/project-tone.js';
 import type { ProjectReplica } from '../../lib/project-replicas-api.js';
 import { sessionWorkspace } from '../../lib/session-workspace.js';
 import { sessionOwnerMark } from '../../lib/session-owner.js';
 import { WorkspaceBadge } from './WorkspaceBadge.js';
 import { OwnerBadge } from './OwnerBadge.js';
 import { Spinner } from '../ui/atoms/Spinner.js';
+import { Icon } from '../Icon.js';
 import { useInlineRename } from '../../hooks/useInlineRename.js';
 
 interface ConversationSwitcherProps {
@@ -83,24 +83,29 @@ export function ConversationSwitcher({
         onClick={() => setOpen((o) => !o)}
         title="Buscar conversación"
         aria-label="Buscar conversación"
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--tab-text-default)] transition-colors hover:bg-white/10 hover:text-[var(--tab-text-hover)]"
+        className="btn shrink-0 text-secondary-foreground"
+        data-variant="ghost"
+        data-size="icon-sm"
       >
-        <i className="pi pi-search text-sm" />
+        <Icon name="search" />
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-30 mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-2 shadow-lg">
+        // Anclado a la derecha: la lupa vive al final de la barra, y abierto
+        // hacia la derecha el panel se salía de la tarjeta del chat (que corta
+        // con overflow-hidden) y el foco del buscador la desplazaba de costado.
+        <div className="absolute right-0 top-full z-30 mt-2 flex w-72 flex-col gap-1 rounded-[var(--sw-r-lg)] border border-border bg-popover p-2 shadow-[var(--sw-e-pop)]">
           <input
             type="text"
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar por título o proyecto..."
-            className="mb-1 w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm text-slate-700 outline-none focus:border-indigo-300"
+            className="input w-full"
           />
           <div className="max-h-72 overflow-y-auto">
             {filteredSessions.length === 0 && (
-              <p className="px-2 py-4 text-center text-sm text-slate-400">Sin resultados.</p>
+              <p className="px-2 py-4 text-center text-sm text-muted-foreground">Sin resultados.</p>
             )}
             {filteredSessions.map((session) => {
               const projectName = session.project_id ? projectNameById.get(session.project_id) : undefined;
@@ -111,7 +116,7 @@ export function ConversationSwitcher({
               return (
                 <div
                   key={session.id}
-                  className={`group flex w-full items-center gap-1 rounded-lg ${active ? 'bg-indigo-50' : 'hover:bg-slate-50'}`}
+                  className={`group flex w-full items-center gap-1 rounded-lg ${active ? 'bg-[var(--sw-accent-weak)]' : 'hover:bg-accent'}`}
                 >
                   {editing ? (
                     <input
@@ -130,7 +135,7 @@ export function ConversationSwitcher({
                           rename.cancel();
                         }
                       }}
-                      className="min-w-0 flex-1 rounded-md border border-indigo-300 px-2 py-1.5 text-sm text-slate-700 outline-none"
+                      className="input min-w-0 flex-1"
                     />
                   ) : (
                     <button
@@ -142,21 +147,22 @@ export function ConversationSwitcher({
                       className="flex min-w-0 flex-1 flex-col items-start gap-1 px-2 py-1.5 text-left"
                     >
                       <span className="flex w-full min-w-0 items-center gap-2">
-                        <span className="min-w-0 flex-1 truncate text-sm text-slate-700">{session.title ?? 'Nueva conversación'}</span>
+                        <span className="min-w-0 flex-1 truncate text-sm text-foreground">{session.title ?? 'Nueva conversación'}</span>
                         {pending && <Spinner />}
                         {unread && !pending && (
                           <span
                             aria-label="Mensaje nuevo sin leer"
                             title="Mensaje nuevo sin leer"
-                            className="h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-600"
+                            className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary"
                           />
                         )}
                       </span>
                       <span className="flex w-full min-w-0 flex-wrap items-center gap-1">
                         {projectName && (
-                          <span
-                            className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${toneForProject(projectName)}`}
-                          >
+                          // Neutro a propósito: el color por proyecto venía de una
+                          // paleta fija de Tailwind (seis tonos sin relación con el
+                          // tema) y no decía nada que el nombre no dijera ya.
+                          <span className="badge text-[10px]" data-variant="mute">
                             {projectName}
                           </span>
                         )}
@@ -179,9 +185,11 @@ export function ConversationSwitcher({
                       }}
                       aria-label="Renombrar conversación"
                       title="Renombrar conversación"
-                      className="shrink-0 rounded px-2 py-1 text-slate-400 opacity-0 transition-opacity hover:text-indigo-600 group-hover:opacity-100"
+                      className="btn shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-primary group-hover:opacity-100"
+                      data-variant="ghost"
+                      data-size="icon-sm"
                     >
-                      <i className="pi pi-pencil text-xs" />
+                      <Icon name="pen" />
                     </button>
                   )}
                   {!editing && (
@@ -193,9 +201,11 @@ export function ConversationSwitcher({
                       }}
                       aria-label="Eliminar conversación"
                       title="Eliminar conversación"
-                      className="mr-1 shrink-0 rounded px-2 py-1 text-slate-400 opacity-0 transition-opacity hover:text-red-600 group-hover:opacity-100"
+                      className="btn mr-1 shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-[var(--sw-error)] group-hover:opacity-100"
+                      data-variant="ghost"
+                      data-size="icon-sm"
                     >
-                      ×
+                      <Icon name="x" />
                     </button>
                   )}
                 </div>

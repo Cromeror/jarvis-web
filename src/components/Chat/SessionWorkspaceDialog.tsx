@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ROOT_REPLICA, type ProjectReplica } from '../../lib/project-replicas-api.js';
 import { activeReplicas } from '../../lib/session-workspace.js';
 import { Button } from '../ui/atoms/Button.js';
+import { Dialogo } from '../ui/Dialogo.js';
 import { ReplicaChoiceList } from '../ui/molecules/ReplicaChoiceList.js';
 
 interface SessionWorkspaceDialogProps {
@@ -50,18 +51,30 @@ export function SessionWorkspaceDialog({
   const changed = selected !== current;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget && !moving) onCancel();
+    <Dialogo
+      abierto
+      // Mientras se mueve no se cierra: el pedido ya salió y cerrar no lo frena.
+      onCerrar={() => {
+        if (!moving) onCancel();
       }}
+      titulo="¿Dónde trabaja esta conversación?"
+      descripcion={sessionTitle}
+      ancho={448}
+      pie={
+        <>
+          <Button variant="outline" onClick={onCancel} disabled={moving}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={() => onConfirm(selected === ROOT_REPLICA ? null : selected)}
+            disabled={moving || !changed}
+          >
+            {moving ? 'Moviendo…' : 'Mover'}
+          </Button>
+        </>
+      }
     >
-      <div className="flex w-full max-w-md flex-col gap-4 rounded-2xl bg-white p-5 shadow-2xl">
-        <div>
-          <h2 className="text-base font-semibold text-slate-900">¿Dónde trabaja esta conversación?</h2>
-          <p className="mt-1 text-sm text-slate-500">{sessionTitle}</p>
-        </div>
-
+      <div className="flex flex-col gap-4">
         <ReplicaChoiceList
           replicas={options}
           value={selected}
@@ -71,24 +84,12 @@ export function SessionWorkspaceDialog({
         />
 
         {changed && (
-          <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-900">
+          <p className="rounded-[var(--sw-r-md)] bg-[var(--sw-warning-bg)] p-3 text-xs text-[var(--sw-on-warning)]">
             Al moverla se reinicia el proceso: <strong>el próximo mensaje va a tardar más en arrancar</strong>.
             No se pierde nada de la conversación — se retoma donde está.
           </p>
         )}
-
-        <div className="flex justify-end gap-2">
-          <Button variant="neutral" onClick={onCancel} disabled={moving}>
-            Cancelar
-          </Button>
-          <Button
-            onClick={() => onConfirm(selected === ROOT_REPLICA ? null : selected)}
-            disabled={moving || !changed}
-          >
-            {moving ? 'Moviendo…' : 'Mover'}
-          </Button>
-        </div>
       </div>
-    </div>
+    </Dialogo>
   );
 }

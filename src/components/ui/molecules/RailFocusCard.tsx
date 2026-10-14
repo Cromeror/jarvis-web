@@ -55,44 +55,44 @@ export function RailFocusCard({
 }: RailFocusCardProps): React.ReactElement {
   return (
     <div
-      className={`flex w-full flex-col gap-[var(--chatoptionsrail-focuscard-gap)] rounded-[var(--chatoptionsrail-focuscard-radius)] bg-[var(--chatoptionsrail-focuscard-bg)] px-[var(--chatoptionsrail-focuscard-padding-h)] py-[var(--chatoptionsrail-focuscard-padding-v)] ${className}`}
+      className={`flex w-full flex-col gap-[var(--sw-s-2)] rounded-[var(--sw-r-md)] border border-border bg-muted p-[var(--sw-s-3)] ${className}`}
     >
       <div className="flex items-center gap-1">
-        <RailIcon name="clock" size={12} className="text-[var(--chatoptionsrail-text-on-accent)]" />
-        <p className="whitespace-nowrap text-[11px] font-medium text-[var(--chatoptionsrail-text-on-accent)]">{durationLabel}</p>
+        <RailIcon name="clock" size={12} className="text-muted-foreground" />
+        <p className="whitespace-nowrap text-[11px] font-medium text-muted-foreground">{durationLabel}</p>
       </div>
 
       <div className="flex items-center gap-1.5">
-        <RailIcon name="target" size={14} className="text-[var(--chatoptionsrail-text-on-accent-strong)]" />
-        <p className="whitespace-nowrap text-sm font-semibold text-[var(--chatoptionsrail-text-on-accent-strong)]">{projectName}</p>
+        <RailIcon name="target" size={14} className="text-primary" />
+        <p className="whitespace-nowrap text-sm font-semibold text-foreground">{projectName}</p>
       </div>
 
       {title && (
-        <p className="text-[13px] font-semibold text-[var(--chatoptionsrail-text-on-accent-strong)]">{title}</p>
+        <p className="text-[13px] font-semibold text-foreground">{title}</p>
       )}
 
-      <p className="text-xs text-[var(--chatoptionsrail-text-on-accent)]">{description}</p>
+      <p className="text-xs text-secondary-foreground">{description}</p>
 
       {badge && (
         <div className="flex items-center gap-2">
           <Badge label={badge.label} status={badge.status} size="xs" />
           {updatedLabel && (
-            <p className="whitespace-nowrap text-[11px] text-[var(--chatoptionsrail-timestamp-text)]">{updatedLabel}</p>
+            <p className="whitespace-nowrap text-[11px] text-muted-foreground">{updatedLabel}</p>
           )}
         </div>
       )}
 
       {suggestedPlanTitle && (
         <div className="flex w-full flex-col items-start gap-0.5">
-          <p className="whitespace-nowrap text-[11px] font-semibold tracking-[0.66px] text-[var(--chatoptionsrail-text-on-accent-muted)]">
+          <p className="whitespace-nowrap text-[11px] font-semibold tracking-[0.66px] text-muted-foreground">
             PLAN SUGERIDO
           </p>
-          <p className="text-sm font-semibold text-[var(--chatoptionsrail-text-on-accent-strong)]">{suggestedPlanTitle}</p>
+          <p className="text-sm font-semibold text-foreground">{suggestedPlanTitle}</p>
         </div>
       )}
 
       {actions.length > 0 && (
-        <div className="flex items-start gap-[var(--chatoptionsrail-button-gap)]">
+        <div className="flex items-start gap-[var(--sw-s-2)]">
           {actions.map((action) => (
             <RailButton key={action.label} label={action.label} onClick={action.onClick} />
           ))}

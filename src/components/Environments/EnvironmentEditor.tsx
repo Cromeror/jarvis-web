@@ -7,15 +7,14 @@ interface EnvironmentEditorProps {
 
 /**
  * Plain textarea for editing an environment's raw YAML — no syntax
- * highlighting, no Markdown coupling. Dark theme applied via inline style
- * (not the shared `.raw-editor` class, which `RawEditor.tsx` also uses for
- * an unrelated, light-themed editor) so it doesn't leak elsewhere.
+ * highlighting, no Markdown coupling. Toma los colores del tema (texto
+ * primario sobre la superficie de abajo) en vez de un oscuro fijo: un editor
+ * negro adentro de la app clara era una isla de otro producto.
  */
 export function EnvironmentEditor({ content, onChange }: EnvironmentEditorProps): React.ReactElement {
   return (
     <textarea
-      className="raw-editor"
-      style={{ background: 'transparent', color: '#e2e8f0' }}
+      className="block h-full w-full resize-none bg-transparent px-6 py-3 font-mono text-[13px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground"
       value={content}
       onChange={(e) => onChange(e.target.value)}
       spellCheck={false}

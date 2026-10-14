@@ -47,8 +47,8 @@ export function NewSessionButton({
       </ButtonGroup>
 
       {open && (
-        <div className="absolute right-0 top-full z-30 mt-2 w-64 rounded-lg border border-slate-200 bg-white shadow-lg">
-          <div className="px-4 pb-1 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+        <div className="absolute right-0 top-full z-30 mt-2 w-64 rounded-[var(--sw-r-lg)] border border-border bg-popover shadow-[var(--sw-e-pop)]">
+          <div className="px-4 pb-1 pt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             ¿En qué proyecto?
           </div>
           <div className="max-h-64 overflow-y-auto">
@@ -60,7 +60,7 @@ export function NewSessionButton({
                   setOpen(false);
                   onCreate(p.id);
                 }}
-                className="flex w-full items-center border-b border-slate-100 px-4 py-2 text-left text-sm text-slate-700 last:border-b-0 hover:bg-slate-50"
+                className="flex w-full items-center border-b border-border px-4 py-2 text-left text-sm text-foreground last:border-b-0 hover:bg-accent"
               >
                 {p.name}
               </button>

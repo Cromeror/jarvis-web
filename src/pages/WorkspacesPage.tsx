@@ -15,6 +15,17 @@ import { WorkspaceList } from '../components/Workspaces/WorkspaceList.js';
 import { ChangesPanel } from '../components/Workspaces/ChangesPanel.js';
 import { ExplorerPage } from './ExplorerPage.js';
 import { GraphPanel } from '../components/Workspaces/GraphPanel.js';
+import { Button } from '../components/ui/atoms/Button.js';
+import { Card } from '../components/ui/atoms/Card.js';
+import { Icon } from '../components/Icon.js';
+import { Toolbar, ToolbarBoton, ToolbarGrupo, ToolbarSeparador } from '../components/ui/molecules/Toolbar.js';
+
+/** Las vistas del apartado, en el orden en que se ofrecen. */
+const VISTAS: { id: WorkspaceView; rotulo: string }[] = [
+  { id: 'changes', rotulo: 'Cambios' },
+  { id: 'explorer', rotulo: 'Explorador' },
+  { id: 'graph', rotulo: 'Grafo' },
+];
 
 /**
  * Vista raíz del apartado de workspaces: los espacios de trabajo del proyecto
@@ -122,20 +133,17 @@ export function WorkspacesPage(): React.ReactElement {
 
   if (!projectId) {
     return (
-      <div className="p-6">
-        <h1 className="text-xl font-semibold text-slate-800">Workspaces</h1>
-        <p className="mt-1 text-sm text-slate-500">Elegí un proyecto para ver sus espacios de trabajo.</p>
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="flex h-full flex-col gap-6 overflow-y-auto bg-[var(--sw-ink)] p-6">
+        <div>
+          <h1 className="text-lg font-semibold text-foreground">Workspaces</h1>
+          <p className="text-sm text-muted-foreground">Elegí un proyecto para ver sus espacios de trabajo.</p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {projects.map((project) => (
-            <button
-              key={project.id}
-              type="button"
-              onClick={() => navigate(workspacePath(project.id))}
-              className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-indigo-300 hover:shadow"
-            >
-              <span className="block font-medium text-slate-800">{project.name}</span>
-              <span className="block truncate text-xs text-slate-400">{project.id}</span>
-            </button>
+            <Card key={project.id} onClick={() => navigate(workspacePath(project.id))} className="flex flex-col gap-1">
+              <span className="block font-medium text-foreground">{project.name}</span>
+              <span className="block truncate text-xs text-muted-foreground">{project.id}</span>
+            </Card>
           ))}
         </div>
       </div>
@@ -143,53 +151,44 @@ export function WorkspacesPage(): React.ReactElement {
   }
 
   const project = projects.find((p) => p.id === projectId);
+  const enVista = (view === 'changes' || view === 'explorer' || view === 'graph') && selected;
 
   return (
-    <div className="p-6">
-      <div className="mb-6 flex flex-wrap items-baseline justify-between gap-2">
+    <div className="flex h-full flex-col gap-6 overflow-y-auto bg-[var(--sw-ink)] p-6">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="text-xl font-semibold text-slate-800">Workspaces</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <h1 className="text-lg font-semibold text-foreground">Workspaces</h1>
+          <p className="text-sm text-muted-foreground">
             {project?.name ?? projectId}
-            {selected && <> · trabajando en <strong className="text-slate-700">{selected.title}</strong></>}
+            {selected && <> · trabajando en <strong className="text-foreground">{selected.title}</strong></>}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => navigate(workspacePath())}
-          className="text-sm text-slate-500 hover:text-slate-700"
-        >
+        <Button variant="ghost" onClick={() => navigate(workspacePath())}>
           Cambiar de proyecto
-        </button>
+        </Button>
       </div>
 
-      {(view === 'changes' || view === 'explorer' || view === 'graph') && selected ? (
-        <>
-          <div className="mb-4 flex flex-wrap items-center gap-4">
-            <button
-              type="button"
-              onClick={() => navigate(workspacePath(projectId, workspaceId))}
-              className="text-sm text-slate-500 hover:text-slate-700"
-            >
-              <i className="pi pi-arrow-left mr-1 text-xs" />
-              Volver a los espacios de trabajo
-            </button>
-            {/* Cambiar de vista conserva el workspace (es el segmento anterior)
-                pero NO el archivo abierto: el path del explorador no significa
-                nada en el panel de cambios y viceversa. */}
-            <div className="flex overflow-hidden rounded-lg border border-slate-200 text-sm">
-              {(['changes', 'explorer', 'graph'] as WorkspaceView[]).map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => openView(option)}
-                  className={`px-3 py-1 ${view === option ? 'bg-indigo-50 font-medium text-indigo-700' : 'text-slate-500 hover:bg-slate-50'}`}
-                >
-                  {option === 'changes' ? 'Cambios' : option === 'explorer' ? 'Explorador' : 'Grafo'}
-                </button>
+      {enVista ? (
+        <div className="flex flex-col gap-4">
+          {/* Cambiar de vista conserva el workspace (es el segmento anterior)
+              pero NO el archivo abierto: el path del explorador no significa
+              nada en el panel de cambios y viceversa. */}
+          <Toolbar label="Vistas del espacio de trabajo">
+            <ToolbarGrupo>
+              <ToolbarBoton onClick={() => navigate(workspacePath(projectId, workspaceId))}>
+                <Icon name="left" />
+                Volver a los espacios de trabajo
+              </ToolbarBoton>
+            </ToolbarGrupo>
+            <ToolbarSeparador />
+            <ToolbarGrupo>
+              {VISTAS.map(({ id, rotulo }) => (
+                <ToolbarBoton key={id} presionado={view === id} onClick={() => openView(id)}>
+                  {rotulo}
+                </ToolbarBoton>
               ))}
-            </div>
-          </div>
+            </ToolbarGrupo>
+          </Toolbar>
           {view === 'changes' ? (
             <ChangesPanel
               projectId={projectId}
@@ -212,7 +211,7 @@ export function WorkspacesPage(): React.ReactElement {
               onSelectCommit={handleOpenCommit}
             />
           )}
-        </>
+        </div>
       ) : (
         <>
           <WorkspaceList
@@ -223,31 +222,19 @@ export function WorkspacesPage(): React.ReactElement {
             onRetry={() => load(projectId)}
           />
           {selected && (
-            <div className="mt-6 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={() => openView('changes')}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-indigo-300"
-              >
-                <i className="pi pi-file-edit mr-2 text-xs text-slate-400" />
+            <div className="flex flex-wrap gap-3">
+              <Button variant="outline" onClick={() => openView('changes')}>
+                <Icon name="pen" />
                 Ver los cambios de {selected.title}
-              </button>
-              <button
-                type="button"
-                onClick={() => openView('explorer')}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-indigo-300"
-              >
-                <i className="pi pi-folder-open mr-2 text-xs text-slate-400" />
+              </Button>
+              <Button variant="outline" onClick={() => openView('explorer')}>
+                <Icon name="folder" />
                 Explorar los archivos
-              </button>
-              <button
-                type="button"
-                onClick={() => openView('graph')}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-indigo-300"
-              >
-                <i className="pi pi-sitemap mr-2 text-xs text-slate-400" />
+              </Button>
+              <Button variant="outline" onClick={() => openView('graph')}>
+                <Icon name="branch" />
                 Ver el grafo de la historia
-              </button>
+              </Button>
             </div>
           )}
         </>

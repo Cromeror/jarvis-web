@@ -18,11 +18,10 @@ const SIZE_CLASS: Record<TabSize, string> = {
 };
 
 /**
- * Tab — átomo "DBoard V1.1.X" de Figma (node 7624:36405), variantes
- * Size=LG/MD/SM/XS × State=Default/Hover/Selected. Hover se resuelve con
- * pseudo-clase CSS (mismo criterio que ButtonIcon) — Selected sí es una prop
- * real porque es un estado de contenido ("cuál proyecto tengo abierto"), no
- * una interacción de mouse.
+ * Tab — pestaña con subrayado. Hover se resuelve con pseudo-clase CSS;
+ * Selected sí es una prop real porque es un estado de contenido ("cuál
+ * proyecto tengo abierto"), no una interacción de mouse. El subrayado es el
+ * acento del tema, lo mismo que marca lo elegido en el resto del sistema.
  */
 export function Tab({ label, selected = false, size = 'md', onClick, className = '' }: TabProps): React.ReactElement {
   return (
@@ -30,18 +29,11 @@ export function Tab({ label, selected = false, size = 'md', onClick, className =
       type="button"
       onClick={onClick}
       className={`relative shrink-0 whitespace-nowrap font-bold transition-colors ${SIZE_CLASS[size]} ${
-        selected
-          ? 'text-[var(--tab-text-selected)]'
-          : 'text-[var(--tab-text-default)] hover:text-[var(--tab-text-hover)]'
+        selected ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
       } ${className}`}
     >
       {label}
-      {selected && (
-        <span
-          className="absolute inset-x-0 bottom-0 bg-[var(--tab-underline-selected)]"
-          style={{ height: 'var(--tab-underline-height)' }}
-        />
-      )}
+      {selected && <span className="absolute inset-x-0 bottom-0 h-0.5 bg-primary" />}
     </button>
   );
 }

@@ -41,7 +41,9 @@ export function CampoClave({
         aria-label="Mostrar la contraseña"
         title={ver ? 'Ocultar la contraseña' : 'Mostrar la contraseña'}
         onClick={() => setVer((v) => !v)}
-        className="absolute inset-y-0 right-0 flex w-9 items-center justify-center opacity-60 hover:opacity-100"
+        className="btn absolute top-1/2 right-1 -translate-y-1/2"
+        data-variant="ghost"
+        data-size="icon-sm"
       >
         <Icon name={ver ? 'eyeOff' : 'eye'} />
       </button>

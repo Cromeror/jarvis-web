@@ -1,4 +1,5 @@
 import React from 'react';
+import { Tabla, type ColumnaDeTabla } from '../Tabla.js';
 import { ReplicaIndicator } from '../molecules/ReplicaIndicator.js';
 import { EnvTag } from '../molecules/EnvTag.js';
 
@@ -17,64 +18,50 @@ export interface InfrastructureTableRow {
 
 interface InfrastructureTableProps {
   rows: InfrastructureTableRow[];
-  className?: string;
 }
 
-const HEADERS = ['Proyecto', 'Réplicas', 'Ambientes'];
+const COLUMNAS: ColumnaDeTabla[] = [
+  { id: 'project', label: 'Proyecto', w: 160, elastica: true, tip: true },
+  {
+    id: 'replicas',
+    label: 'Réplicas',
+    w: 110,
+    valor: (f: InfrastructureTableRow) => f.activeReplicas,
+  } as ColumnaDeTabla,
+  { id: 'environments', label: 'Ambientes', w: 220, al: 'der', orden: false },
+];
 
 /**
- * InfrastructureTable — organismo del design system "DBoard V1.1.X" (Figma
- * node 7173:786, Table/Infraestructura). Reusa los tokens --table2-*
- * (genéricos, ya usados por RecentPipelinesTable2 — confirmado 1:1 contra
- * Figma) en vez de tokens nuevos.
+ * InfrastructureTable — réplicas y ambientes por proyecto, sobre la `Tabla`
+ * del template. Antes era una tabla a mano con su propio skin (`--table2-*`),
+ * que además no estaba definido; con la del sistema hereda el orden por
+ * columna, el filete y el vacío, y se ve igual que cualquier otra tabla de la
+ * app. Sin casillas ni menú de fila: acá no hay nada que hacerle a un proyecto.
  */
-export function InfrastructureTable({ rows, className = '' }: InfrastructureTableProps): React.ReactElement {
+export function InfrastructureTable({ rows }: InfrastructureTableProps): React.ReactElement {
   return (
-    <div
-      className={`overflow-hidden rounded-[var(--table2-radius)] border border-[var(--table2-border)] bg-[var(--table2-bg)] ${className}`}
-    >
-      <table className="w-full border-collapse text-left">
-        <thead>
-          <tr className="bg-[var(--table2-header-bg)]">
-            {HEADERS.map((label, i) => (
-              <th
-                key={label}
-                className={`px-[var(--table2-cell-padding-h)] py-[var(--table2-header-padding-v)] text-[11px] font-semibold uppercase tracking-wide text-[var(--card-text-secondary)] ${
-                  i > 0 ? 'text-right' : ''
-                }`}
-              >
-                {label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, index) => (
-            <tr
-              key={row.id}
-              className={`border-t border-[var(--table2-row-border)] first:border-t-0 ${
-                index % 2 === 1 ? 'bg-[var(--table2-row-bg-alt)]' : ''
-              }`}
-            >
-              <td className="px-[var(--table2-cell-padding-h)] py-[var(--table2-row-padding-v)] text-[13px] text-[var(--card-text-secondary)]">
-                {row.project}
-              </td>
-              <td className="px-[var(--table2-cell-padding-h)] py-[var(--table2-row-padding-v)]">
-                <div className="flex justify-end">
-                  <ReplicaIndicator active={row.activeReplicas} total={row.totalReplicas} />
-                </div>
-              </td>
-              <td className="px-[var(--table2-cell-padding-h)] py-[var(--table2-row-padding-v)]">
-                <div className="flex flex-wrap justify-end gap-1.5">
-                  {row.environments.map((env) => (
-                    <EnvTag key={env.name} label={env.name} active={env.active} />
-                  ))}
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <Tabla<InfrastructureTableRow>
+      titulo="Infraestructura"
+      columnas={COLUMNAS}
+      filas={rows}
+      clave={(r) => r.id}
+      nombreFila={(r) => r.project}
+      seleccion={false}
+      textoDeCelda={(r, c) => (c.id === 'project' ? r.project : '')}
+      celda={(r, c) => {
+        if (c.id === 'replicas') return <ReplicaIndicator active={r.activeReplicas} total={r.totalReplicas} />;
+        if (c.id === 'environments') {
+          return (
+            <span className="inline-flex flex-wrap justify-end gap-1.5">
+              {r.environments.map((env) => (
+                <EnvTag key={env.name} label={env.name} active={env.active} />
+              ))}
+            </span>
+          );
+        }
+        return r.project;
+      }}
+      textos={{ vacio: 'No hay proyectos para mostrar', rangoVacio: 'Sin proyectos' }}
+    />
   );
 }

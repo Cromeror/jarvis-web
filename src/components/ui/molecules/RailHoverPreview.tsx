@@ -30,25 +30,25 @@ interface RailHoverPreviewProps {
 export function RailHoverPreview({ icon, headerLabel, title, subtitle, badge, statusText, emptyLabel, className = '' }: RailHoverPreviewProps): React.ReactElement {
   return (
     <div
-      className={`flex w-[200px] flex-col items-start gap-[6px] rounded-[var(--chatoptionsrail-radius)] bg-[var(--chatoptionsrail-hoverpreview-bg)] px-[14px] py-3 shadow-[var(--chatoptionsrail-hoverpreview-shadow)] ${className}`}
+      className={`flex w-[200px] flex-col items-start gap-[6px] rounded-[var(--sw-r-md)] border border-border bg-popover px-[14px] py-3 shadow-[var(--sw-e-pop)] ${className}`}
     >
       <div className="flex shrink-0 items-center gap-1.5">
-        <RailIcon name={icon} size={12} className="text-[var(--chatoptionsrail-item-text-default)]" />
-        <span className="whitespace-nowrap text-[10px] font-semibold text-[var(--chatoptionsrail-item-text-default)]">{headerLabel}</span>
+        <RailIcon name={icon} size={12} className="text-muted-foreground" />
+        <span className="whitespace-nowrap text-[10px] font-semibold text-muted-foreground">{headerLabel}</span>
       </div>
       {title ? (
         <>
-          <p className="w-full truncate text-[14px] font-semibold text-[var(--chatoptionsrail-item-text-default)]">{title}</p>
-          {subtitle && <p className="w-full truncate text-[12px] text-[var(--chatoptionsrail-item-text-default)]">{subtitle}</p>}
+          <p className="w-full truncate text-[14px] font-semibold text-foreground">{title}</p>
+          {subtitle && <p className="w-full truncate text-[12px] text-secondary-foreground">{subtitle}</p>}
           {(badge || statusText) && (
             <div className="flex shrink-0 items-center gap-1.5">
               {badge && <Badge label={badge.label} status={badge.status} size="xs" />}
-              {statusText && <span className="whitespace-nowrap text-[12px] font-medium text-[var(--chatoptionsrail-item-text-default)]">{statusText}</span>}
+              {statusText && <span className="whitespace-nowrap text-[12px] font-medium text-secondary-foreground">{statusText}</span>}
             </div>
           )}
         </>
       ) : (
-        <p className="w-full text-[12px] text-[var(--chatoptionsrail-livequeue-empty-text)]">{emptyLabel ?? 'Nada para mostrar todavía.'}</p>
+        <p className="w-full text-[12px] text-muted-foreground">{emptyLabel ?? 'Nada para mostrar todavía.'}</p>
       )}
     </div>
   );

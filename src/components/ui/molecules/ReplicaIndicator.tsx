@@ -19,12 +19,12 @@ export function ReplicaIndicator({ active, total, className = '' }: ReplicaIndic
           <span
             key={i}
             className={`size-[7px] shrink-0 rounded-[2px] ${
-              i < active ? 'bg-[var(--statusdot-secondary-active)]' : 'bg-[var(--statusdot-secondary-inactive)]'
+              i < active ? 'bg-[var(--sw-success)]' : 'bg-[var(--sw-line-strong)]'
             }`}
           />
         ))}
       </div>
-      <p className="whitespace-nowrap text-xs text-[var(--card-text-secondary)]">
+      <p className="whitespace-nowrap text-xs text-muted-foreground">
         {active}/{total} réplicas
       </p>
     </div>

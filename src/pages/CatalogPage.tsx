@@ -319,7 +319,7 @@ export function CatalogPage(): React.ReactElement {
   if (user && user.account_type !== 'operator') return <Navigate to="/" replace />;
 
   return (
-    <div className="h-full overflow-y-auto bg-[var(--app-bg)] p-6">
+    <div className="h-full overflow-y-auto bg-[var(--sw-ink)] p-6">
       <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-lg font-semibold text-foreground">Suites, módulos y herramientas</h1>
       </div>
@@ -329,7 +329,7 @@ export function CatalogPage(): React.ReactElement {
       </p>
 
       {error && (
-        <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+        <div className="mb-3 rounded-lg border border-[var(--sw-error)] bg-[var(--sw-error-bg)] px-3 py-2 text-sm text-[var(--sw-on-error)]">
           {error}
         </div>
       )}
@@ -355,8 +355,7 @@ export function CatalogPage(): React.ReactElement {
                         {p.name}
                         <span className="ml-2 text-xs text-muted-foreground">{p.modules.length} módulos</span>
                       </button>
-                      <button
-                        type="button"
+                      <Button
                         onClick={() => {
                           if (!window.confirm(`¿Eliminar la suite '${p.name}'? Los módulos no se borran.`)) return;
                           void conManejoDeError(async () => {
@@ -364,10 +363,12 @@ export function CatalogPage(): React.ReactElement {
                             if (suiteId === p.id) setSuiteId(null);
                           });
                         }}
-                        className="rounded px-1 text-xs text-red-400 hover:bg-red-500/10"
+                        variant="ghost"
+                        size="xs"
+                        className="text-[var(--sw-error)]"
                       >
                         Eliminar
-                      </button>
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -461,13 +462,12 @@ export function CatalogPage(): React.ReactElement {
                         {/* De dónde salió la fila. Un módulo `code` lo declara el
                             código y tiene vista; uno `manual` sirve para diseñar
                             el menú pero no resuelve nada todavía. */}
-                        {m.origin === 'code' && <span className="ml-2 text-xs text-emerald-400">código</span>}
+                        {m.origin === 'code' && <span className="ml-2 text-xs text-[var(--sw-success)]">código</span>}
                         {m.status === 'missing' && (
-                          <span className="ml-2 text-xs text-amber-400">ya no existe en el código</span>
+                          <span className="ml-2 text-xs text-[var(--sw-warning)]">ya no existe en el código</span>
                         )}
                       </button>
-                      <button
-                        type="button"
+                      <Button
                         // Un módulo del código no se borra desde acá: el próximo
                         // arranque lo recrearía, y el botón mentiría.
                         disabled={m.origin === 'code'}
@@ -481,10 +481,12 @@ export function CatalogPage(): React.ReactElement {
                             if (moduleId === m.id) setModuleId(null);
                           });
                         }}
-                        className="rounded px-1 text-xs text-red-400 hover:bg-red-500/10 disabled:opacity-30"
+                        variant="ghost"
+                        size="xs"
+                        className="text-[var(--sw-error)]"
                       >
                         Eliminar
-                      </button>
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -549,9 +551,9 @@ export function CatalogPage(): React.ReactElement {
                 >
                   <span className="flex-1 truncate">
                     {u.name}
-                    {u.origin === 'code' && <span className="ml-2 text-xs text-emerald-400">código</span>}
+                    {u.origin === 'code' && <span className="ml-2 text-xs text-[var(--sw-success)]">código</span>}
                     {u.status === 'missing' && (
-                      <span className="ml-2 text-xs text-amber-400">ya no existe en el código</span>
+                      <span className="ml-2 text-xs text-[var(--sw-warning)]">ya no existe en el código</span>
                     )}
                     {/* La compatibilidad es lo que decide en qué módulos se puede
                         colgar, así que se ve en la lista y no sólo al componer. */}
@@ -568,18 +570,19 @@ export function CatalogPage(): React.ReactElement {
                   ) : (
                     <StatusBadge label="sin tool" tone="warning" />
                   )}
-                  <button
-                    type="button"
+                  <Button
                     disabled={u.origin === 'code'}
                     title={u.origin === 'code' ? 'La declara el código: se va cuando se la saque de ahí' : undefined}
                     onClick={() => {
                       if (!window.confirm(`¿Eliminar la herramienta '${u.name}'?`)) return;
                       void conManejoDeError(() => deleteModuleTool(u.id));
                     }}
-                    className="rounded px-1 text-xs text-red-400 hover:bg-red-500/10 disabled:opacity-30"
+                    variant="ghost"
+                        size="xs"
+                        className="text-[var(--sw-error)]"
                   >
                     Eliminar
-                  </button>
+                  </Button>
                 </div>
               ))}
             </div>

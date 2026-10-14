@@ -12,9 +12,8 @@ import { Tabla, type ColumnaDeTabla } from '../ui/Tabla.js';
 import { Button } from '../ui/atoms/Button.js';
 
 /** Mismas superficies que `PortGrantsPage`: esto es su segundo nivel y tiene que leerse igual. */
-const PANEL_CLASS = 'rounded-xl border border-white/10 bg-white/[0.03] p-4';
-const INPUT_CLASS =
-  'w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 outline-none focus:border-indigo-400 [&>option]:bg-[#221f1d] [&>option]:text-white';
+const PANEL_CLASS = 'rounded-xl border border-border bg-muted p-4';
+const INPUT_CLASS = 'input w-full';
 
 const TAMANIO_POR_DEFECTO = 10;
 
@@ -118,16 +117,16 @@ export function OrganizationPortsSection({ organizationId }: { organizationId: s
 
   return (
     <section>
-      <h2 className="mb-2 text-sm font-semibold text-white">Puertos</h2>
+      <h2 className="mb-2 text-sm font-semibold text-foreground">Puertos</h2>
 
       {error && (
-        <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>
+        <div className="mb-3 rounded-lg border border-[var(--sw-error)] bg-[var(--sw-error-bg)] px-3 py-2 text-sm text-[var(--sw-on-error)]">{error}</div>
       )}
 
       {cargando ? (
-        <p className="text-sm text-slate-400">Cargando…</p>
+        <p className="text-sm text-muted-foreground">Cargando…</p>
       ) : sinBloque ? (
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-muted-foreground">
           La organización no tiene bloque de puertos; lo concede un superadmin desde Puertos.
         </p>
       ) : datos ? (
@@ -136,24 +135,24 @@ export function OrganizationPortsSection({ organizationId }: { organizationId: s
             const r = repartoDeBloque(b, datos.project_grants);
             return (
               <div key={b.id} className={PANEL_CLASS}>
-                <p className="text-sm text-white">
+                <p className="text-sm text-foreground">
                   Bloque <span className="font-semibold">{b.start_port}–{b.end_port}</span>{' '}
-                  <span className="text-slate-400">
+                  <span className="text-muted-foreground">
                     ({r.total} puertos: {r.repartidos} repartidos, {r.libres} libres
                     {r.libres > 0 && r.mayorHueco < r.libres ? `, el mayor hueco es de ${r.mayorHueco}` : ''})
                   </span>
                 </p>
-                {b.note && <p className="mt-1 text-xs text-slate-400">{b.note}</p>}
+                {b.note && <p className="mt-1 text-xs text-muted-foreground">{b.note}</p>}
                 {/* La barra es el bloque en orden de puerto: deja ver no sólo
                     cuánto queda sino DÓNDE, que es lo que importa al elegir
                     «desde el puerto». El ancho es proporcional y el detalle va
                     en el tooltip de cada pedazo. */}
-                <div className="mt-3 flex h-3 w-full overflow-hidden rounded-full bg-white/10">
+                <div className="mt-3 flex h-3 w-full overflow-hidden rounded-full bg-muted">
                   {r.segmentos.map((s) => (
                     <div
                       key={`${s.tipo}-${s.start}`}
                       style={{ width: `${(s.size / r.total) * 100}%` }}
-                      className={s.tipo === 'tramo' ? 'border-r border-[var(--app-bg)] bg-indigo-500/80' : ''}
+                      className={s.tipo === 'tramo' ? 'border-r border-card bg-primary' : ''}
                       title={
                         s.tipo === 'tramo'
                           ? `${nombreDeProyecto(s.grant.project_id)}: ${s.start}–${s.end}`
@@ -167,15 +166,15 @@ export function OrganizationPortsSection({ organizationId }: { organizationId: s
           })}
 
           <div className={PANEL_CLASS}>
-            <h3 className="mb-3 text-sm font-semibold text-white">Asignar a un proyecto</h3>
+            <h3 className="mb-3 text-sm font-semibold text-foreground">Asignar a un proyecto</h3>
             {datos.projects.length === 0 ? (
-              <p className="text-xs text-slate-400">La organización todavía no tiene proyectos a los que asignarles puertos.</p>
+              <p className="text-xs text-muted-foreground">La organización todavía no tiene proyectos a los que asignarles puertos.</p>
             ) : (
               <>
                 <div className="flex flex-wrap items-end gap-3">
                   <label className="min-w-56 flex-1">
-                    <span className="mb-1 block text-xs text-slate-400">Proyecto</span>
-                    <select className={INPUT_CLASS} value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+                    <span className="mb-1 block text-xs text-muted-foreground">Proyecto</span>
+                    <select className="select w-full" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
                       <option value="">Elegí uno…</option>
                       {datos.projects.map((p) => (
                         <option key={p.id} value={p.id}>
@@ -185,7 +184,7 @@ export function OrganizationPortsSection({ organizationId }: { organizationId: s
                     </select>
                   </label>
                   <label className="w-28">
-                    <span className="mb-1 block text-xs text-slate-400">Cantidad</span>
+                    <span className="mb-1 block text-xs text-muted-foreground">Cantidad</span>
                     <input
                       className={INPUT_CLASS}
                       type="number"
@@ -196,7 +195,7 @@ export function OrganizationPortsSection({ organizationId }: { organizationId: s
                     />
                   </label>
                   <label className="w-36">
-                    <span className="mb-1 block text-xs text-slate-400">Desde el puerto (opcional)</span>
+                    <span className="mb-1 block text-xs text-muted-foreground">Desde el puerto (opcional)</span>
                     <input
                       className={INPUT_CLASS}
                       type="number"
@@ -206,7 +205,7 @@ export function OrganizationPortsSection({ organizationId }: { organizationId: s
                     />
                   </label>
                   <label className="min-w-56 flex-1">
-                    <span className="mb-1 block text-xs text-slate-400">Para qué (opcional)</span>
+                    <span className="mb-1 block text-xs text-muted-foreground">Para qué (opcional)</span>
                     <input className={INPUT_CLASS} value={note} onChange={(e) => setNote(e.target.value)} />
                   </label>
                   <Button
@@ -217,7 +216,7 @@ export function OrganizationPortsSection({ organizationId }: { organizationId: s
                     Asignar
                   </Button>
                 </div>
-                <p className="mt-2 text-xs text-slate-400">
+                <p className="mt-2 text-xs text-muted-foreground">
                   Sin «desde el puerto», el servidor toma el primer hueco del tamaño pedido.
                 </p>
               </>

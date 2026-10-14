@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Spinner } from '../ui/atoms/Spinner.js';
+import { Button } from '../ui/atoms/Button.js';
 import { ChangedFileList } from './ChangedFileList.js';
 import { DiffView } from './DiffView.js';
 import { toChangedFileRows, type ChangedFileRow, type ChangeSide } from '../../lib/diff-view.js';
@@ -86,53 +87,54 @@ export function ChangesPanel({ projectId, replicaId, selectedPath, onSelectFile 
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(220px,300px)_1fr]">
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
-          <h2 className="text-sm font-semibold text-slate-700">
+      <div className="overflow-hidden rounded-[var(--sw-r-lg)] border border-border bg-card">
+        <div className="flex items-center justify-between border-b border-border px-3 py-1.5">
+          <h2 className="text-sm font-semibold text-foreground">
             Cambios{rows ? ` (${rows.length})` : ''}
           </h2>
-          <button type="button" onClick={loadList} title="Recargar" className="text-slate-400 hover:text-slate-600">
+          <button type="button" onClick={loadList} title="Recargar" aria-label="Recargar" className="btn" data-variant="ghost" data-size="icon-sm">
             <i className="pi pi-refresh text-xs" />
           </button>
         </div>
         {rows === null ? (
-          <div className="flex items-center gap-2 p-6 text-sm text-slate-500"><Spinner /> Leyendo…</div>
+          <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground"><Spinner /> Leyendo…</div>
         ) : (
           <>
             {listError && (
-              <p className="border-b border-orange-100 bg-orange-50 px-3 py-2 text-xs text-orange-700">{listError}</p>
+              <p className="border-b border-border bg-[var(--sw-warning-bg)] px-3 py-2 text-xs text-[var(--sw-on-warning)]">{listError}</p>
             )}
             <ChangedFileList rows={rows} selectedPath={selectedPath} onSelect={handleSelect} />
           </>
         )}
       </div>
 
-      <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="min-w-0 rounded-[var(--sw-r-lg)] border border-border bg-card p-4">
         {!selectedPath ? (
-          <p className="p-6 text-center text-sm text-slate-400">Elegí un archivo para ver qué cambió.</p>
+          <p className="p-6 text-center text-sm text-muted-foreground">Elegí un archivo para ver qué cambió.</p>
         ) : (
           <>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <h3 className="min-w-0 truncate font-mono text-sm text-slate-700" title={selectedPath}>{selectedPath}</h3>
+              <h3 className="min-w-0 truncate font-mono text-sm text-foreground" title={selectedPath}>{selectedPath}</h3>
               {/* El toggle solo aparece cuando el archivo tiene cambios en las
                   dos columnas: ofrecerlo siempre sería una decisión vacía. */}
               {selectedRow?.hasBothSides && (
-                <div className="flex shrink-0 overflow-hidden rounded-lg border border-slate-200 text-xs">
+                <div className="flex shrink-0 gap-1" role="group" aria-label="Qué lado del diff">
                   {(['worktree', 'staged'] as ChangeSide[]).map((option) => (
-                    <button
+                    <Button
                       key={option}
-                      type="button"
+                      size="xs"
+                      variant={effectiveSide === option ? 'secondary' : 'ghost'}
+                      aria-pressed={effectiveSide === option}
                       onClick={() => setSide(option)}
-                      className={`px-3 py-1 ${effectiveSide === option ? 'bg-indigo-50 font-medium text-indigo-700' : 'text-slate-500 hover:bg-slate-50'}`}
                     >
                       {option === 'worktree' ? 'Sin stagear' : 'Stageado'}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               )}
             </div>
             {diffLoading && !diff ? (
-              <div className="flex items-center gap-2 p-6 text-sm text-slate-500"><Spinner /> Leyendo el diff…</div>
+              <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground"><Spinner /> Leyendo el diff…</div>
             ) : diff ? (
               <DiffView diff={diff} />
             ) : null}

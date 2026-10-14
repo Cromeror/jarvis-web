@@ -73,9 +73,8 @@ function ChevronDownIcon(): React.ReactElement {
 
 /**
  * Dashboard: multi-project overview — project grid, infraestructura
- * (réplicas + ambientes) y recent pipeline runs, tema oscuro "DBoard V1.1.X"
- * (Figma node 6899:1729). REQ-1, REQ-11, SC-01, R8 — handles empty state
- * without crash.
+ * (réplicas + ambientes) y recent pipeline runs, con los tokens del tema.
+ * REQ-1, REQ-11, SC-01, R8 — handles empty state without crash.
  */
 export function DashboardPage(): React.ReactElement {
   const navigate = useNavigate();
@@ -215,7 +214,7 @@ export function DashboardPage(): React.ReactElement {
   if (loading) {
     return (
       <div className="flex h-full flex-col overflow-x-hidden overflow-y-auto px-8 py-7">
-        <div className="py-16 text-center text-sm text-[var(--card-text-secondary)]">Loading projects...</div>
+        <div className="py-16 text-center text-sm text-muted-foreground">Loading projects...</div>
       </div>
     );
   }
@@ -223,7 +222,7 @@ export function DashboardPage(): React.ReactElement {
   if (error) {
     return (
       <div className="flex h-full flex-col overflow-x-hidden overflow-y-auto px-8 py-7">
-        <div className="py-16 text-center text-sm text-red-400">{error}</div>
+        <div className="py-16 text-center text-sm text-[var(--sw-error)]">{error}</div>
       </div>
     );
   }
@@ -231,7 +230,7 @@ export function DashboardPage(): React.ReactElement {
   if (projects.length === 0) {
     return (
       <div className="flex h-full flex-col overflow-x-hidden overflow-y-auto px-8 py-7">
-        <div className="py-16 text-center text-sm text-[var(--card-text-secondary)]">
+        <div className="py-16 text-center text-sm text-muted-foreground">
           <p>No projects found.</p>
           <p className="mt-2">
             Run <code>jarvis setup</code> to get started.
@@ -246,8 +245,8 @@ export function DashboardPage(): React.ReactElement {
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-semibold text-[var(--card-text-primary)]">Proyectos</h1>
-            <p className="text-sm text-[var(--card-text-secondary)]">
+            <h1 className="text-lg font-semibold text-foreground">Proyectos</h1>
+            <p className="text-sm text-muted-foreground">
               {projects.length} project{projects.length !== 1 ? 's' : ''} conectados.
             </p>
           </div>
@@ -286,14 +285,10 @@ export function DashboardPage(): React.ReactElement {
           <InfrastructureTable rows={infraRows} />
         </SectionCard>
 
-        <SectionCard title="Recent Pipelines">
-          {pipelineRows.length === 0 ? (
-            <div className="rounded-[var(--table2-radius)] border border-[var(--table2-border)] bg-[var(--table2-bg)] py-16 text-center text-sm text-[var(--card-text-secondary)]">
-              Todavía no hay corridas de pipelines.
-            </div>
-          ) : (
-            <RecentPipelinesTable2 rows={pipelineRows} />
-          )}
+        {/* Sin vacío propio: la tabla del sistema ya dibuja el suyo, con el mismo
+            texto, adentro de su card. */}
+        <SectionCard title="Pipelines recientes">
+          <RecentPipelinesTable2 rows={pipelineRows} />
         </SectionCard>
       </div>
     </div>

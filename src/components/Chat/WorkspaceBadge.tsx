@@ -1,5 +1,6 @@
 import React from 'react';
 import type { SessionWorkspace } from '../../lib/session-workspace.js';
+import { Icon } from '../Icon.js';
 
 interface WorkspaceBadgeProps {
   workspace: SessionWorkspace;
@@ -16,30 +17,32 @@ interface WorkspaceBadgeProps {
  * vista todavía no sabe". El dato importa justamente para comparar dos
  * conversaciones entre sí.
  */
-const TONE: Record<SessionWorkspace['kind'], string> = {
-  base: 'bg-slate-100 text-slate-600',
-  replica: 'bg-indigo-100 text-indigo-700',
-  unknown: 'bg-rose-100 text-rose-700',
+// La variante de `.badge` decide fondo y tinta en los dos temas; la réplica va
+// sin variante (el `.badge` de base, con el acento) porque es la que hay que
+// notar: la base es el caso de todos los días.
+const TONE: Record<SessionWorkspace['kind'], string | undefined> = {
+  base: 'mute',
+  replica: undefined,
+  unknown: 'error',
 };
 
 export function WorkspaceBadge({ workspace, onClick, size = 'sm' }: WorkspaceBadgeProps): React.ReactElement {
   const className = [
-    'inline-flex w-fit shrink-0 items-center gap-1 rounded-full font-semibold',
-    size === 'xs' ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-[11px]',
-    TONE[workspace.kind],
+    'badge w-fit shrink-0',
+    size === 'xs' ? 'text-[10px]' : 'text-[11px]',
     onClick ? 'cursor-pointer hover:brightness-95' : '',
   ].join(' ');
 
   const content = (
     <>
-      <i className={`pi ${workspace.kind === 'unknown' ? 'pi-exclamation-triangle' : 'pi-folder'} text-[9px]`} />
+      <Icon name={workspace.kind === 'unknown' ? 'alerta' : 'folder'} />
       {workspace.label}
     </>
   );
 
   if (!onClick) {
     return (
-      <span className={className} title={workspace.detail}>
+      <span className={className} data-variant={TONE[workspace.kind]} title={workspace.detail}>
         {content}
       </span>
     );
@@ -48,6 +51,7 @@ export function WorkspaceBadge({ workspace, onClick, size = 'sm' }: WorkspaceBad
     <button
       type="button"
       className={className}
+      data-variant={TONE[workspace.kind]}
       title={`${workspace.detail} — click para cambiar de workspace`}
       onClick={(e) => {
         e.stopPropagation();

@@ -21,7 +21,7 @@ interface CardProjectProps {
   className?: string;
 }
 
-/** Relative "hace X" from an ISO timestamp — mismo criterio que ProjectCard/PlansPage. */
+/** Relative "hace X" from an ISO timestamp — mismo criterio que PlansPage. */
 function timeAgo(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
   const minutes = Math.floor(diffMs / 60_000);
@@ -33,15 +33,14 @@ function timeAgo(iso: string): string {
 }
 
 /**
- * CardProject — molécula del design system "DBoard V1.1.X" (Figma node
- * 3243:128808/2778:70707). Envuelve CardBase (gap "md") con título, fila
- * de ambientes y hasta 3 chats recientes. Ajustado a pedido: se sacaron
- * el slug del proyecto, la meta de integraciones/skills y, por último, el
- * indicador de última actividad arriba (TopRow) — redundante una vez que
- * la sección de chats ya muestra el tiempo relativo de cada uno. Todo
- * reflejado primero en Figma (misma edición) y portado acá. No reemplaza
- * a ui/molecules/ProjectCard.tsx (tema claro, usado hoy en DashboardPage)
- * — mismo criterio que Sidebar2/RecentPipelinesTable2.
+ * CardProject — la card de un proyecto en el Dashboard: título, fila de
+ * ambientes y hasta 3 chats recientes. Se sacaron a pedido el slug, la meta de
+ * integraciones/skills y el indicador de última actividad arriba —redundante
+ * una vez que la sección de chats ya muestra el tiempo relativo de cada uno—.
+ *
+ * El punto de un ambiente es de ESTADO (prendido/apagado), así que sale del
+ * token de éxito del tema y no de un verde fijo: en claro y en oscuro tiene
+ * que leerse igual contra la card.
  */
 export function CardProject({
   title,
@@ -53,44 +52,45 @@ export function CardProject({
 }: CardProjectProps): React.ReactElement {
   return (
     <CardBase gap="md" onClick={onClick} className={`w-full ${className}`}>
-      <p className="w-full truncate text-[15px] font-semibold text-[var(--card-text-primary)]">{title}</p>
+      <p className="w-full truncate text-[15px] font-semibold text-foreground">{title}</p>
 
       {environments.length > 0 && (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {environments.map((env) => (
             <div key={env.name} className="flex items-center gap-1">
               <span
-                className={`size-[6px] shrink-0 rounded-[3px] ${
-                  env.active ? 'bg-[var(--card-env-active)]' : 'bg-[var(--card-env-inactive)]'
+                className={`size-[6px] shrink-0 rounded-full ${
+                  env.active ? 'bg-[var(--sw-success)]' : 'bg-[var(--sw-faint)]'
                 }`}
               />
-              <p className="whitespace-nowrap text-[11px] text-[var(--card-text-secondary)]">{env.name}</p>
+              <p className="whitespace-nowrap text-[11px] text-muted-foreground">{env.name}</p>
             </div>
           ))}
         </div>
       )}
 
-      {/* Gap extra vs. el resto de las filas — ver comentario de --card-chats-section-gap en styles-tailwind.css */}
-      <div className="h-[var(--card-chats-section-gap)] w-full shrink-0" />
-      <div className="flex w-full flex-col gap-[var(--card-gap)]">
-        <p className="text-[11px] text-[var(--card-text-secondary)]">
+      {/* `mt-auto` empuja los chats al pie de la card: con alto fijo en la
+          grilla, así quedan alineados entre cards aunque una tenga ambientes y
+          otra no. */}
+      <div className="mt-auto flex w-full flex-col gap-[var(--sw-s-2)]">
+        <p className="text-[11px] text-muted-foreground">
           {chatsCount} chat{chatsCount !== 1 ? 's' : ''}
         </p>
         {recentChats.length > 0 ? (
-          <div className="flex w-full flex-col gap-[var(--card-chats-gap)]">
+          <div className="flex w-full flex-col gap-[var(--sw-s-1)]">
             {recentChats.map((chat) => (
               <div key={chat.id} className="flex w-full items-center justify-between gap-2">
-                <p className="min-w-0 flex-1 truncate text-[11px] text-[var(--card-text-secondary)]">
+                <p className="min-w-0 flex-1 truncate text-[11px] text-secondary-foreground">
                   {chat.title ?? 'Sin título'}
                 </p>
-                <p className="shrink-0 whitespace-nowrap text-[11px] text-[var(--card-text-secondary)]">
+                <p className="shrink-0 whitespace-nowrap text-[11px] text-muted-foreground">
                   {timeAgo(chat.updatedAt)}
                 </p>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-[11px] italic text-[var(--card-text-secondary)] opacity-60">Sin conversaciones todavía</p>
+          <p className="text-[11px] italic text-muted-foreground">Sin conversaciones todavía</p>
         )}
       </div>
     </CardBase>

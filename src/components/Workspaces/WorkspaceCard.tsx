@@ -2,6 +2,7 @@ import React from 'react';
 import { Card } from '../ui/atoms/Card.js';
 import { IconTile } from '../ui/atoms/IconTile.js';
 import { StatusBadge } from '../ui/atoms/StatusBadge.js';
+import { Icon } from '../Icon.js';
 import { timeAgo } from '../../lib/time-ago.js';
 import { branchLabel, changesLabel, type WorkspaceRow } from '../../lib/workspace-view.js';
 
@@ -29,54 +30,58 @@ export function WorkspaceCard({ row, selected, onSelect }: WorkspaceCardProps): 
       tabIndex={clickable ? 0 : undefined}
       onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(row); } } : undefined}
       aria-pressed={clickable ? selected : undefined}
-      className={`h-full rounded-2xl transition ${clickable ? 'cursor-pointer' : 'cursor-default'} ${
-        selected ? 'ring-2 ring-indigo-500 ring-offset-2' : ''
+      className={`h-full rounded-[var(--sw-r-lg)] transition ${clickable ? 'cursor-pointer' : 'cursor-default'} ${
+        selected ? 'ring-2 ring-[var(--sw-accent)] ring-offset-2 ring-offset-[var(--sw-ink)]' : ''
       }`}
     >
-      <Card className={`flex h-full flex-col gap-3 ${row.selectable ? '' : 'opacity-75'}`}>
+      <Card className={`flex h-full flex-col gap-3 ${clickable ? 'hover:bg-accent' : 'opacity-75'}`}>
         <div className="flex items-start justify-between gap-2">
           <IconTile
             icon={row.kind === 'main' ? 'pi-home' : 'pi-clone'}
-            className={row.kind === 'main' ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-600'}
+            className={
+              row.kind === 'main'
+                ? 'bg-[var(--sw-accent-weak)] text-[var(--sw-accent-text)]'
+                : 'bg-muted text-muted-foreground'
+            }
           />
           <StatusBadge label={row.statusLabel} tone={row.statusTone} />
         </div>
 
         <div>
-          <h3 className="text-base font-semibold text-slate-800">{row.title}</h3>
+          <h3 className="text-base font-semibold text-foreground">{row.title}</h3>
           {/* El path completo es lo que desambigua dos réplicas del mismo
               proyecto, así que va como title para poder leerlo entero. */}
-          <p className="truncate text-xs text-slate-400" title={row.rootPath}>{row.rootPath}</p>
+          <p className="truncate text-xs text-muted-foreground" title={row.rootPath}>{row.rootPath}</p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-secondary-foreground">
           <span className="inline-flex items-center gap-1.5" title="Rama actual">
-            <i className="pi pi-sitemap text-[11px] text-slate-400" />
+            <Icon name="branch" className="text-muted-foreground" />
             {branchLabel(row)}
           </span>
           <span className="inline-flex items-center gap-1.5" title="Archivos con cambios sin commitear">
-            <i className="pi pi-pencil text-[11px] text-slate-400" />
+            <Icon name="pen" className="text-muted-foreground" />
             {changesLabel(row)}
           </span>
         </div>
 
         {row.lastCommit ? (
-          <div className="mt-auto border-t border-slate-100 pt-3">
-            <p className="truncate text-sm text-slate-700" title={row.lastCommit.subject}>
+          <div className="mt-auto border-t border-border pt-3">
+            <p className="truncate text-sm text-foreground" title={row.lastCommit.subject}>
               {row.lastCommit.subject}
             </p>
-            <p className="mt-0.5 text-xs text-slate-400">
+            <p className="mt-0.5 text-xs text-muted-foreground">
               {row.lastCommit.hash.slice(0, 7)} · {timeAgo(row.lastCommit.date)}
             </p>
           </div>
         ) : (
-          <div className="mt-auto border-t border-slate-100 pt-3">
-            <p className="text-xs text-slate-400">Sin commits todavía</p>
+          <div className="mt-auto border-t border-border pt-3">
+            <p className="text-xs text-muted-foreground">Sin commits todavía</p>
           </div>
         )}
 
         {row.note && (
-          <p className={`text-xs ${row.status === 'broken' ? 'text-red-600' : 'text-slate-400'}`}>{row.note}</p>
+          <p className={`text-xs ${row.status === 'broken' ? 'text-[var(--sw-error)]' : 'text-muted-foreground'}`}>{row.note}</p>
         )}
       </Card>
     </div>

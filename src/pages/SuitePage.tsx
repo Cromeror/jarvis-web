@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { fetchNavigation, vaEnElRiel } from '../lib/catalog-api.js';
 import type { CatalogSuite } from '../lib/catalog-api.js';
 import { StatusBadge } from '../components/ui/atoms/StatusBadge.js';
+import { Button } from '../components/ui/atoms/Button.js';
 import { moduleView } from '../modules/registry.js';
 import { useHerramientaCorrida } from '../components/layout/herramienta-corrida.js';
 
@@ -64,24 +65,24 @@ export function SuitePage(): React.ReactElement {
 
   if (error) {
     return (
-      <div className="h-full overflow-y-auto bg-[var(--app-bg)] p-6">
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>
+      <div className="h-full overflow-y-auto p-6">
+        <div className="rounded-[var(--sw-r-md)] border border-[var(--sw-error)] bg-[var(--sw-error-bg)] px-3 py-2 text-sm text-[var(--sw-on-error)]">{error}</div>
       </div>
     );
   }
 
   if (!suites) {
     return (
-      <div className="h-full overflow-y-auto bg-[var(--app-bg)] p-6">
-        <p className="text-sm text-slate-400">Cargando…</p>
+      <div className="h-full overflow-y-auto p-6">
+        <p className="text-sm text-muted-foreground">Cargando…</p>
       </div>
     );
   }
 
   if (!suite) {
     return (
-      <div className="h-full overflow-y-auto bg-[var(--app-bg)] p-6">
-        <p className="text-sm text-slate-400">
+      <div className="h-full overflow-y-auto p-6">
+        <p className="text-sm text-muted-foreground">
           Este proyecto no tiene asignada la suite «{suiteSlug}». Pedíselo a quien administre el producto.
         </p>
       </div>
@@ -97,7 +98,7 @@ export function SuitePage(): React.ReactElement {
     // tiene de más (la tabla, adentro de su card). Con la página scrolleando,
     // un módulo que pida `height: 100%` no tiene contra qué medirse y la
     // cabecera pegajosa de su tabla se va hacia arriba con las filas.
-    <div className="h-full min-h-0 overflow-hidden bg-[var(--app-bg)] p-2">
+    <div className="h-full min-h-0 overflow-hidden p-2">
       <div className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] p-4">
       {/* EL TRABAJO. Scrollea sólo si su contenido no entra: un módulo con vista
           propia mide 100% y no lo hace nunca —scrollea él, adentro—; la lista de
@@ -109,7 +110,7 @@ export function SuitePage(): React.ReactElement {
           ahora nombra el módulo. Repetirlo acá gasta el alto que necesita el
           trabajo, que es lo que la persona vino a hacer. */}
       {delRiel.length === 0 ? (
-        <p className="mt-4 text-sm text-slate-400">Esta suite todavía no tiene módulos configurados.</p>
+        <p className="mt-4 text-sm text-muted-foreground">Esta suite todavía no tiene módulos configurados.</p>
       ) : (
         <>
           {/* SIN TABS. Los módulos de la suite ya son el submenú del sidebar
@@ -126,7 +127,7 @@ export function SuitePage(): React.ReactElement {
                 // herramientas las presenta ella (un botón, un paso de un
                 // asistente, lo que corresponda a ese trabajo).
                 <div className="h-full min-h-0">
-                  <Suspense fallback={<p className="text-sm text-slate-400">Cargando el módulo…</p>}>
+                  <Suspense fallback={<p className="text-sm text-muted-foreground">Cargando el módulo…</p>}>
                     <Vista projectId={projectId as string} module={modulo} />
                   </Suspense>
                 </div>
@@ -136,25 +137,25 @@ export function SuitePage(): React.ReactElement {
                       único que se sabe del módulo. No es un error: el front y la
                       API se despliegan por separado, así que un módulo puede
                       estar configurado antes de que este bundle lo tenga. */}
-                  <p className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                  <p className="mt-3 rounded-[var(--sw-r-md)] border border-[var(--sw-warning)] bg-[var(--sw-warning-bg)] px-3 py-2 text-xs text-[var(--sw-on-warning)]">
                     Este módulo todavía no tiene una vista en esta versión de la aplicación. Abajo están sus
                     herramientas configuradas, y se corren desde la caja de herramientas de la derecha.
                   </p>
                   {modulo.module_tools.length === 0 ? (
-                    <p className="mt-3 text-sm text-slate-400">Este módulo todavía no tiene herramientas.</p>
+                    <p className="mt-3 text-sm text-muted-foreground">Este módulo todavía no tiene herramientas.</p>
                   ) : (
                     <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                       {modulo.module_tools.map((u) => (
-                        <div key={u.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                        <div key={u.id} className="rounded-[var(--sw-r-lg)] border border-border bg-card p-4">
                           <div className="flex items-start justify-between gap-2">
-                            <h3 className="text-sm font-medium text-white">{u.name}</h3>
+                            <h3 className="text-sm font-medium text-foreground">{u.name}</h3>
                             {u.tool_name ? (
                               <StatusBadge label={u.tool_name} tone="neutral" />
                             ) : (
                               <StatusBadge label="sin tool" tone="warning" />
                             )}
                           </div>
-                          {u.description && <p className="mt-2 text-xs text-slate-400">{u.description}</p>}
+                          {u.description && <p className="mt-2 text-xs text-muted-foreground">{u.description}</p>}
                         </div>
                       ))}
                     </div>
@@ -171,23 +172,19 @@ export function SuitePage(): React.ReactElement {
           en la columna porque un JSON no entra en 350px — y porque es el
           resultado del trabajo, no una opción sobre él. */}
       {corrida && (
-        <section className="mt-6 border-t border-white/10 pt-4">
+        <section className="mt-6 border-t border-border pt-4">
           <div className="mb-2 flex items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-white">{corrida.herramienta.name}</h3>
-            <button
-              type="button"
-              onClick={() => setCorrida(null)}
-              className="rounded-lg px-2 py-1 text-xs text-slate-400 hover:bg-white/10 hover:text-white"
-            >
+            <h3 className="text-sm font-semibold text-foreground">{corrida.herramienta.name}</h3>
+            <Button variant="ghost" onClick={() => setCorrida(null)}>
               Cerrar
-            </button>
+            </Button>
           </div>
           {corrida.error ? (
-            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+            <div className="rounded-[var(--sw-r-md)] border border-[var(--sw-error)] bg-[var(--sw-error-bg)] px-3 py-2 text-sm text-[var(--sw-on-error)]">
               {corrida.error}
             </div>
           ) : (
-            <pre className="max-h-96 overflow-auto rounded-lg border border-white/10 bg-black/30 p-3 font-mono text-xs text-slate-200">
+            <pre className="max-h-96 overflow-auto rounded-[var(--sw-r-md)] border border-border bg-muted p-3 font-mono text-xs text-foreground">
               {typeof corrida.output === 'string'
                 ? corrida.output
                 : JSON.stringify(corrida.output, null, 2)}

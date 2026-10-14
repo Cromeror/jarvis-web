@@ -30,6 +30,7 @@ import type { GrupoDeMenu } from '../../components/ui/MenuContextual.js';
 import { usePublicarSeleccion } from '../../components/layout/seleccion-de-superficie.js';
 import { usePreferenciasDeModulo } from '../../hooks/usePreferenciasDeModulo.js';
 import { usePublicarMedida } from '../../components/layout/medida-de-superficie.js';
+import { Button } from '../../components/ui/atoms/Button.js';
 
 /**
  * Área de trabajo de `MOD-0001`: subir soportes y verlos.
@@ -720,14 +721,14 @@ export function View({ projectId }: ModuleViewProps): React.ReactElement {
             hidden
             onChange={(e) => void subir(Array.from(e.target.files ?? []))}
           />
-          <button type="button" className="btn" disabled={subiendo} onClick={() => inputRef.current?.click()}>
+          <Button disabled={subiendo} onClick={() => inputRef.current?.click()}>
             <Icon name={subiendo ? 'cargando' : 'subir'} />
             {subiendo && progreso
               ? `Subiendo ${progreso.hecho + 1} de ${progreso.total}…`
               : subiendo
                 ? 'Subiendo…'
                 : 'Subir documentos'}
-          </button>
+          </Button>
         </div>
       </div>
 

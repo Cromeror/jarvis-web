@@ -13,13 +13,17 @@ interface RawEditorProps {
 }
 
 /**
- * Plain textarea for raw Markdown editing.
- * Design §Editor architecture, REQ-6.
+ * Textarea monoespaciado para texto crudo. Llena la caja que lo contiene: el
+ * alto y el borde los decide quien lo monta, no el visor.
+ *
+ * Los colores salen de los tokens y no de una clase propia: la `.raw-editor`
+ * que lo vestía era del editor de docs viejo y se fue con él, así que el
+ * textarea quedaba con el blanco del navegador encima del tema oscuro.
  */
 export function RawEditor({ content, onChange, readOnly = false }: RawEditorProps): React.ReactElement {
   return (
     <textarea
-      className="raw-editor"
+      className="block h-full w-full resize-none bg-[var(--sw-surface)] p-[var(--sw-s-4)] font-mono text-xs leading-relaxed text-foreground outline-none placeholder:text-[var(--sw-placeholder)]"
       value={content}
       onChange={(e) => onChange(e.target.value)}
       readOnly={readOnly}

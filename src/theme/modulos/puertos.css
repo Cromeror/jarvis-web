@@ -131,9 +131,6 @@
 
 /* ---- el diálogo de conceder ---------------------------------------------- */
 
-/* Un formulario corto: el ancho se lo queda Basecoat, acá sólo el tope. */
-.sw-puertos__dlg > article { max-width: min(480px, calc(100vw - 2rem)); }
-
 /* LOS CAMPOS, uno por fila. Son tres y se leen de arriba abajo: a quién,
    cuántos, para qué. En una fila horizontal —como estaba— el «para qué» se
    comía el resto y los tres quedaban apretados contra el botón. */

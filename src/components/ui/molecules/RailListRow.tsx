@@ -1,6 +1,7 @@
 import React from 'react';
 import { RailIcon } from '../atoms/RailIcon.js';
 import { Badge, type BadgeStatus } from '../atoms/Badge.js';
+import { Icon } from '../../Icon.js';
 
 interface RailListRowProps {
   title: string;
@@ -35,8 +36,9 @@ interface RailListRowProps {
  * Fila de la "Lista compacta" de los ContentPanel del rail derecho (Figma
  * "Row" dentro de ChatOptionsRail/ContentPanel/Planes 7532:1684 — idéntica a
  * la de Runs 7531:1677). Título + subtítulo, badge de estado opcional y botón
- * play opcional. Vive sobre la tarjeta blanca del panel, no sobre el fondo
- * oscuro del rail — de ahí los colores de texto slate y no los white/xx.
+ * play opcional. Vive sobre la tarjeta del panel (`bg-muted`), un escalón
+ * por encima del rail, así que su texto usa los mismos tokens que cualquier
+ * superficie y no necesita una tinta propia por tema.
  */
 export function RailListRow({
   title,
@@ -54,8 +56,8 @@ export function RailListRow({
   return (
     <div
       aria-current={selected ? 'true' : undefined}
-      className={`flex h-[var(--chatoptionsrail-listrow-height)] w-full items-center gap-[var(--chatoptionsrail-listrow-gap)] overflow-hidden border-l-2 pl-2 ${
-        selected ? 'border-[var(--chatoptionsrail-listrow-selected-border)]' : 'border-transparent'
+      className={`flex h-12 w-full items-center gap-[var(--sw-s-2)] overflow-hidden border-l-2 pl-2 ${
+        selected ? 'border-primary' : 'border-transparent'
       } ${className}`}
     >
       <button
@@ -66,18 +68,18 @@ export function RailListRow({
         // que el título se elipsa y sin esto la información elidida no
         // tendría ningún recurso.
         title={title}
-        className="flex min-w-0 flex-1 flex-col items-start gap-[var(--chatoptionsrail-listrow-text-gap)] text-left disabled:cursor-default"
+        className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left disabled:cursor-default"
       >
         {/* Una línea, elipsada. Los títulos de plan son largos de verdad
             ("DECISIONES (no implementa): las 9 abiertas del paralelismo…"),
             así que sin truncate una sola fila ocupaba 3-4 líneas y el tope
             de items no alcanzaba para acotar el alto del panel. */}
-        <span className="w-full truncate text-[13px] font-semibold leading-[18px] text-[var(--chatoptionsrail-listrow-title-text)]">
+        <span className="w-full truncate text-[13px] font-semibold leading-[18px] text-foreground">
           {title}
         </span>
-        <span className="flex w-full items-center justify-between gap-2 text-[11px] leading-[14px] text-[var(--chatoptionsrail-listrow-subtitle-text)]">
+        <span className="flex w-full items-center justify-between gap-2 text-[11px] leading-[14px] text-muted-foreground">
           <span className="min-w-0 truncate">{subtitle}</span>
-          {status && <span className="shrink-0 text-[var(--chatoptionsrail-listrow-status-text)]">{status}</span>}
+          {status && <span className="shrink-0 text-secondary-foreground">{status}</span>}
         </span>
       </button>
 
@@ -89,7 +91,8 @@ export function RailListRow({
           onClick={onPlay}
           title={playLabel}
           aria-label={playLabel}
-          className="flex shrink-0 items-center justify-center rounded-[var(--chatoptionsrail-listplay-radius)] bg-[var(--chatoptionsrail-listplay-bg)] p-[var(--chatoptionsrail-listplay-padding)] text-white transition-opacity hover:opacity-90"
+          className="btn shrink-0"
+          data-size="icon-sm"
         >
           <RailIcon name="play-circle" size={16} />
         </button>
@@ -101,9 +104,11 @@ export function RailListRow({
           onClick={onDelete}
           title={deleteLabel}
           aria-label={deleteLabel}
-          className="flex shrink-0 items-center justify-center rounded-md p-1 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
+          className="btn shrink-0 text-muted-foreground hover:text-[var(--sw-error)]"
+          data-variant="ghost"
+          data-size="icon-sm"
         >
-          <i className="pi pi-trash text-sm" />
+          <Icon name="trash" />
         </button>
       )}
     </div>

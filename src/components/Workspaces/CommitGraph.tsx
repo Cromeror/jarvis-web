@@ -2,6 +2,7 @@ import React from 'react';
 import { laneColor, type GraphRow } from '../../lib/graph-view.js';
 import type { CommitRef } from '../../lib/workspace-history-api.js';
 import { timeAgo } from '../../lib/time-ago.js';
+import { Icon } from '../Icon.js';
 
 interface CommitGraphProps {
   rows: GraphRow[];
@@ -17,17 +18,21 @@ const LEFT_PAD = 12;
 
 const laneX = (lane: number): number => LEFT_PAD + lane * LANE_W;
 
-const REF_CLASS: Record<CommitRef['type'], string> = {
-  head: 'bg-indigo-600 text-white',
-  branch: 'bg-indigo-100 text-indigo-700',
-  remote: 'bg-slate-100 text-slate-600',
-  tag: 'bg-amber-100 text-amber-700',
+/* Cada tipo de ref es una variante de la `.badge` del sistema: el color sale
+   de sus tokens y sigue al tema. HEAD va con la badge base (la del acento), que
+   es la que dice «acá estás»; una rama local es atención, un remoto queda
+   apagado y un tag es warning, para que no se confunda con una rama. */
+const REF_VARIANT: Record<CommitRef['type'], string | undefined> = {
+  head: undefined,
+  branch: 'attention',
+  remote: 'mute',
+  tag: 'warning',
 };
 
 function RefChip({ refItem }: { refItem: CommitRef }): React.ReactElement {
   return (
-    <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${REF_CLASS[refItem.type]}`}>
-      {refItem.type === 'tag' && <i className="pi pi-tag mr-1 text-[8px]" />}
+    <span className="badge shrink-0" data-variant={REF_VARIANT[refItem.type]}>
+      {refItem.type === 'tag' && <Icon name="pin" />}
       {refItem.name}
     </span>
   );
@@ -94,7 +99,7 @@ export function CommitGraph({ rows, laneCount, selectedHash, onSelect }: CommitG
               {/* El nodo: relleno si es commit normal, anillo si es merge. */}
               <circle
                 cx={x} cy={mid} r={row.commit.hash === selectedHash ? 6 : 4.5}
-                fill={row.isMerge ? '#fff' : laneColor(row.lane)}
+                fill={row.isMerge ? 'var(--sw-raised)' : laneColor(row.lane)}
                 stroke={laneColor(row.lane)}
                 strokeWidth={row.isMerge ? 2.5 : row.commit.hash === selectedHash ? 2.5 : 0}
               />
@@ -114,16 +119,16 @@ export function CommitGraph({ rows, laneCount, selectedHash, onSelect }: CommitG
                 title={row.commit.subject}
                 style={{ height: ROW_H }}
                 className={`flex w-full items-center gap-2 px-3 text-left text-sm transition ${
-                  selected ? 'bg-indigo-50' : 'hover:bg-slate-50'
+                  selected ? 'bg-[var(--sw-accent-weak)]' : 'hover:bg-accent'
                 }`}
               >
                 {row.commit.refs.map((r) => <RefChip key={`${r.type}-${r.name}`} refItem={r} />)}
-                <span className={`min-w-0 flex-1 truncate ${selected ? 'font-medium text-indigo-900' : 'text-slate-700'}`}>
+                <span className={`min-w-0 flex-1 truncate ${selected ? 'font-medium text-[var(--sw-accent-text)]' : 'text-foreground'}`}>
                   {row.commit.subject}
                 </span>
-                <span className="hidden shrink-0 text-xs text-slate-400 sm:inline">{row.commit.author_name}</span>
-                <span className="shrink-0 font-mono text-xs text-slate-400">{row.commit.hash.slice(0, 7)}</span>
-                <span className="hidden shrink-0 text-xs text-slate-400 md:inline">{timeAgo(row.commit.date)}</span>
+                <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">{row.commit.author_name}</span>
+                <span className="shrink-0 font-mono text-xs text-muted-foreground">{row.commit.hash.slice(0, 7)}</span>
+                <span className="hidden shrink-0 text-xs text-muted-foreground md:inline">{timeAgo(row.commit.date)}</span>
               </button>
             </li>
           );

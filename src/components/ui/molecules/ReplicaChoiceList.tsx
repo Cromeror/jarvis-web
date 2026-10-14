@@ -39,7 +39,7 @@ export function ReplicaChoiceList({
       {options.map((option) => (
         <label
           key={option.key}
-          className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 p-3 hover:bg-slate-50"
+          className="flex cursor-pointer items-start gap-2 rounded-[var(--sw-r-md)] border border-border p-3 hover:bg-accent"
         >
           <input
             type="radio"
@@ -48,13 +48,13 @@ export function ReplicaChoiceList({
             onChange={() => onChange(option.key)}
           />
           <span className="text-sm">
-            <span className="font-medium text-slate-900">{option.title}</span>
+            <span className="font-medium text-foreground">{option.title}</span>
             {currentValue === option.key && (
-              <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+              <span className="badge ml-2 text-[10px]" data-variant="mute">
                 actual
               </span>
             )}
-            <span className="block text-slate-500">{option.hint}</span>
+            <span className="block text-muted-foreground">{option.hint}</span>
           </span>
         </label>
       ))}

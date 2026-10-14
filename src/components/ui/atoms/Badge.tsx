@@ -10,35 +10,36 @@ interface BadgeProps {
   className?: string;
 }
 
-const STATUS_BG_CLASS: Record<BadgeStatus, string> = {
-  success: 'bg-[var(--badge-bg-success)]',
-  failed: 'bg-[var(--badge-bg-error)]',
-  running: 'bg-[var(--badge-bg-warning)]',
-  cancelled: 'bg-[var(--badge-bg-neutral)]',
-  info: 'bg-[var(--badge-bg-info)]',
-};
-
-const SIZE_CLASS: Record<BadgeSize, string> = {
-  xs: 'px-[var(--badge-xs-padding-h)] py-[var(--badge-xs-padding-v)] text-[10px]',
-  sm: 'px-[var(--badge-sm-padding-h)] py-[var(--badge-sm-padding-v)] text-xs',
-  md: 'px-[var(--badge-md-padding-h)] py-[var(--badge-md-padding-v)] text-[13px]',
-  lg: 'px-[var(--badge-lg-padding-h)] py-[var(--badge-lg-padding-v)] text-sm',
+/** El estado de una corrida, dicho con las variantes de la `.badge` de Basecoat. */
+const VARIANTE: Record<BadgeStatus, string | undefined> = {
+  success: 'success',
+  failed: 'error',
+  running: 'warning',
+  cancelled: 'mute',
+  info: undefined,
 };
 
 /**
- * Badge — átomo base del design system "DBoard V1.1.X" (Figma node 7117:206),
- * 5 estados × 4 tamaños. Reemplaza a `StatusBadge2` (Table2) y al badge
- * píldora ad-hoc de ChatOptionsRail (`RailBadge`) — ambos habían terminado
- * siendo el mismo componente duplicado bajo namespaces de tokens distintos,
- * confirmado 1:1 contra las Variables reales de Figma (`Badge/*`). Un solo
- * color de texto para todos los estados/tamaños (`--badge-text`) — así está
- * en el frame, no es un criterio propio.
+ * El tamaño sólo achica o agranda la letra: el alto y el padding son los de
+ * la `.badge` del sistema, que es una sola. Los cuatro tamaños venían del
+ * design system viejo, cuyos tokens (`--badge-*`) ya no existen.
+ */
+const TEXTO: Record<BadgeSize, string> = {
+  xs: 'text-[10px]',
+  sm: '',
+  md: 'text-[13px]',
+  lg: 'text-sm',
+};
+
+/**
+ * Badge de estado de una corrida (pipeline, tarea de fondo, conversación):
+ * mismo vocabulario de `status` que usa el resto del chat. Por debajo es la
+ * `.badge` de Basecoat, igual que `StatusBadge` — lo que difiere es sólo el
+ * nombre de los estados, que acá son los de una ejecución.
  */
 export function Badge({ label, status = 'success', size = 'sm', className = '' }: BadgeProps): React.ReactElement {
   return (
-    <span
-      className={`inline-flex items-center whitespace-nowrap rounded-[var(--badge-radius)] font-medium text-[var(--badge-text)] ${STATUS_BG_CLASS[status]} ${SIZE_CLASS[size]} ${className}`}
-    >
+    <span className={`badge whitespace-nowrap ${TEXTO[size]} ${className}`.trim()} data-variant={VARIANTE[status]}>
       {label}
     </span>
   );

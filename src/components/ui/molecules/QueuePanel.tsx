@@ -44,7 +44,7 @@ export function QueuePanel({ messages, onRemove, onClearAll }: QueuePanelProps):
   const removable = messages.some((m) => m.state !== 'started');
 
   return (
-    <div className="rounded-xl border border-white/8 bg-white/3 px-3 py-3">
+    <div className="flex flex-col gap-2 rounded-[var(--sw-r-lg)] border border-border bg-card p-3">
       <div className="flex items-center gap-2">
         <button
           type="button"
@@ -52,11 +52,11 @@ export function QueuePanel({ messages, onRemove, onClearAll }: QueuePanelProps):
           aria-expanded={expanded}
           className="flex min-w-0 flex-1 items-center gap-2 text-left"
         >
-          <span className="text-xs font-semibold text-white/90">
+          <span className="text-xs font-semibold text-foreground">
             {messages.length} {messages.length === 1 ? 'mensaje' : 'mensajes'} en cola
           </span>
           {removable && (
-            <span className="truncate text-[11px] text-white/45">podés quitar los que no empezaron</span>
+            <span className="truncate text-[11px] text-muted-foreground">podés quitar los que no empezaron</span>
           )}
         </button>
 
@@ -64,21 +64,21 @@ export function QueuePanel({ messages, onRemove, onClearAll }: QueuePanelProps):
           confirmingClear ? (
             <span className="flex shrink-0 items-center gap-2 text-[11px]">
               {/* Se avisa lo que hace de verdad: barre la cola Y corta el turno. */}
-              <span className="text-white/60">¿Vaciar y detener el turno?</span>
+              <span className="text-secondary-foreground">¿Vaciar y detener el turno?</span>
               <button
                 type="button"
                 onClick={() => {
                   onClearAll();
                   setConfirmingClear(false);
                 }}
-                className="font-semibold text-white hover:underline"
+                className="font-semibold text-foreground hover:underline"
               >
                 Sí
               </button>
               <button
                 type="button"
                 onClick={() => setConfirmingClear(false)}
-                className="text-white/60 hover:underline"
+                className="text-secondary-foreground hover:underline"
               >
                 No
               </button>
@@ -87,7 +87,7 @@ export function QueuePanel({ messages, onRemove, onClearAll }: QueuePanelProps):
             <button
               type="button"
               onClick={() => setConfirmingClear(true)}
-              className="shrink-0 text-[11px] font-semibold text-white/70 hover:text-white"
+              className="shrink-0 text-[11px] font-semibold text-secondary-foreground hover:text-foreground"
             >
               Vaciar la cola
             </button>
@@ -102,7 +102,7 @@ export function QueuePanel({ messages, onRemove, onClearAll }: QueuePanelProps):
       </div>
 
       {expanded && (
-        <div className="mt-2 space-y-1">
+        <div className="flex flex-col gap-1">
           {messages.map((message, i) => (
             <QueuedMessageRow
               key={message.id}

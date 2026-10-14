@@ -3,6 +3,7 @@ import { createOrganization } from '../../lib/organizations-api.js';
 import type { UserSummary } from '../../lib/users-api.js';
 import { mensajeDeError } from './errores.js';
 import { Dialogo } from '../ui/Dialogo.js';
+import { Button } from '../ui/atoms/Button.js';
 
 /**
  * Alta de una organización, con su administrador fundador o vacía.
@@ -82,12 +83,12 @@ export function OrganizationFormModal({
       ancho={480}
       pie={
         <>
-          <button type="button" className="btn" data-variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose}>
             Cancelar
-          </button>
-          <button type="submit" className="btn" disabled={saving}>
+          </Button>
+          <Button type="submit" disabled={saving}>
             {saving ? 'Creando…' : 'Crear'}
-          </button>
+          </Button>
         </>
       }
     >

@@ -1,10 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { Circulo, MiembroDeCirculo, ProyectoDeRed } from '../../lib/red-de-contexto-api.js';
 import { estadoEnLaCarpeta, slugDeNombre, slugValido } from '../../modules/red-de-contexto/estado.js';
 import type { StatusBadgeTone } from '../ui/atoms/StatusBadge.js';
 import { Tabla, type ColumnaDeTabla } from '../ui/Tabla.js';
 import { ChipsDeEspacios } from './ChipsDeEspacios.js';
 import { Button } from '../ui/atoms/Button.js';
+import { Dialogo } from '../ui/Dialogo.js';
 
 /**
  * LAS PIEZAS DE LAS CARPETAS COMPARTIDAS que comparten las dos superficies de
@@ -44,12 +45,12 @@ const DESCRIPCION_MAX = 200;
  * el globo.
  */
 const ICONO_DE_ESTADO: Record<StatusBadgeTone, { icono: string; clase: string }> = {
-  success: { icono: 'check', clase: 'text-emerald-400' },
-  warning: { icono: 'alerta', clase: 'text-amber-400' },
-  danger: { icono: 'alerta', clase: 'text-red-400' },
+  success: { icono: 'check', clase: 'text-[var(--sw-success)]' },
+  warning: { icono: 'alerta', clase: 'text-[var(--sw-warning)]' },
+  danger: { icono: 'alerta', clase: 'text-[var(--sw-error)]' },
   neutral: { icono: 'reloj', clase: 'text-muted-foreground' },
   // Pendiente de aprobación: espera a una persona, no al sync.
-  info: { icono: 'reloj', clase: 'text-sky-400' },
+  info: { icono: 'reloj', clase: 'text-[var(--sw-attention)]' },
 };
 
 /**
@@ -333,11 +334,11 @@ export function TablaDeCarpetas({
 /**
  * Confirmar una acción que AFECTA A OTROS ESPACIOS: dice qué pasa, punto por
  * punto, y sobre todo que volver atrás no es inmediato —para la interfaz es un
- * botón, para el sistema es copiar archivos—. Es un `<dialog>` con su propio
+ * botón, para el sistema es copiar archivos—. Es un `Dialogo` con su propio
  * botón y no un `confirm()`: quien confirma tiene que poder leerlo.
  *
- * Se abre ENCIMA del modal de Ajustes y cerrarlo no lo cierra: `AjustesModal`
- * sólo atiende su propio `close`.
+ * Se abre ENCIMA del modal de Ajustes y cerrarlo no lo cierra: `Dialogo` no
+ * deja subir su `close` por el árbol.
  */
 export function ConfirmarAccion({
   abierta,
@@ -356,73 +357,47 @@ export function ConfirmarAccion({
   onConfirmar: () => Promise<boolean>;
   onCerrar: () => void;
 }): React.ReactElement {
-  const ref = useRef<HTMLDialogElement>(null);
   const [enviando, setEnviando] = useState(false);
-
-  useEffect(() => {
-    const d = ref.current;
-    if (!d) return;
-    if (abierta && !d.open) d.showModal();
-    if (!abierta && d.open) d.close();
-  }, [abierta]);
 
   async function confirmar(): Promise<void> {
     setEnviando(true);
     const ok = await onConfirmar();
     setEnviando(false);
-    if (ok) ref.current?.close();
+    if (ok) onCerrar();
   }
 
   return (
-    <dialog
-      ref={ref}
-      className="dialog"
-      onClose={(e) => {
-        // Que el `close` no siga subiendo por el árbol de React hasta el modal de Ajustes.
-        e.stopPropagation();
-        onCerrar();
-      }}
-      onClick={(e) => {
-        e.stopPropagation();
-        if (e.target === ref.current) ref.current?.close();
-      }}
-    >
-      <article style={{ width: '100%', maxWidth: 'min(560px, calc(100vw - 2rem))' }}>
-        <header>
-          <h2>{titulo}</h2>
-        </header>
-        <section>
-          <ul className="list-disc space-y-1 pl-5 text-sm text-secondary-foreground">
-            {puntos.map((p) => (
-              <li key={p}>{p}</li>
-            ))}
-          </ul>
-        </section>
-        <footer>
-          <button type="button" className="btn" data-variant="outline" onClick={() => ref.current?.close()}>
+    <Dialogo
+      abierto={abierta}
+      onCerrar={onCerrar}
+      titulo={titulo}
+      pie={
+        <>
+          <Button variant="outline" onClick={onCerrar}>
             Cancelar
-          </button>
-          <button
-            type="button"
-            className="btn"
-            data-variant={peligro ? 'destructive' : undefined}
+          </Button>
+          <Button
+            variant={peligro ? 'destructive' : 'primary'}
             disabled={enviando}
             onClick={() => void confirmar()}
           >
             {enviando ? 'Un momento…' : boton}
-          </button>
-        </footer>
-      </article>
-    </dialog>
+          </Button>
+        </>
+      }
+    >
+      <ul className="list-disc space-y-1 pl-5 text-sm text-secondary-foreground">
+        {puntos.map((p) => (
+          <li key={p}>{p}</li>
+        ))}
+      </ul>
+    </Dialogo>
   );
 }
 
 /**
  * Editar el nombre y el contexto general de una carpeta compartida. La carpeta
  * en disco (el slug) no se cambia: es la ruta en cada espacio.
- *
- * `<dialog>` nativo, como `ConcederBloqueDialog`: foco atrapado, Escape y
- * backdrop sin escribirlos.
  */
 export function EditarCarpetaDialog({
   carpeta,
@@ -433,25 +408,20 @@ export function EditarCarpetaDialog({
   onCerrar: () => void;
   onGuardar: (patch: { nombre?: string; contexto?: string }) => Promise<boolean>;
 }): React.ReactElement {
-  const ref = useRef<HTMLDialogElement>(null);
   const [nombre, setNombre] = useState('');
   const [contexto, setContexto] = useState('');
   const [guardando, setGuardando] = useState(false);
 
+  // Cada vez que se abre con otra carpeta, el formulario arranca de lo guardado.
   useEffect(() => {
-    const d = ref.current;
-    if (!d) return;
-    if (carpeta) {
-      setNombre(carpeta.nombre);
-      setContexto(carpeta.contexto);
-      if (!d.open) d.showModal();
-    } else if (d.open) d.close();
+    if (!carpeta) return;
+    setNombre(carpeta.nombre);
+    setContexto(carpeta.contexto);
   }, [carpeta]);
 
   const cambio = carpeta !== null && (nombre.trim() !== carpeta.nombre || contexto !== carpeta.contexto);
 
-  async function guardar(e: React.FormEvent): Promise<void> {
-    e.preventDefault();
+  async function guardar(): Promise<void> {
     if (!carpeta || !cambio || !nombre.trim()) return;
     setGuardando(true);
     const ok = await onGuardar({
@@ -459,56 +429,52 @@ export function EditarCarpetaDialog({
       ...(contexto !== carpeta.contexto ? { contexto } : {}),
     });
     setGuardando(false);
-    if (ok) ref.current?.close();
+    if (ok) onCerrar();
   }
 
   return (
-    <dialog
-      ref={ref}
-      className="dialog"
-      onClose={onCerrar}
-      onClick={(e) => {
-        if (e.target === ref.current) ref.current?.close();
-      }}
+    <Dialogo
+      abierto={carpeta !== null}
+      onCerrar={onCerrar}
+      ancho={640}
+      onSubmit={() => void guardar()}
+      titulo="Editar carpeta compartida"
+      descripcion={
+        carpeta ? (
+          <>
+            En cada espacio: <code>contexto-org/{carpeta.slug}/</code> — no se cambia.
+          </>
+        ) : undefined
+      }
+      pie={
+        <>
+          <Button variant="outline" onClick={onCerrar}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={!cambio || !nombre.trim() || guardando}>
+            {guardando ? 'Guardando…' : 'Guardar'}
+          </Button>
+        </>
+      }
     >
-      <article style={{ width: '100%', maxWidth: 'min(640px, calc(100vw - 2rem))' }}>
-        <form onSubmit={(e) => void guardar(e)}>
-          <header>
-            <h2>Editar carpeta compartida</h2>
-            {carpeta && (
-              <p>
-                En cada espacio: <code>contexto-org/{carpeta.slug}/</code> — no se cambia.
-              </p>
-            )}
-          </header>
-          <section className="space-y-3">
-            <label className="block">
-              <span className="mb-1 block text-xs text-muted-foreground">Nombre</span>
-              <input className={INPUT_CLASS} value={nombre} onChange={(e) => setNombre(e.target.value)} />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs text-muted-foreground">
-                Contexto general — lo leen todos los espacios con los que se comparte, y su IA, en el LEEME.md
-              </span>
-              <textarea
-                className={`${INPUT_CLASS} min-h-40 font-mono text-xs`}
-                value={contexto}
-                placeholder="Para qué existe esta carpeta y qué tiene que saber cada equipo del otro."
-                onChange={(e) => setContexto(e.target.value)}
-              />
-            </label>
-          </section>
-          <footer>
-            <button type="button" className="btn" data-variant="outline" onClick={() => ref.current?.close()}>
-              Cancelar
-            </button>
-            <button type="submit" className="btn" disabled={!cambio || !nombre.trim() || guardando}>
-              {guardando ? 'Guardando…' : 'Guardar'}
-            </button>
-          </footer>
-        </form>
-      </article>
-    </dialog>
+      <div className="flex flex-col gap-3">
+        <label className="block">
+          <span className="mb-1 block text-xs text-muted-foreground">Nombre</span>
+          <input className={INPUT_CLASS} value={nombre} onChange={(e) => setNombre(e.target.value)} />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs text-muted-foreground">
+            Contexto general — lo leen todos los espacios con los que se comparte, y su IA, en el LEEME.md
+          </span>
+          <textarea
+            className={`${INPUT_CLASS} min-h-40 font-mono text-xs`}
+            value={contexto}
+            placeholder="Para qué existe esta carpeta y qué tiene que saber cada equipo del otro."
+            onChange={(e) => setContexto(e.target.value)}
+          />
+        </label>
+      </div>
+    </Dialogo>
   );
 }
 
@@ -580,7 +546,7 @@ export function NuevoCirculo({
         </label>
       </div>
       {slugFinal && !slugValido(slugFinal) && (
-        <p className="mt-1 text-xs text-amber-300">
+        <p className="mt-1 text-xs text-[var(--sw-warning)]">
           La carpeta va en minúsculas, números y guiones, y empieza con letra o número.
         </p>
       )}

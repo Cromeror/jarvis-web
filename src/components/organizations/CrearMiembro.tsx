@@ -4,9 +4,8 @@ import { crearMiembro } from '../../lib/organizations-api.js';
 import { mensajeDeError } from './errores.js';
 import { Button } from '../ui/atoms/Button.js';
 
-const PANEL_CLASS = 'rounded-xl border border-white/10 bg-white/[0.03] p-4';
-const INPUT_CLASS =
-  'w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 outline-none focus:border-indigo-400';
+const PANEL_CLASS = 'rounded-xl border border-border bg-muted p-4';
+const INPUT_CLASS = 'input w-full';
 
 /**
  * El administrador de la organización CREA un usuario (`MOD-0006:create`).
@@ -51,22 +50,22 @@ export function CrearMiembro({
 
   return (
     <div className={PANEL_CLASS}>
-      <h3 className="mb-3 text-sm font-semibold text-white">Crear un usuario en esta organización</h3>
+      <h3 className="mb-3 text-sm font-semibold text-foreground">Crear un usuario en esta organización</h3>
       {error && (
-        <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>
+        <div className="mb-3 rounded-lg border border-[var(--sw-error)] bg-[var(--sw-error-bg)] px-3 py-2 text-sm text-[var(--sw-on-error)]">{error}</div>
       )}
       {creado && (
-        <div className="mb-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-200">
+        <div className="mb-3 rounded-lg border border-border bg-muted px-3 py-2 text-sm text-secondary-foreground">
           «{creado}» ya es miembro, sin rol: asignale uno en la tabla de miembros para que pueda hacer algo.
         </div>
       )}
       <div className="flex flex-wrap items-end gap-3">
         <label className="min-w-56 flex-1">
-          <span className="mb-1 block text-xs text-slate-400">Usuario</span>
+          <span className="mb-1 block text-xs text-muted-foreground">Usuario</span>
           <input className={INPUT_CLASS} value={username} autoComplete="off" onChange={(e) => setUsername(e.target.value)} />
         </label>
         <label className="min-w-56 flex-1">
-          <span className="mb-1 block text-xs text-slate-400">Contraseña inicial</span>
+          <span className="mb-1 block text-xs text-muted-foreground">Contraseña inicial</span>
           <CampoClave value={password} onChange={setPassword} className={INPUT_CLASS} />
         </label>
         <Button
@@ -77,7 +76,7 @@ export function CrearMiembro({
           Crear
         </Button>
       </div>
-      <p className="mt-2 text-xs text-slate-400">
+      <p className="mt-2 text-xs text-muted-foreground">
         Entra a esta organización sin ningún rol. Sólo vas a ver a la gente de tu organización.
       </p>
     </div>

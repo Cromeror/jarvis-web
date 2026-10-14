@@ -9,8 +9,10 @@ interface RailCountBadgeProps {
 }
 
 const TONE_BG_CLASS: Record<RailCountBadgeTone, string> = {
-  danger: 'bg-[var(--chatoptionsrail-countbadge-bg-danger)]',
-  accent: 'bg-[var(--chatoptionsrail-countbadge-bg-accent)]',
+  // Cada tono trae su tinta: el relleno de error no cambia de lado entre temas
+  // (--sw-on-fill), el acento sí (--sw-on-accent, vía text-primary-foreground).
+  danger: 'bg-[var(--sw-error-fill)] text-[var(--sw-on-fill)]',
+  accent: 'bg-primary text-primary-foreground',
 };
 
 /**
@@ -23,7 +25,7 @@ const TONE_BG_CLASS: Record<RailCountBadgeTone, string> = {
 export function RailCountBadge({ count, tone = 'accent', className = '' }: RailCountBadgeProps): React.ReactElement {
   return (
     <span
-      className={`absolute -top-0.5 left-[30px] flex size-[var(--chatoptionsrail-countbadge-size)] items-center justify-center rounded-[var(--chatoptionsrail-countbadge-radius)] text-[9px] font-bold text-[var(--chatoptionsrail-countbadge-text)] ${TONE_BG_CLASS[tone]} ${className}`}
+      className={`absolute -top-0.5 left-[30px] flex size-4 items-center justify-center rounded-[var(--sw-r-pill)] text-[9px] font-bold ${TONE_BG_CLASS[tone]} ${className}`}
     >
       {count}
     </span>

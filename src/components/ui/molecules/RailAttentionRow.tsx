@@ -25,9 +25,11 @@ interface RailAttentionRowProps {
   className?: string;
 }
 
+// El tono trae fondo Y tinta: el texto de la fila hereda (`text-current` en los
+// hijos), así que una sola clase decide el par y no pueden desacoplarse.
 const TONE_BG_CLASS: Record<RailAttentionRowTone, string> = {
-  warning: 'bg-[var(--chatoptionsrail-row-bg-warning)]',
-  neutral: 'bg-[var(--chatoptionsrail-row-bg-neutral)]',
+  warning: 'bg-[var(--sw-warning-bg)] text-[var(--sw-on-warning)]',
+  neutral: 'bg-muted text-secondary-foreground',
 };
 
 /**
@@ -58,21 +60,21 @@ export function RailAttentionRow({
 
   return (
     <div
-      className={`flex w-full items-center gap-[var(--chatoptionsrail-row-gap)] rounded-[var(--chatoptionsrail-row-radius)] p-[var(--chatoptionsrail-row-padding)] ${TONE_BG_CLASS[tone]} ${className}`}
+      className={`flex w-full items-center gap-[var(--sw-s-2)] rounded-[var(--sw-r-md)] p-[var(--sw-s-2)] ${TONE_BG_CLASS[tone]} ${className}`}
     >
       <MainTag
         type={onClick ? 'button' : undefined}
         onClick={onClick}
-        className="flex min-w-0 flex-1 items-center gap-[var(--chatoptionsrail-row-gap)] text-left"
+        className="flex min-w-0 flex-1 items-center gap-[var(--sw-s-2)] text-left"
       >
         {tone === 'warning' ? (
           <RailSemanticIcon status="info" size={14} />
         ) : (
-          <RailIcon name="list-checks" size={14} className="text-[var(--chatoptionsrail-row-text)]" />
+          <RailIcon name="list-checks" size={14} />
         )}
-        <p className="min-w-0 flex-1 text-[13px] font-semibold text-[var(--chatoptionsrail-row-text)]">{text}</p>
+        <p className="min-w-0 flex-1 text-[13px] font-semibold">{text}</p>
         {badge && <Badge label={badge} status="info" size="xs" />}
-        {onClick && <RailIcon name="chevron-right" size={12} className="shrink-0 text-[var(--chatoptionsrail-row-text)]" />}
+        {onClick && <RailIcon name="chevron-right" size={12} className="shrink-0" />}
       </MainTag>
 
       {action && <RailButton label={action.label} onClick={action.onClick} className="shrink-0" />}
@@ -83,7 +85,7 @@ export function RailAttentionRow({
           onClick={onDismiss}
           title="Silenciar"
           aria-label={`Silenciar: ${text}`}
-          className="shrink-0 text-[var(--chatoptionsrail-row-text)] opacity-60 hover:opacity-100"
+          className="shrink-0 opacity-60 hover:opacity-100"
         >
           <Icons icon="x-circle" size={14} />
         </button>

@@ -240,18 +240,20 @@ export function EnvironmentsPage(): React.ReactElement {
     : items;
 
   return (
-    <div className="flex h-full flex-col bg-white" style={{ fontSize: '16px' }}>
+    <div className="flex h-full flex-col">
       <Toast toasts={toasts} onDismiss={removeToast} />
 
       {/* Barra solo-mobile: hamburguesa (abre el drawer de la lista), búsqueda y
           filtro de proyectos. En desktop el header propio de EnvironmentList
           cubre estas mismas funciones y esta barra queda oculta (md:hidden). */}
-      <div className="flex items-center gap-2 border-b border-slate-200 px-4 py-3 md:hidden">
+      <div className="flex items-center gap-2 border-b border-border px-4 py-3 md:hidden">
         <button
           type="button"
           onClick={() => setMobileOpen(true)}
           aria-label="Abrir lista de environments"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+          className="btn shrink-0"
+          data-variant="ghost"
+          data-size="icon-sm"
         >
           <i className="pi pi-bars text-base" />
         </button>
@@ -260,7 +262,7 @@ export function EnvironmentsPage(): React.ReactElement {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar environment…"
-          className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none"
+          className="input min-w-0 flex-1"
         />
         <FilterPopover
           icon={<FilterIcon />}
@@ -303,7 +305,7 @@ export function EnvironmentsPage(): React.ReactElement {
             onBackToList={() => setMobileOpen(true)}
           />
         ) : (
-          <div className="flex flex-1 items-center justify-center text-sm text-slate-400">
+          <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
             Elegí un environment de la lista, o creá uno nuevo.
           </div>
         )}

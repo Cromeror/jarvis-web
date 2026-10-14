@@ -110,12 +110,12 @@ function RoleFormModal({
       ancho={600}
       pie={
         <>
-          <button type="button" className="btn" data-variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose}>
             Cancelar
-          </button>
-          <button type="submit" className="btn" disabled={saving}>
+          </Button>
+          <Button type="submit" disabled={saving}>
             {saving ? 'Guardando…' : 'Guardar'}
-          </button>
+          </Button>
         </>
       }
     >
@@ -438,14 +438,14 @@ export function OrganizationRolesPanel({
     return null;
   }
 
-  if (loading) return <p className="text-sm text-slate-400">Cargando…</p>;
+  if (loading) return <p className="text-sm text-muted-foreground">Cargando…</p>;
 
   if (loadError) {
     // El fallo se muestra COMO fallo. Antes esto caía en el "no hay
     // organizaciones" de abajo y un 404 del backend se leía como una base vacía.
     return (
       <div className="space-y-3">
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+        <div className="rounded-lg border border-[var(--sw-error)] bg-[var(--sw-error-bg)] px-3 py-2 text-sm text-[var(--sw-on-error)]">
           No se pudieron cargar las organizaciones: {loadError}
         </div>
         <Button
@@ -464,15 +464,15 @@ export function OrganizationRolesPanel({
       </div>
 
       {organizations.length === 0 && (
-        <p className="text-sm text-slate-400">Todavía no hay ninguna organización. Creá la primera desde la cabecera.</p>
+        <p className="text-sm text-muted-foreground">Todavía no hay ninguna organización. Creá la primera desde la cabecera.</p>
       )}
 
       {error && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>
+        <div className="rounded-lg border border-[var(--sw-error)] bg-[var(--sw-error-bg)] px-3 py-2 text-sm text-[var(--sw-on-error)]">{error}</div>
       )}
 
       {selected && !puedeRoles && !puedeMiembros && (
-        <p className="text-sm text-slate-400">No tenés permisos para configurar esta organización.</p>
+        <p className="text-sm text-muted-foreground">No tenés permisos para configurar esta organización.</p>
       )}
 
       {/* LOS ROLES EN UN ACORDEÓN (el `.accordion` de Basecoat, que el tema ya
@@ -547,7 +547,7 @@ export function OrganizationRolesPanel({
 
       {!sinMiembros && (
       <section>
-        <h2 className="mb-2 text-sm font-semibold text-white">Miembros</h2>
+        <h2 className="mb-2 text-sm font-semibold text-foreground">Miembros</h2>
         <Tabla<OrganizationMember>
           titulo="Miembros"
           columnas={COLUMNAS_MIEMBRO}
@@ -566,7 +566,7 @@ export function OrganizationRolesPanel({
             vacía— pero sí uno incompleto: conviene decir cómo se sale, porque las
             dos salidas están en pantallas distintas. */}
         {selected && members.length === 0 && (
-          <p className="mt-2 text-xs text-slate-400">
+          <p className="mt-2 text-xs text-muted-foreground">
             Esta organización todavía no tiene miembros. Dá de alta un usuario eligiéndola como su organización.
           </p>
         )}

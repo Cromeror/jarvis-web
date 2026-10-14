@@ -8,6 +8,7 @@ import { RailHoverPreview } from '../molecules/RailHoverPreview.js';
 import type { RailIconName } from '../atoms/RailIcon.js';
 import type { RailCountBadgeTone } from '../atoms/RailCountBadge.js';
 import type { BadgeStatus } from '../atoms/Badge.js';
+import { Icon } from '../../Icon.js';
 
 /**
  * Contenido del ChatOptionsRail/HoverPreview de un ítem (Figma Focus
@@ -137,8 +138,8 @@ export function ChatOptionsRail({
 
   return (
     <aside
-      className={`relative hidden h-full shrink-0 flex-col rounded-[var(--chatoptionsrail-radius)] bg-gradient-to-b from-[var(--chatoptionsrail-bg-from)] to-[var(--chatoptionsrail-bg-to)] px-[var(--chatoptionsrail-padding-h)] py-[var(--chatoptionsrail-padding-v)] md:flex ${
-        collapsed ? 'w-[72px] gap-[var(--chatoptionsrail-collapsed-gap)]' : 'w-[350px] gap-[var(--chatoptionsrail-gap)]'
+      className={`relative hidden h-full shrink-0 flex-col rounded-[var(--sw-r-lg)] border border-border bg-card px-[var(--sw-s-3)] py-[var(--sw-s-4)] md:flex ${
+        collapsed ? 'w-[72px] items-center gap-[var(--sw-s-2)]' : 'w-[350px] gap-[var(--sw-s-3)]'
       } ${className}`}
     >
       {collapsed ? (
@@ -185,7 +186,7 @@ export function ChatOptionsRail({
         // Focus usa RailFocusPanel en vez de RailListPanel porque su
         // contenido (foco/atención/live) no encaja en la forma genérica
         // items/badge/acción de las otras tres.
-        <div className="flex min-h-0 w-full flex-1 flex-col gap-[var(--chatoptionsrail-gap)] overflow-y-auto">
+        <div className="flex min-h-0 w-full flex-1 flex-col gap-[var(--sw-s-3)] overflow-y-auto">
           {allItems.map((item) => {
             const isOpen = activeOption === item.id;
             if (item.id === 'focus') {
@@ -240,9 +241,9 @@ export function ChatOptionsRail({
         type="button"
         onClick={toggleCollapsed}
         title={collapsed ? 'Expandir opciones' : 'Colapsar opciones'}
-        className="absolute -left-3 top-6 hidden h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-700 md:flex"
+        className="absolute -left-3 top-6 hidden h-6 w-6 items-center justify-center rounded-full border border-border bg-popover text-muted-foreground shadow-[var(--sw-e-pop)] transition-colors hover:bg-accent hover:text-foreground md:flex"
       >
-        <i className={`pi ${collapsed ? 'pi-angle-left' : 'pi-angle-right'} text-xs`} />
+        <Icon name={collapsed ? 'left' : 'right'} className="[--sw-ico:var(--sw-ico-xs)]" />
       </button>
     </aside>
   );

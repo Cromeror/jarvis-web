@@ -193,7 +193,7 @@ export function AjustesDeOrganizacion(): React.ReactElement {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {error && (
-        <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+        <div className="mb-3 rounded-lg border border-[var(--sw-error)] bg-[var(--sw-error-bg)] px-3 py-2 text-sm text-[var(--sw-on-error)]">
           {error}
         </div>
       )}

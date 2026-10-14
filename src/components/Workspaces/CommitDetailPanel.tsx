@@ -18,13 +18,17 @@ interface CommitDetailPanelProps {
  */
 export function CommitDetailPanel({ detail, loading }: CommitDetailPanelProps): React.ReactElement {
   if (loading && !detail) {
-    return <div className="flex items-center gap-2 p-6 text-sm text-slate-500"><Spinner /> Leyendo el commit…</div>;
+    return <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground"><Spinner /> Leyendo el commit…</div>;
   }
   if (!detail) {
-    return <p className="p-6 text-center text-sm text-slate-400">Elegi un commit del grafo para ver su detalle.</p>;
+    return <p className="p-6 text-center text-sm text-muted-foreground">Elegi un commit del grafo para ver su detalle.</p>;
   }
   if (detail.error && !detail.commit) {
-    return <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{detail.error}</div>;
+    return (
+      <div className="rounded-[var(--sw-r-md)] border border-[var(--sw-error)] bg-[var(--sw-error-bg)] px-4 py-3 text-sm text-[var(--sw-on-error)]">
+        {detail.error}
+      </div>
+    );
   }
 
   const commit = detail.commit;
@@ -32,11 +36,11 @@ export function CommitDetailPanel({ detail, loading }: CommitDetailPanelProps): 
   const totalDeleted = detail.files.reduce((n, f) => n + (f.deleted ?? 0), 0);
 
   return (
-    <div>
+    <div className="flex flex-col gap-4">
       {commit && (
-        <div className="mb-4 border-b border-slate-100 pb-3">
-          <h3 className="text-sm font-medium text-slate-800">{commit.subject}</h3>
-          <p className="mt-1 text-xs text-slate-500">
+        <div className="border-b border-border pb-3">
+          <h3 className="text-sm font-medium text-foreground">{commit.subject}</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
             <span className="font-mono">{commit.hash.slice(0, 10)}</span>
             {' · '}{commit.author_name} &lt;{commit.author_email}&gt;
             {' · '}{new Date(commit.date).toLocaleString()}
@@ -44,31 +48,31 @@ export function CommitDetailPanel({ detail, loading }: CommitDetailPanelProps): 
           {commit.is_merge && (
             // `git show` no muestra nada de un merge sin decirle contra que
             // padre diffear; el backend usa --first-parent y hay que decirlo.
-            <p className="mt-2 rounded bg-slate-50 px-2 py-1 text-xs text-slate-500">
+            <p className="mt-2 rounded-[var(--sw-r-sm)] bg-muted px-2 py-1 text-xs text-muted-foreground">
               Merge de {commit.parents.length} padres — se muestra lo que trajo, contra el primero.
             </p>
           )}
         </div>
       )}
 
-      <div className="mb-3">
-        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
+      <div>
+        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {detail.files.length} archivo{detail.files.length === 1 ? '' : 's'}
-          {' · '}<span className="text-emerald-600">+{totalAdded}</span>
-          {' '}<span className="text-red-500">−{totalDeleted}</span>
+          {' · '}<span className="text-[var(--sw-success)]">+{totalAdded}</span>
+          {' '}<span className="text-[var(--sw-error)]">−{totalDeleted}</span>
         </p>
-        <ul className="max-h-40 overflow-auto rounded-lg border border-slate-100">
+        <ul className="max-h-40 divide-y divide-border overflow-auto rounded-[var(--sw-r-md)] border border-border">
           {detail.files.map((f) => (
             <li key={f.path} className="flex items-center gap-2 px-3 py-1 text-xs">
-              <span className="min-w-0 flex-1 truncate font-mono text-slate-600" title={f.path}>
+              <span className="min-w-0 flex-1 truncate font-mono text-secondary-foreground" title={f.path}>
                 {f.orig_path ? `${f.orig_path} → ${f.path}` : f.path}
               </span>
               {f.binary ? (
-                <span className="shrink-0 text-slate-400">binario</span>
+                <span className="shrink-0 text-muted-foreground">binario</span>
               ) : (
                 <span className="shrink-0 font-mono">
-                  <span className="text-emerald-600">+{f.added}</span>{' '}
-                  <span className="text-red-500">−{f.deleted}</span>
+                  <span className="text-[var(--sw-success)]">+{f.added}</span>{' '}
+                  <span className="text-[var(--sw-error)]">−{f.deleted}</span>
                 </span>
               )}
             </li>

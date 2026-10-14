@@ -80,7 +80,7 @@ export function RolesDelMiembro({
                 ? `«${deProyecto.name}» es un rol de proyecto: acá no otorga nada. Sacalo y asignalo en el proyecto.`
                 : 'Este rol ya no existe. Clic para sacarlo.'
             }
-            className="rounded-full border border-amber-500/40 px-2 py-0.5 text-[11px] text-amber-600 disabled:opacity-40"
+            className="rounded-full border border-[var(--sw-warning)] px-2 py-0.5 text-[11px] text-[var(--sw-warning)] disabled:opacity-40"
           >
             {r.role_name ?? '(rol desconocido)'} ✕
           </button>

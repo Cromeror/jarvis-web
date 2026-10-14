@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Icons } from '../atoms/Icons.js';
 import { Badge } from '../atoms/Badge.js';
+import { Button } from '../atoms/Button.js';
 import { BackgroundTaskRow, type BackgroundTaskState } from './BackgroundTaskRow.js';
 import type { BackgroundTaskLike } from '../../../lib/chat-queue.js';
 
@@ -47,7 +48,7 @@ export function BackgroundTasksBar({ tasks, onStopTask, onStopAll }: BackgroundT
   const label = `${tasks.length} ${tasks.length === 1 ? 'tarea' : 'tareas'} en background`;
 
   return (
-    <div className="border-t border-white/8 bg-[var(--chatcontent-bg-base,#212121)] px-4 py-2.5">
+    <div className="flex flex-col gap-1 border-t border-border bg-card px-4 py-2.5">
       <div className="flex items-center gap-2">
         <button
           type="button"
@@ -56,18 +57,13 @@ export function BackgroundTasksBar({ tasks, onStopTask, onStopAll }: BackgroundT
           className="flex min-w-0 flex-1 items-center gap-2 text-left"
         >
           <Icons icon="clock" size={14} className="shrink-0 opacity-90" />
-          <span className="truncate text-xs font-semibold text-white">{label}</span>
+          <span className="truncate text-xs font-semibold text-foreground">{label}</span>
           {running > 0 && <Badge label="Running" status="running" size="xs" />}
         </button>
         {onStopAll && (
-          <button
-            type="button"
-            onClick={onStopAll}
-            title="Detener las tareas en background"
-            className="shrink-0 rounded-full border border-white/15 px-3 py-1 text-[11px] font-semibold text-white/80 hover:bg-white/10"
-          >
+          <Button variant="outline" size="xs" onClick={onStopAll} title="Detener las tareas en background" className="shrink-0">
             Detener
-          </button>
+          </Button>
         )}
         <Icons
           icon="chevron-right"
@@ -80,7 +76,7 @@ export function BackgroundTasksBar({ tasks, onStopTask, onStopAll }: BackgroundT
         // Techo de alto con scroll propio: con muchas tareas el panel comería
         // toda la conversación. `max-h` en vez de alto fijo para que con dos o
         // tres tareas ocupe solo lo que necesita.
-        <div className="mt-1 max-h-[40vh] space-y-0.5 overflow-y-auto pl-1.5">
+        <div className="flex max-h-[40vh] flex-col gap-0.5 overflow-y-auto pl-1.5">
           {tasks.map((task) => (
             <BackgroundTaskRow
               key={task.task_id}

@@ -3,6 +3,7 @@ import { Spinner } from '../ui/atoms/Spinner.js';
 import { WorkspaceCard } from './WorkspaceCard.js';
 import type { WorkspaceRow, WorkspacesSection } from '../../lib/workspace-view.js';
 import { Button } from '../ui/atoms/Button.js';
+import { Icon } from '../Icon.js';
 
 interface WorkspaceListProps {
   section: WorkspacesSection;
@@ -27,7 +28,7 @@ interface WorkspaceListProps {
 export function WorkspaceList({ section, selectedId, missingId, onSelect, onRetry }: WorkspaceListProps): React.ReactElement {
   if (section.kind === 'loading') {
     return (
-      <div className="flex items-center gap-3 p-8 text-slate-500">
+      <div className="flex items-center gap-3 p-8 text-muted-foreground">
         <Spinner />
         <span>Leyendo los espacios de trabajo…</span>
       </div>
@@ -36,24 +37,21 @@ export function WorkspaceList({ section, selectedId, missingId, onSelect, onRetr
 
   if (section.kind === 'disabled') {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-8 text-center">
-        <i className="pi pi-folder-open mb-3 block text-2xl text-slate-400" />
-        <h3 className="text-base font-medium text-slate-700">Este proyecto todavía no tiene espacios de trabajo</h3>
-        <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">{section.reason}</p>
+      <div className="flex flex-col items-center gap-2 rounded-[var(--sw-r-lg)] border border-border bg-card p-8 text-center">
+        <Icon name="folder" className="text-muted-foreground" />
+        <h3 className="text-base font-medium text-foreground">Este proyecto todavía no tiene espacios de trabajo</h3>
+        <p className="max-w-xl text-sm text-muted-foreground">{section.reason}</p>
       </div>
     );
   }
 
   if (section.kind === 'failed') {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center">
-        <i className="pi pi-exclamation-triangle mb-3 block text-2xl text-red-400" />
-        <h3 className="text-base font-medium text-red-700">No se pudieron leer los espacios de trabajo</h3>
-        <p className="mx-auto mt-2 max-w-xl text-sm text-red-600">{section.message}</p>
-        <Button
-          onClick={onRetry}
-          variant="outline"
-        >
+      <div className="flex flex-col items-center gap-2 rounded-[var(--sw-r-lg)] border border-[var(--sw-error)] bg-[var(--sw-error-bg)] p-8 text-center text-[var(--sw-on-error)]">
+        <Icon name="alerta" />
+        <h3 className="text-base font-medium">No se pudieron leer los espacios de trabajo</h3>
+        <p className="max-w-xl text-sm">{section.message}</p>
+        <Button onClick={onRetry} variant="outline">
           Reintentar
         </Button>
       </div>
@@ -61,9 +59,9 @@ export function WorkspaceList({ section, selectedId, missingId, onSelect, onRetr
   }
 
   return (
-    <>
+    <div className="flex flex-col gap-4">
       {missingId && (
-        <div className="mb-4 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-700">
+        <div className="rounded-[var(--sw-r-md)] border border-[var(--sw-warning)] bg-[var(--sw-warning-bg)] px-4 py-3 text-sm text-[var(--sw-on-warning)]">
           El espacio de trabajo <code className="font-mono">{missingId}</code> del link ya no existe. Elegí otro de la lista.
         </div>
       )}
@@ -72,6 +70,6 @@ export function WorkspaceList({ section, selectedId, missingId, onSelect, onRetr
           <WorkspaceCard key={row.id} row={row} selected={row.id === selectedId} onSelect={onSelect} />
         ))}
       </div>
-    </>
+    </div>
   );
 }

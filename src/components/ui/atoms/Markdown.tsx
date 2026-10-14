@@ -50,18 +50,18 @@ function CodeBlock({
   };
 
   return (
-    <div className="my-3 overflow-hidden rounded-xl bg-slate-900">
+    <div className="my-3 overflow-hidden rounded-[var(--sw-r-lg)] border border-border bg-muted">
       <div className="flex items-center justify-between px-4 py-1.5">
-        <span className="text-xs text-slate-500">{language ?? ''}</span>
+        <span className="text-xs text-muted-foreground">{language ?? ''}</span>
         <button
           type="button"
           onClick={handleCopy}
-          className="text-xs text-slate-400 hover:text-slate-200"
+          className="text-xs text-muted-foreground hover:text-foreground"
         >
           {copied ? 'Copiado' : 'Copiar'}
         </button>
       </div>
-      <pre className="overflow-x-auto px-4 pb-3 text-sm text-slate-100">
+      <pre className="overflow-x-auto px-4 pb-3 text-sm text-foreground">
         <code>{text}</code>
       </pre>
     </div>

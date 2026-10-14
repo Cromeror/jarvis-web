@@ -12,6 +12,7 @@ import {
   type RedDeOrganizacion,
 } from '../../lib/red-de-contexto-api.js';
 import { Icon } from '../Icon.js';
+import { Button } from '../ui/atoms/Button.js';
 import { NuevoCirculo, TablaDeCarpetas } from './carpetas-compartidas.js';
 import { mensajeDeError } from './errores.js';
 import { OrganizationAuditorSection } from './OrganizationAuditorSection.js';
@@ -153,16 +154,17 @@ export function OrganizationRedContextoSection({ organizationId }: { organizatio
           ))}
         </div>
         {pestana === 'carpetas' && datos && datos.circulos.length > 0 && (
-          <button
-            type="button"
-            className="mb-1 ml-auto inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
+          <Button
+            variant="ghost"
+            size="xs"
+            className="mb-1 ml-auto"
             disabled={sincronizando}
             title="Corre la sincronización ya, sin esperar los 30 segundos"
             onClick={() => void sincronizar()}
           >
             <Icon name={sincronizando ? 'cargando' : 'rehacer'} />
             {sincronizando ? 'Sincronizando…' : 'Sincronizar ahora'}
-          </button>
+          </Button>
         )}
       </div>
 
@@ -175,7 +177,7 @@ export function OrganizationRedContextoSection({ organizationId }: { organizatio
           </p>
 
           {error && (
-            <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+            <div className="mb-3 rounded-lg border border-[var(--sw-error)] bg-[var(--sw-error-bg)] px-3 py-2 text-sm text-[var(--sw-on-error)]">
               {error}
             </div>
           )}

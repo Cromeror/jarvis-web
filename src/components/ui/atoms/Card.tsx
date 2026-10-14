@@ -6,14 +6,16 @@ interface CardProps {
   onClick?: () => void;
 }
 
-/** Generic card container — rounded surface with border and shadow, no content opinion. */
+/** Generic card container — superficie de card del tema, con borde y radio del sistema, sin opinión de contenido. */
 export function Card({ children, className = '', onClick }: CardProps): React.ReactElement {
   const Tag = onClick ? 'button' : 'div';
   return (
     <Tag
       type={onClick ? 'button' : undefined}
       onClick={onClick}
-      className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-sm ${className}`}
+      className={`rounded-[var(--sw-r-lg)] border border-border bg-card p-[var(--sw-s-5)] text-left text-card-foreground ${
+        onClick ? 'hover:bg-accent' : ''
+      } ${className}`}
     >
       {children}
     </Tag>

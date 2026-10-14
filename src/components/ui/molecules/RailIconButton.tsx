@@ -16,7 +16,7 @@ interface RailIconButtonProps {
 /**
  * Icon-button del rail colapsado (Figma IconBtnWrapper: 48px wrapper, ícono
  * 44px con padding 2px, badge circular opcional overlay). `active` es el
- * único de los 4 items del frame con fondo blanco + borde (el acceso rápido
+ * único de los 4 items del frame con fondo de acento + borde (el acceso rápido
  * a Focus) — los otros 3 (Planes/Ejecuciones/Historial) van sin fondo, con o
  * sin badge. Mismo espíritu que Sidebar2IconButton pero con slot de badge,
  * por eso no se reusa ese átomo (namespaces separados a propósito en el DS).
@@ -28,13 +28,13 @@ export function RailIconButton({ icon, active = false, badge, onClick, title, ho
       onClick={onClick}
       title={hoverPreview ? undefined : title}
       aria-label={hoverPreview ? title : undefined}
-      className={`group relative flex size-[var(--chatoptionsrail-iconbtn-size)] shrink-0 items-center justify-center ${className}`}
+      className={`group relative flex size-12 shrink-0 items-center justify-center ${className}`}
     >
       <span
-        className={`flex size-[var(--chatoptionsrail-iconbtn-inner-size)] items-center justify-center rounded-[var(--chatoptionsrail-iconbtn-radius)] ${
+        className={`flex size-11 items-center justify-center rounded-[var(--sw-r-md)] transition-colors ${
           active
-            ? 'border border-[var(--chatoptionsrail-iconbtn-active-border)] bg-[var(--chatoptionsrail-iconbtn-active-bg)] text-[var(--chatoptionsrail-button-text)]'
-            : 'text-[var(--chatoptionsrail-item-text-default)]'
+            ? 'border border-[var(--sw-accent-line)] bg-[var(--sw-accent-weak)] text-primary'
+            : 'text-secondary-foreground group-hover:bg-accent group-hover:text-foreground'
         }`}
       >
         <RailIcon name={icon} size={20} />

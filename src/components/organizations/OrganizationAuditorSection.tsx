@@ -93,8 +93,8 @@ export function OrganizationAuditorSection({
   const nombreDeProyecto = new Map(proyectos.map((p) => [p.id, p.name]));
 
   const sesionVencida = auditoria?.auditor.sesion_vencida && (
-    <div className={`${PANEL_CLASS} border-amber-500/30`}>
-      <p className="mb-2 text-sm text-amber-200">
+    <div className={`${PANEL_CLASS} border-[var(--sw-warning)]`}>
+      <p className="mb-2 text-sm text-[var(--sw-warning)]">
         La sesión del auditor venció: no se está revisando nada. Lo nuevo queda retenido hasta que vuelva a iniciar.
       </p>
       <ExecutorLoginPrompt
@@ -115,7 +115,7 @@ export function OrganizationAuditorSection({
       </p>
 
       {error && (
-        <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+        <div className="mb-3 rounded-lg border border-[var(--sw-error)] bg-[var(--sw-error-bg)] px-3 py-2 text-sm text-[var(--sw-on-error)]">
           {error}
         </div>
       )}
@@ -135,14 +135,13 @@ export function OrganizationAuditorSection({
             <div className={PANEL_CLASS}>
               <div className="mb-3 flex flex-wrap items-center gap-2">
                 {FILTROS.map((f) => (
-                  <button
+                  <Button
                     key={f.valor}
-                    type="button"
-                    className={`rounded-full px-3 py-1 text-xs ${filtro === f.valor ? 'bg-primary text-primary-foreground' : 'text-secondary-foreground hover:bg-accent'}`}
+                    variant={filtro === f.valor ? 'primary' : 'ghost'}
                     onClick={() => setFiltro(f.valor)}
                   >
                     {f.etiqueta} ({auditoria.conteos[f.valor] ?? 0})
-                  </button>
+                  </Button>
                 ))}
               </div>
 
@@ -258,7 +257,7 @@ function Configuracion({
         <input className={INPUT_CLASS} value={umbral} inputMode="decimal" onChange={(e) => setUmbral(e.target.value)} />
       </label>
       {umbral && umbralBytes === null && (
-        <p className="mt-1 text-xs text-amber-300">Tiene que ser un número mayor que cero.</p>
+        <p className="mt-1 text-xs text-[var(--sw-warning)]">Tiene que ser un número mayor que cero.</p>
       )}
 
       {cambio && (
@@ -335,7 +334,7 @@ function FilaDeRevision({
         </ul>
       )}
       {r.estado === 'pendiente' && r.ultimo_error && (
-        <p className="mt-1 text-xs text-amber-300">
+        <p className="mt-1 text-xs text-[var(--sw-warning)]">
           El auditor no pudo revisarlo ({r.intentos} intento
           {r.intentos === 1 ? '' : 's'}): {r.ultimo_error}
         </p>

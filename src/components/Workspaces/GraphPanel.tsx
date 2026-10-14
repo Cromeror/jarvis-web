@@ -9,6 +9,7 @@ import {
   type CommitDetailResponse,
 } from '../../lib/workspace-history-api.js';
 import { Button } from '../ui/atoms/Button.js';
+import { Icon } from '../Icon.js';
 
 interface GraphPanelProps {
   projectId: string;
@@ -101,17 +102,17 @@ export function GraphPanel({ projectId, replicaId, selectedHash, onSelectCommit 
   }, [projectId, replicaId, selectedHash]);
 
   if (state.kind === 'loading') {
-    return <div className="flex items-center gap-2 p-8 text-sm text-slate-500"><Spinner /> Leyendo la historia…</div>;
+    return <div className="flex items-center gap-2 p-8 text-sm text-muted-foreground"><Spinner /> Leyendo la historia…</div>;
   }
 
   // Sin historia que dibujar — sea porque el root no es un repo git o porque
   // todavia no tiene commits — es un estado vacio explicado, no un error.
   if (state.kind === 'empty') {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-8 text-center">
-        <i className="pi pi-sitemap mb-3 block text-2xl text-slate-400" />
-        <h3 className="text-base font-medium text-slate-700">No hay historia para mostrar</h3>
-        <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">{state.reason}</p>
+      <div className="flex flex-col items-center gap-2 rounded-[var(--sw-r-lg)] border border-border bg-card p-8 text-center">
+        <Icon name="branch" className="text-muted-foreground" />
+        <h3 className="text-base font-medium text-foreground">No hay historia para mostrar</h3>
+        <p className="max-w-md text-sm text-muted-foreground">{state.reason}</p>
       </div>
     );
   }
@@ -119,14 +120,11 @@ export function GraphPanel({ projectId, replicaId, selectedHash, onSelectCommit 
   // Y esto sí es una falla: el pedido no llego. Por eso se puede reintentar.
   if (state.kind === 'failed') {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center">
-        <i className="pi pi-exclamation-triangle mb-3 block text-2xl text-red-400" />
-        <h3 className="text-base font-medium text-red-700">No se pudo leer la historia</h3>
-        <p className="mx-auto mt-2 max-w-md text-sm text-red-600">{state.message}</p>
-        <Button
-          onClick={loadFirstPage}
-          variant="outline"
-        >
+      <div className="flex flex-col items-center gap-2 rounded-[var(--sw-r-lg)] border border-[var(--sw-error)] bg-[var(--sw-error-bg)] p-8 text-center text-[var(--sw-on-error)]">
+        <Icon name="alerta" />
+        <h3 className="text-base font-medium">No se pudo leer la historia</h3>
+        <p className="max-w-md text-sm">{state.message}</p>
+        <Button onClick={loadFirstPage} variant="outline">
           Reintentar
         </Button>
       </div>
@@ -135,10 +133,10 @@ export function GraphPanel({ projectId, replicaId, selectedHash, onSelectCommit 
 
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,45%)]">
-      <div className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
-          <h2 className="text-sm font-semibold text-slate-700">Historia ({state.commits.length})</h2>
-          <button type="button" onClick={loadFirstPage} title="Recargar" className="text-slate-400 hover:text-slate-600">
+      <div className="min-w-0 overflow-hidden rounded-[var(--sw-r-lg)] border border-border bg-card">
+        <div className="flex items-center justify-between border-b border-border px-3 py-1.5">
+          <h2 className="text-sm font-semibold text-foreground">Historia ({state.commits.length})</h2>
+          <button type="button" onClick={loadFirstPage} title="Recargar" aria-label="Recargar" className="btn" data-variant="ghost" data-size="icon-sm">
             <i className="pi pi-refresh text-xs" />
           </button>
         </div>
@@ -151,9 +149,9 @@ export function GraphPanel({ projectId, replicaId, selectedHash, onSelectCommit 
           />
         </div>
         {state.nextCursor && (
-          <div className="border-t border-slate-100 p-2 text-center">
+          <div className="flex flex-col items-center gap-2 border-t border-border p-2 text-center">
             {loadMoreError && (
-              <p className="mb-2 text-xs text-red-600">
+              <p className="text-xs text-[var(--sw-error)]">
                 No se pudo traer la pagina siguiente: {loadMoreError}
               </p>
             )}
@@ -168,7 +166,7 @@ export function GraphPanel({ projectId, replicaId, selectedHash, onSelectCommit 
         )}
       </div>
 
-      <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="min-w-0 rounded-[var(--sw-r-lg)] border border-border bg-card p-4">
         <CommitDetailPanel detail={detail} loading={detailLoading} />
       </div>
     </div>

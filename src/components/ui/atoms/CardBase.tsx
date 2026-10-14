@@ -10,18 +10,17 @@ interface CardBaseProps {
 }
 
 const GAP_CLASS: Record<CardBaseGap, string> = {
-  sm: 'gap-[var(--card-gap-sm)]',
-  md: 'gap-[var(--card-gap)]',
+  sm: 'gap-[var(--sw-s-2)]',
+  md: 'gap-[var(--sw-s-3)]',
 };
 
 /**
- * CardBase — átomo del design system "DBoard V1.1.X" (Figma node 7054:259).
- * Superficie con gradiente sutil y borde translúcido, sin tamaño fijo — se
- * adapta al contenido/contenedor (el frame de 388x133 en Figma es el tamaño
- * de esa instancia de ejemplo, no una medida intrínseca del componente).
- * `gap` cubre las dos separaciones entre filas que aparecen en el archivo de
- * Figma para componentes que envuelven esta superficie (8px en CardBase,
- * 12px en CardProject) — no una preferencia propia de este átomo.
+ * CardBase — la superficie de card del tema, sin tamaño fijo: se adapta al
+ * contenido o al contenedor. `gap` cubre las dos separaciones entre filas que
+ * usan quienes la envuelven (8px y 12px), no una preferencia de este átomo.
+ *
+ * Clickeable, se aclara al pasar con `bg-accent`, que es el hover de todo el
+ * sistema: la card entera es el objetivo, no un link adentro de ella.
  */
 export function CardBase({ children, gap = 'sm', onClick, className = '' }: CardBaseProps): React.ReactElement {
   const Tag = onClick ? 'button' : 'div';
@@ -29,7 +28,9 @@ export function CardBase({ children, gap = 'sm', onClick, className = '' }: Card
     <Tag
       type={onClick ? 'button' : undefined}
       onClick={onClick}
-      className={`flex flex-col items-start text-left ${GAP_CLASS[gap]} overflow-clip rounded-[var(--card-radius)] border border-[var(--card-border)] bg-[var(--card-bg-base)] bg-gradient-to-b from-[var(--card-bg-from)] to-[var(--card-bg-to)] px-[var(--card-padding-h)] py-[var(--card-padding-v)] ${className}`}
+      className={`flex flex-col items-start text-left ${GAP_CLASS[gap]} overflow-clip rounded-[var(--sw-r-lg)] border border-border bg-card p-[var(--sw-s-4)] text-card-foreground transition-colors ${
+        onClick ? 'hover:bg-accent' : ''
+      } ${className}`}
     >
       {children}
     </Tag>

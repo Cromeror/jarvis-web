@@ -17,7 +17,7 @@ const SHAPE_CLASS: Record<IconTileShape, string> = {
 /** Icon tile — square or circular container for a PrimeReact icon glyph, size in px. */
 export function IconTile({
   icon,
-  className = 'bg-slate-100 text-slate-500',
+  className = 'bg-muted text-muted-foreground',
   shape = 'square',
   size = 36,
 }: IconTileProps): React.ReactElement {

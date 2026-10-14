@@ -145,19 +145,13 @@ export function ExecutorLoginPrompt({
       : 'a la cuenta de Jarvis';
 
   return (
-    <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-100">
+    <div className="rounded-[var(--sw-r-md)] border border-[var(--sw-warning)] bg-[var(--sw-warning-bg)] p-3 text-xs text-[var(--sw-on-warning)]">
       {fase === 'ofrecido' && (
         <>
           <p className="mb-2">
             Jarvis no pudo arrancar: la sesión del executor está vencida. Se puede volver a iniciar desde acá.
           </p>
-          <button
-            type="button"
-            onClick={() => void arrancar()}
-            className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-medium text-slate-900 hover:bg-amber-400"
-          >
-            Iniciar sesión
-          </button>
+          <Button onClick={() => void arrancar()}>Iniciar sesión</Button>
         </>
       )}
 
@@ -175,7 +169,7 @@ export function ExecutorLoginPrompt({
             readOnly
             value={url ?? ''}
             onFocus={(e) => e.currentTarget.select()}
-            className="mb-2 w-full rounded border border-amber-500/30 bg-black/30 px-2 py-1 font-mono text-[11px] text-amber-100"
+            className="input mb-2 w-full font-mono text-[11px]"
           />
           <div className="flex items-center gap-2">
             <input
@@ -185,25 +179,20 @@ export function ExecutorLoginPrompt({
                 if (e.key === 'Enter') void enviarCodigo();
               }}
               placeholder="Código"
-              className="flex-1 rounded border border-amber-500/30 bg-black/30 px-2 py-1 text-xs text-amber-100 placeholder:text-amber-200/40"
+              className="input flex-1"
             />
-            <button
-              type="button"
-              disabled={!codigo.trim() || fase === 'enviando_codigo'}
-              onClick={() => void enviarCodigo()}
-              className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-medium text-slate-900 hover:bg-amber-400 disabled:opacity-50"
-            >
+            <Button disabled={!codigo.trim() || fase === 'enviando_codigo'} onClick={() => void enviarCodigo()}>
               {fase === 'enviando_codigo' ? 'Verificando…' : 'Confirmar'}
-            </button>
+            </Button>
           </div>
         </>
       )}
 
-      {fase === 'ok' && <p className="text-emerald-300">{detalle ?? 'Sesión abierta'}. {textoOk ?? 'Probá mandar tu mensaje de nuevo.'}</p>}
+      {fase === 'ok' && <p className="text-[var(--sw-on-success)]">{detalle ?? 'Sesión abierta'}. {textoOk ?? 'Probá mandar tu mensaje de nuevo.'}</p>}
 
       {fase === 'error' && (
         <>
-          <p className="mb-2 text-red-300">{detalle}</p>
+          <p className="mb-2 text-[var(--sw-on-error)]">{detalle}</p>
           <Button
             onClick={() => void arrancar()}
             variant="outline"

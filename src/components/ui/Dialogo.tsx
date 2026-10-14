@@ -31,7 +31,9 @@ export function Dialogo({
   pie,
   onSubmit,
   ancho = 560,
+  pantalla = false,
   autoComplete,
+  ariaLabel,
 }: {
   abierto: boolean;
   onCerrar: () => void;
@@ -43,6 +45,13 @@ export function Dialogo({
   onSubmit?: () => void;
   /** Ancho máximo en px. */
   ancho?: number;
+  /**
+   * Tamaño fijo de 80% × 90% de la ventana, para un modal que es una pantalla
+   * entera (Ajustes): no salta de tamaño al cambiar lo que muestra, y el cuerpo
+   * no desplaza —le da el alto al contenido, que se desplaza por zonas—.
+   */
+  pantalla?: boolean;
+  ariaLabel?: string;
   /** Para el `<form>`: `off` cuando las credenciales son de otra persona. */
   autoComplete?: string;
 }): React.ReactElement {
@@ -56,6 +65,10 @@ export function Dialogo({
     if (!abierto && d.open) d.close();
   }, [abierto]);
 
+  const caja: React.CSSProperties = pantalla
+    ? { width: '80vw', maxWidth: '80vw', height: '90vh', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }
+    : { width: '100%', maxWidth: `min(${ancho}px, calc(100vw - 2rem))`, maxHeight: '90vh' };
+
   const contenido = (
     <>
       <header>
@@ -66,7 +79,9 @@ export function Dialogo({
           llega al 90% de la pantalla, y recién ahí aparece su scroll. El
           encabezado y el pie quedan fijos. `min-h-0` es lo que deja a un hijo
           flex achicarse por debajo de su contenido. */}
-      <section className="min-h-0 overflow-y-auto">{children}</section>
+      <section className={pantalla ? 'flex min-h-0 flex-1 flex-col overflow-hidden' : 'min-h-0 overflow-y-auto'}>
+        {children}
+      </section>
       {pie ? <footer>{pie}</footer> : null}
     </>
   );
@@ -75,6 +90,7 @@ export function Dialogo({
     <dialog
       ref={ref}
       className="dialog"
+      aria-label={ariaLabel}
       onClose={(e) => {
         e.stopPropagation();
         onCerrar();
@@ -93,7 +109,7 @@ export function Dialogo({
       {onSubmit ? (
         <form
           autoComplete={autoComplete}
-          style={{ width: '100%', maxWidth: `min(${ancho}px, calc(100vw - 2rem))`, maxHeight: '90vh' }}
+          style={caja}
           onSubmit={(e) => {
             e.preventDefault();
             onSubmit();
@@ -102,7 +118,7 @@ export function Dialogo({
           {contenido}
         </form>
       ) : (
-        <article style={{ width: '100%', maxWidth: `min(${ancho}px, calc(100vw - 2rem))`, maxHeight: '90vh' }}>{contenido}</article>
+        <article style={caja}>{contenido}</article>
       )}
     </dialog>
   );

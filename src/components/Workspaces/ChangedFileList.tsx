@@ -1,5 +1,6 @@
 import React from 'react';
 import type { ChangedFileRow } from '../../lib/diff-view.js';
+import { Icon } from '../Icon.js';
 
 interface ChangedFileListProps {
   rows: ChangedFileRow[];
@@ -8,14 +9,14 @@ interface ChangedFileListProps {
 }
 
 const LETTER_CLASS: Record<string, string> = {
-  M: 'text-orange-500',
-  A: 'text-emerald-600',
-  D: 'text-red-500',
-  U: 'text-slate-400',
-  R: 'text-indigo-500',
-  C: 'text-indigo-500',
-  T: 'text-indigo-500',
-  '!': 'text-red-600',
+  M: 'text-[var(--sw-warning)]',
+  A: 'text-[var(--sw-success)]',
+  D: 'text-[var(--sw-error)]',
+  U: 'text-muted-foreground',
+  R: 'text-[var(--sw-accent-text)]',
+  C: 'text-[var(--sw-accent-text)]',
+  T: 'text-[var(--sw-accent-text)]',
+  '!': 'text-[var(--sw-error)]',
 };
 
 /**
@@ -29,15 +30,15 @@ const LETTER_CLASS: Record<string, string> = {
 export function ChangedFileList({ rows, selectedPath, onSelect }: ChangedFileListProps): React.ReactElement {
   if (rows.length === 0) {
     return (
-      <div className="p-6 text-center text-sm text-slate-400">
-        <i className="pi pi-check-circle mb-2 block text-xl text-emerald-400" />
+      <div className="flex flex-col items-center gap-2 p-6 text-center text-sm text-muted-foreground">
+        <Icon name="check" className="text-[var(--sw-success)]" />
         No hay cambios sin commitear.
       </div>
     );
   }
 
   return (
-    <ul className="divide-y divide-slate-100">
+    <ul className="divide-y divide-border">
       {rows.map((row) => {
         const selected = row.path === selectedPath;
         return (
@@ -47,17 +48,17 @@ export function ChangedFileList({ rows, selectedPath, onSelect }: ChangedFileLis
               onClick={() => onSelect(row)}
               title={`${row.label} · ${row.path}`}
               className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition ${
-                selected ? 'bg-indigo-50' : 'hover:bg-slate-50'
+                selected ? 'bg-[var(--sw-accent-weak)]' : 'hover:bg-accent'
               }`}
             >
               <span className="min-w-0 flex-1">
-                <span className={`block truncate ${selected ? 'font-medium text-indigo-900' : 'text-slate-700'}`}>
+                <span className={`block truncate ${selected ? 'font-medium text-[var(--sw-accent-text)]' : 'text-foreground'}`}>
                   {row.name}
                 </span>
-                {row.dir && <span className="block truncate text-xs text-slate-400">{row.dir}</span>}
-                {row.origPath && <span className="block truncate text-xs text-slate-400">← {row.origPath}</span>}
+                {row.dir && <span className="block truncate text-xs text-muted-foreground">{row.dir}</span>}
+                {row.origPath && <span className="block truncate text-xs text-muted-foreground">← {row.origPath}</span>}
               </span>
-              <span className={`shrink-0 font-mono text-xs font-bold ${LETTER_CLASS[row.letter] ?? 'text-slate-400'}`}>
+              <span className={`shrink-0 font-mono text-xs font-bold ${LETTER_CLASS[row.letter] ?? 'text-muted-foreground'}`}>
                 {row.letter}
               </span>
             </button>

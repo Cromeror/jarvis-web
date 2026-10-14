@@ -1162,7 +1162,7 @@ export function ChatPage(): React.ReactElement {
     // 1344 = 8 + 970 (ChatContent) + 8 + 350 (rail) + 8.
     <div className="flex h-full flex-col" style={{ fontSize: '16px' }}>
       <Toast toasts={toasts} onDismiss={removeToast} />
-      <div className="flex flex-1 gap-[var(--layout-gap)] overflow-hidden p-[var(--layout-padding)]">
+      <div className="flex flex-1 gap-[var(--sw-s-2)] overflow-hidden p-[var(--sw-s-2)]">
         <ChatWindow
           messages={activeChat?.messages ?? []}
           pending={(activeChat?.pending ?? false) || streamActive}

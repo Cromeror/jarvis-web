@@ -1,14 +1,14 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Icon } from '../Icon.js';
 import type { OrganizationSummary } from '../../lib/organizations-api.js';
+import { Button } from '../ui/atoms/Button.js';
+import { Dialogo } from '../ui/Dialogo.js';
 
 /**
  * CONCEDER UN BLOQUE DE PUERTOS a una organización.
  *
- * Es `<dialog class="dialog">` de Basecoat con la anatomía del template
- * (`<article>` > `<header>` + `<section>` + `<footer>`), la misma que usa el
- * visor de causación — y **nativo a propósito**: el `<dialog>` del browser
- * trae foco atrapado, Escape y backdrop sin que haya que escribirlos.
+ * Es el `Dialogo` del sistema: foco atrapado, Escape, y el clic en el fondo
+ * que cierra sólo si empieza y termina ahí.
  *
  * Era un formulario permanente arriba de la tabla. Conceder es episódico
  * —pasa cuando entra una organización nueva— y mirar el reparto es lo
@@ -33,21 +33,11 @@ export function ConcederBloqueDialog({
   onCerrar: () => void;
   onConceder: (input: { organization_id: string; size: number; note: string | null }) => Promise<void>;
 }): React.ReactElement {
-  const ref = useRef<HTMLDialogElement>(null);
   const [orgId, setOrgId] = useState('');
   const [size, setSize] = useState('');
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
-
-  /* `showModal()` y no el atributo `open`: sólo el método pone el backdrop y
-     atrapa el foco. */
-  useEffect(() => {
-    const d = ref.current;
-    if (!d) return;
-    if (abierto && !d.open) d.showModal();
-    if (!abierto && d.open) d.close();
-  }, [abierto]);
 
   /* Cada apertura empieza limpia. Sin esto, el error de un intento fallido
      sigue en pantalla la próxima vez que se abre, describiendo algo que ya no
@@ -60,8 +50,7 @@ export function ConcederBloqueDialog({
     }
   }, [abierto]);
 
-  async function submit(e: React.FormEvent): Promise<void> {
-    e.preventDefault();
+  async function submit(): Promise<void> {
     if (!orgId) return;
     const tamanio = size.trim() === '' ? defaultSize : Number(size);
     setGuardando(true);
@@ -79,81 +68,65 @@ export function ConcederBloqueDialog({
   }
 
   return (
-    /* `onClose` cubre las salidas que no pasan por nuestro botón —Escape y el
-       backdrop—: sin esto el diálogo se cierra y el estado de arriba sigue
-       creyendo que está abierto, así que no vuelve a abrirse. */
-    <dialog
-      ref={ref}
-      className="dialog sw-puertos__dlg"
-      onClose={onCerrar}
-      /* CLIC AFUERA CIERRA. El `<dialog>` nativo no lo trae —sólo Escape— y el
-         backdrop es parte del PROPIO dialog, no un nodo aparte: por eso el clic
-         se escucha acá y se compara el target contra el elemento. */
-      onClick={(e) => {
-        if (e.target === ref.current) ref.current?.close();
-      }}
+    <Dialogo
+      abierto={abierto}
+      onCerrar={onCerrar}
+      ancho={480}
+      onSubmit={() => void submit()}
+      titulo="Conceder un bloque"
+      descripcion="La organización reparte después su bloque entre sus proyectos."
+      pie={
+        <>
+          <Button variant="outline" onClick={onCerrar}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={!orgId || guardando}>
+            <Icon name={guardando ? 'cargando' : 'plus'} />
+            {guardando ? 'Concediendo…' : 'Conceder'}
+          </Button>
+        </>
+      }
     >
-      <article>
-        <form onSubmit={(e) => void submit(e)}>
-          <header>
-            <h2>Conceder un bloque</h2>
-            <p>La organización reparte después su bloque entre sus proyectos.</p>
-          </header>
+      <div className="sw-puertos__campos">
+        <label className="sw-puertos__campo">
+          <span className="sw-puertos__lab">Organización</span>
+          <select className="select" value={orgId} onChange={(e) => setOrgId(e.target.value)}>
+            <option value="">Elegí una…</option>
+            {organizaciones.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.name}
+              </option>
+            ))}
+          </select>
+        </label>
 
-          <section>
-            <div className="sw-puertos__campos">
-              <label className="sw-puertos__campo">
-                <span className="sw-puertos__lab">Organización</span>
-                <select className="select" value={orgId} onChange={(e) => setOrgId(e.target.value)}>
-                  <option value="">Elegí una…</option>
-                  {organizaciones.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+        <label className="sw-puertos__campo">
+          <span className="sw-puertos__lab">Cuántos puertos</span>
+          <input
+            className="input"
+            type="number"
+            min={1}
+            value={size}
+            placeholder={String(defaultSize)}
+            onChange={(e) => setSize(e.target.value)}
+          />
+        </label>
 
-              <label className="sw-puertos__campo">
-                <span className="sw-puertos__lab">Cuántos puertos</span>
-                <input
-                  className="input"
-                  type="number"
-                  min={1}
-                  value={size}
-                  placeholder={String(defaultSize)}
-                  onChange={(e) => setSize(e.target.value)}
-                />
-              </label>
+        <label className="sw-puertos__campo">
+          <span className="sw-puertos__lab">Para qué (opcional)</span>
+          <input className="input" value={note} onChange={(e) => setNote(e.target.value)} />
+        </label>
 
-              <label className="sw-puertos__campo">
-                <span className="sw-puertos__lab">Para qué (opcional)</span>
-                <input className="input" value={note} onChange={(e) => setNote(e.target.value)} />
-              </label>
+        {error ? <p className="sw-puertos__error">{error}</p> : null}
 
-              {error ? <p className="sw-puertos__error">{error}</p> : null}
-
-              {/* POR QUÉ NO SE ELIGE EL BLOQUE: es la pregunta que aparece al
-                  ver que sólo se pide un número. Elegir el `start` a mano
-                  obligaría a mirar qué está tomado para hacer una cuenta que el
-                  servidor hace mejor, y además invita a dejar huecos. */}
-              <p className="sw-puertos__pista">
-                Se elige cuántos puertos, no cuáles: el servidor toma el primer hueco contiguo del pool.
-              </p>
-            </div>
-          </section>
-
-          <footer>
-            <button type="button" className="btn" data-variant="outline" onClick={() => ref.current?.close()}>
-              Cancelar
-            </button>
-            <button type="submit" className="btn" disabled={!orgId || guardando}>
-              <Icon name={guardando ? 'cargando' : 'plus'} />
-              {guardando ? 'Concediendo…' : 'Conceder'}
-            </button>
-          </footer>
-        </form>
-      </article>
-    </dialog>
+        {/* POR QUÉ NO SE ELIGE EL BLOQUE: es la pregunta que aparece al
+            ver que sólo se pide un número. Elegir el `start` a mano
+            obligaría a mirar qué está tomado para hacer una cuenta que el
+            servidor hace mejor, y además invita a dejar huecos. */}
+        <p className="sw-puertos__pista">
+          Se elige cuántos puertos, no cuáles: el servidor toma el primer hueco contiguo del pool.
+        </p>
+      </div>
+    </Dialogo>
   );
 }
