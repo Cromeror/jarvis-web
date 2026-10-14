@@ -17,6 +17,7 @@ import { Combo } from '../components/ui/Combo.js';
 import { Icon } from '../components/Icon.js';
 import { CampoClave } from '../components/ui/CampoClave.js';
 import { Dialogo } from '../components/ui/Dialogo.js';
+import { ChipDeGrupo } from '../components/ui/ChipDeGrupo.js';
 import { Button } from '../components/ui/atoms/Button.js';
 import { filasDeUsuarios, pendientesDeAsignar } from '../lib/usuarios-por-organizacion.js';
 
@@ -37,25 +38,33 @@ function ProjectAccessBadges({
   projects: ProjectSummary[];
 }): React.ReactElement {
   const nombreDe = (id: string): string => projects.find((p) => p.id === id)?.name ?? id;
-  const asignados = new Set(user.project_roles.map((a) => a.project_id));
-  const porOrganizacion = user.project_ids.filter((id) => !asignados.has(id));
+  /* UN CHIP POR PROYECTO con sus roles adentro (`ChipDeGrupo`), no uno por cada
+     par proyecto·rol: así se lee de un vistazo cuántos roles tiene en cada uno
+     sin contar chips que repiten el nombre del proyecto. */
+  const porProyecto = new Map<string, string[]>();
+  for (const a of user.project_roles) {
+    porProyecto.set(a.project_id, [...(porProyecto.get(a.project_id) ?? []), a.role_name]);
+  }
+  const porOrganizacion = user.project_ids.filter((id) => !porProyecto.has(id));
 
-  if (user.project_roles.length === 0 && porOrganizacion.length === 0) {
-    return <span className="text-xs text-[var(--card-text-secondary)]">Sin proyectos asignados</span>;
+  if (porProyecto.size === 0 && porOrganizacion.length === 0) {
+    return <span className="text-xs text-muted-foreground">Sin proyectos asignados</span>;
   }
   return (
-    <div className="flex flex-wrap gap-1">
-      {user.project_roles.map((a) => (
-        /* La clave lleva el rol: un proyecto puede aparecer varias veces, una
-           por rol, y con la clave sólo del proyecto React las colapsa. */
-        <StatusBadge
-          key={`${a.project_id}:${a.role_id}`}
-          label={`${nombreDe(a.project_id)} · ${a.role_name}`}
-          tone="neutral"
-        />
+    <div className="flex flex-wrap gap-1.5 py-1.5 whitespace-normal">
+      {[...porProyecto].map(([id, roles]) => (
+        <ChipDeGrupo key={id} rotulo={nombreDe(id)} items={roles} title={`${nombreDe(id)}: ${roles.join(', ')}`} />
       ))}
+      {/* Lo que ve por su rol de organización y no por una asignación propia:
+          neutro, porque este formulario no lo administra. */}
       {porOrganizacion.map((id) => (
-        <StatusBadge key={id} label={`${nombreDe(id)} · por organización`} tone="info" />
+        <ChipDeGrupo
+          key={id}
+          rotulo={nombreDe(id)}
+          items={['por organización']}
+          neutro
+          title="Lo ve por su rol de organización, no por una asignación en el proyecto"
+        />
       ))}
     </div>
   );
@@ -633,13 +642,20 @@ export function UsersPage(): React.ReactElement {
      nombre en cada fila: en su lugar van sus roles, EDITABLES. Es lo que hacía
      la tabla «Miembros» del panel de arriba, que mostraba a esta misma gente;
      dos tablas con las mismas filas hacían preguntar si eran cosas distintas. */
+  /* Anchos en proporción 20 · 10 · 20 · 50: el que sobra se reparte según el
+     ideal de cada una, así que estos números SON los porcentajes. Tipo de cuenta
+     y rol de organización llevan un valor corto; los proyectos, varios chips.
+
+     «Rol de nivel organización» y no «Roles en la organización»: los roles de
+     proyecto también son de la organización (los define ella), así que el
+     rótulo viejo no decía cuál de los dos era. Éste dice el alcance. */
   const COLUMNAS_USUARIO: ColumnaDeTabla[] = [
-    { id: 'username', label: 'Usuario', dato: 'username', w: 220, tip: true },
-    { id: 'account_type', label: 'Tipo de cuenta', dato: 'account_type', w: 180 },
+    { id: 'username', label: 'Usuario', dato: 'username', w: 200, tip: true },
+    { id: 'account_type', label: 'Tipo de cuenta', dato: 'account_type', w: 100 },
     verSinAsignar
-      ? { id: 'organization', label: 'Organización', w: 280, orden: false }
-      : { id: 'roles', label: 'Roles en la organización', w: 320, orden: false },
-    { id: 'proyectos', label: 'Proyectos', w: 420, orden: false, elastica: true },
+      ? { id: 'organization', label: 'Organización', w: 200, orden: false }
+      : { id: 'roles', label: 'Rol de nivel organización', w: 200, orden: false },
+    { id: 'proyectos', label: 'Proyectos y sus roles', w: 500, orden: false, elastica: true },
   ];
 
   /* Editar y Eliminar van al menú de fila y no a dos botones en una columna
@@ -673,11 +689,15 @@ export function UsersPage(): React.ReactElement {
       // "Rol" acá era la ambigüedad: este eje no es RBAC sino tenancy — quién
       // sos respecto del producto (el operador de la instalación, o gente de un
       // cliente). Los roles de verdad son los de organización y los de proyecto.
+      /* «Operador» y no «Operador del producto»: la columna es angosta (10%) y
+         el rótulo largo se cortaba. Lo largo queda en el title. */
       return (
-        <StatusBadge
-          label={u.account_type === 'operator' ? 'Operador del producto' : 'Cliente'}
-          tone={u.account_type === 'operator' ? 'info' : 'neutral'}
-        />
+        <span title={u.account_type === 'operator' ? 'Operador del producto: opera la instalación entera' : 'Cliente: gente de una organización'}>
+          <StatusBadge
+            label={u.account_type === 'operator' ? 'Operador' : 'Cliente'}
+            tone={u.account_type === 'operator' ? 'info' : 'neutral'}
+          />
+        </span>
       );
     }
     if (c.id === 'roles') {
