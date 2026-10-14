@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from "react";
-import { Icon } from "../Icon.js";
-import { AjustesDeOrganizacion } from "./AjustesDeOrganizacion.js";
+import React, { useEffect, useRef } from 'react';
+import { Icon } from '../Icon.js';
+import { AjustesDeOrganizacion } from './AjustesDeOrganizacion.js';
 
 /**
  * EL MODAL DE AJUSTES. Se abre desde «Ajustes» en el menú del avatar y al pie
@@ -33,7 +33,12 @@ export function AjustesModal({
       ref={ref}
       className="dialog"
       aria-label="Ajustes"
-      onClose={onCerrar}
+      onClose={(e) => {
+        /* Sólo SU close. Un diálogo abierto encima (una confirmación) también
+           emite `close`, y en React ese evento sube por el árbol hasta acá: sin
+           este chequeo, cerrar la confirmación cerraba Ajustes entero. */
+        if (e.target === ref.current) onCerrar();
+      }}
       onClick={(e) => {
         if (e.target === ref.current) ref.current?.close();
       }}
@@ -42,12 +47,12 @@ export function AjustesModal({
           módulo o de pestaña, y lo que no entra se desplaza adentro de la sección. */}
       <article
         style={{
-          width: "80vw",
-          maxWidth: "80vw",
-          height: "90vh",
-          maxHeight: "90vh",
-          display: "flex",
-          flexDirection: "column",
+          width: '80vw',
+          maxWidth: '80vw',
+          height: '90vh',
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
         <header>
@@ -60,20 +65,15 @@ export function AjustesModal({
           style={{
             flex: 1,
             minHeight: 0,
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
           }}
         >
           {abierto && <AjustesDeOrganizacion />}
         </section>
         <footer>
-          <button
-            type="button"
-            className="btn"
-            data-variant="outline"
-            onClick={() => ref.current?.close()}
-          >
+          <button type="button" className="btn" data-variant="outline" onClick={() => ref.current?.close()}>
             <Icon name="x" />
             Cerrar
           </button>

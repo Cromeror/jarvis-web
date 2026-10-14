@@ -12,7 +12,7 @@ export interface ChipDeEspacio {
   detalle: string;
 }
 
-const CHIP = 'inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-slate-200';
+const CHIP = 'inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 text-xs text-secondary-foreground';
 
 function Chip({ c }: { c: ChipDeEspacio }): React.ReactElement {
   return (

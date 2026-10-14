@@ -1,24 +1,24 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from 'react';
 import {
   activarEspacioEnLaRed,
   desactivarEspacioEnLaRed,
   type Circulo,
   type MiembroDeCirculo,
   type ProyectoDeRed,
-} from "../../lib/red-de-contexto-api.js";
-import { timeAgo } from "../../lib/time-ago.js";
-import { Icon } from "../Icon.js";
-import { Tabla, type ColumnaDeTabla } from "../ui/Tabla.js";
-import { INPUT_CLASS } from "./carpetas-compartidas.js";
-import { mensajeDeError } from "./errores.js";
+} from '../../lib/red-de-contexto-api.js';
+import { timeAgo } from '../../lib/time-ago.js';
+import { Icon } from '../Icon.js';
+import { Tabla, type ColumnaDeTabla } from '../ui/Tabla.js';
+import { INPUT_CLASS } from './carpetas-compartidas.js';
+import { mensajeDeError } from './errores.js';
 
 type Carpeta = Circulo & { miembros: MiembroDeCirculo[] };
 
 const COLUMNAS: ColumnaDeTabla[] = [
-  { id: "espacio", label: "Espacio", dato: "name", w: 260, elastica: true },
-  { id: "propias", label: "Carpetas propias", w: 130, al: "der", orden: false },
-  { id: "participa", label: "Participa en", w: 120, al: "der", orden: false },
-  { id: "estado", label: "En la red", w: 220, orden: false },
+  { id: 'espacio', label: 'Espacio', dato: 'name', w: 260, elastica: true },
+  { id: 'propias', label: 'Carpetas propias', w: 130, al: 'der', orden: false },
+  { id: 'participa', label: 'Participa en', w: 120, al: 'der', orden: false },
+  { id: 'estado', label: 'En la red', w: 220, orden: false },
 ];
 
 /**
@@ -46,21 +46,13 @@ export function OrganizationEspaciosSection({
   const [error, setError] = useState<string | null>(null);
   const [aDesactivar, setADesactivar] = useState<ProyectoDeRed | null>(null);
 
-  const propias = (p: ProyectoDeRed) =>
-    carpetas.filter((c) => c.owner_project_id === p.id).length;
+  const propias = (p: ProyectoDeRed) => carpetas.filter((c) => c.owner_project_id === p.id).length;
   const participa = (p: ProyectoDeRed) =>
     carpetas.filter(
-      (c) =>
-        c.owner_project_id !== p.id &&
-        c.miembros.some(
-          (m) => m.project_id === p.id && m.estado === "aprobada",
-        ),
+      (c) => c.owner_project_id !== p.id && c.miembros.some((m) => m.project_id === p.id && m.estado === 'aprobada'),
     ).length;
 
-  async function accion(
-    fn: () => Promise<unknown>,
-    fallback: string,
-  ): Promise<boolean> {
+  async function accion(fn: () => Promise<unknown>, fallback: string): Promise<boolean> {
     setError(null);
     try {
       await fn();
@@ -74,23 +66,23 @@ export function OrganizationEspaciosSection({
 
   function celda(p: ProyectoDeRed, col: ColumnaDeTabla): React.ReactNode {
     switch (col.id) {
-      case "espacio":
+      case 'espacio':
         return (
           <div className="py-2 leading-tight">
-            <div className="truncate font-medium text-white">{p.name}</div>
-            <code className="text-[11px] text-slate-500">{p.id}</code>
+            <div className="truncate font-medium text-foreground">{p.name}</div>
+            <code className="text-[11px] text-muted-foreground">{p.id}</code>
           </div>
         );
-      case "propias":
+      case 'propias':
         return propias(p);
-      case "participa":
+      case 'participa':
         return participa(p);
-      case "estado":
+      case 'estado':
         if (p.desactivado) {
           return (
             <span
               className="inline-flex items-center gap-1 text-amber-300"
-              title={`Desactivado ${timeAgo(p.desactivado.desde)}${p.desactivado.nota ? ` — ${p.desactivado.nota}` : ""}`}
+              title={`Desactivado ${timeAgo(p.desactivado.desde)}${p.desactivado.nota ? ` — ${p.desactivado.nota}` : ''}`}
             >
               <Icon name="eyeOff" />
               Desactivado
@@ -100,7 +92,7 @@ export function OrganizationEspaciosSection({
         if (!p.tiene_root) {
           return (
             <span
-              className="inline-flex items-center gap-1 text-slate-400"
+              className="inline-flex items-center gap-1 text-muted-foreground"
               title="No tiene carpeta en el servidor: no tiene dónde publicar ni recibir."
             >
               <Icon name="info" />
@@ -121,10 +113,9 @@ export function OrganizationEspaciosSection({
 
   return (
     <section>
-      <p className="mb-3 text-xs text-slate-400">
-        Desactivar un espacio deja invisible todo lo que comparte en la red —lo
-        que los demás recibieron de él se retira— y deja de recibir. Es la
-        cuarentena de un espacio entero; reactivarlo vuelve todo como estaba.
+      <p className="mb-3 text-xs text-muted-foreground">
+        Desactivar un espacio deja invisible todo lo que comparte en la red —lo que los demás recibieron de él se
+        retira— y deja de recibir. Es la cuarentena de un espacio entero; reactivarlo vuelve todo como estaba.
       </p>
       {error && (
         <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
@@ -143,34 +134,31 @@ export function OrganizationEspaciosSection({
           groups: [
             {
               items: p.desactivado
-                ? [{ id: "activar", label: "Activar en la red", icon: "eye" }]
+                ? [{ id: 'activar', label: 'Activar en la red', icon: 'eye' }]
                 : [
                     {
-                      id: "desactivar",
-                      label: "Desactivar en la red…",
-                      icon: "eyeOff",
+                      id: 'desactivar',
+                      label: 'Desactivar en la red…',
+                      icon: 'eyeOff',
                       danger: true,
                     },
                   ],
             },
           ],
           onSelect: (id, fila) => {
-            if (id === "desactivar") setADesactivar(fila);
-            if (id === "activar") {
+            if (id === 'desactivar') setADesactivar(fila);
+            if (id === 'activar') {
               if (
                 !window.confirm(
                   `¿Activar «${fila.name}» en la red? Vuelve a compartir y a recibir en la próxima sincronización, que corre ya.`,
                 )
               )
                 return;
-              void accion(
-                () => activarEspacioEnLaRed(organizationId, fila.id),
-                "No se pudo activar el espacio",
-              );
+              void accion(() => activarEspacioEnLaRed(organizationId, fila.id), 'No se pudo activar el espacio');
             }
           },
         })}
-        textos={{ vacio: "La organización no tiene espacios" }}
+        textos={{ vacio: 'La organización no tiene espacios' }}
       />
 
       <ConfirmarDesactivar
@@ -179,13 +167,8 @@ export function OrganizationEspaciosSection({
         onConfirmar={(nota) =>
           aDesactivar
             ? accion(
-                () =>
-                  desactivarEspacioEnLaRed(
-                    organizationId,
-                    aDesactivar.id,
-                    nota || undefined,
-                  ),
-                "No se pudo desactivar el espacio",
+                () => desactivarEspacioEnLaRed(organizationId, aDesactivar.id, nota || undefined),
+                'No se pudo desactivar el espacio',
               )
             : Promise.resolve(false)
         }
@@ -210,14 +193,14 @@ function ConfirmarDesactivar({
   onConfirmar: (nota: string) => Promise<boolean>;
 }): React.ReactElement {
   const ref = useRef<HTMLDialogElement>(null);
-  const [nota, setNota] = useState("");
+  const [nota, setNota] = useState('');
   const [enviando, setEnviando] = useState(false);
 
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
     if (espacio) {
-      setNota("");
+      setNota('');
       if (!d.open) d.showModal();
     } else if (d.open) d.close();
   }, [espacio]);
@@ -238,27 +221,20 @@ function ConfirmarDesactivar({
         if (e.target === ref.current) ref.current?.close();
       }}
     >
-      <article
-        style={{ width: "100%", maxWidth: "min(560px, calc(100vw - 2rem))" }}
-      >
+      <article style={{ width: '100%', maxWidth: 'min(560px, calc(100vw - 2rem))' }}>
         <header>
           <h2>Desactivar «{espacio?.name}» en la red</h2>
           <p>Afecta lo que ven los demás espacios.</p>
         </header>
         <section className="space-y-3 text-sm">
-          <ul className="list-disc space-y-1 pl-5 text-slate-300">
+          <ul className="list-disc space-y-1 pl-5 text-secondary-foreground">
             <li>Lo que los demás espacios recibieron de él se les retira.</li>
             <li>Deja de recibir lo que comparten los demás.</li>
-            <li>
-              Su carpeta publicado/ y todo lo que está fuera de la red no se
-              tocan.
-            </li>
+            <li>Su carpeta publicado/ y todo lo que está fuera de la red no se tocan.</li>
             <li>Se puede volver a activar, y todo vuelve como estaba.</li>
           </ul>
           <label className="block">
-            <span className="mb-1 block text-xs text-slate-400">
-              Por qué (opcional) — lo lee el equipo del espacio
-            </span>
+            <span className="mb-1 block text-xs text-muted-foreground">Por qué (opcional) — lo lee el equipo del espacio</span>
             <textarea
               className={`${INPUT_CLASS} min-h-20 text-xs`}
               value={nota}
@@ -267,12 +243,7 @@ function ConfirmarDesactivar({
           </label>
         </section>
         <footer>
-          <button
-            type="button"
-            className="btn"
-            data-variant="outline"
-            onClick={() => ref.current?.close()}
-          >
+          <button type="button" className="btn" data-variant="outline" onClick={() => ref.current?.close()}>
             Cancelar
           </button>
           <button
@@ -282,7 +253,7 @@ function ConfirmarDesactivar({
             disabled={enviando}
             onClick={() => void confirmar()}
           >
-            {enviando ? "Desactivando…" : "Desactivar"}
+            {enviando ? 'Desactivando…' : 'Desactivar'}
           </button>
         </footer>
       </article>

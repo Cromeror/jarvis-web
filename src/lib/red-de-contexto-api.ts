@@ -24,6 +24,8 @@ export interface Circulo {
   contexto: string;
   /** El espacio que la creó y la administra; `null` = la creó la organización. */
   owner_project_id: string | null;
+  /** Desactivada: no se entrega a nadie. `null` = activa. */
+  desactivada_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -347,5 +349,34 @@ export async function desactivarEspacioEnLaRed(organizationId: string, projectId
 export async function activarEspacioEnLaRed(organizationId: string, projectId: string): Promise<void> {
   await handleResponse(
     await fetch(`${base(organizationId)}/espacios/${encodeURIComponent(projectId)}/activar`, { method: 'POST' }),
+  );
+}
+
+// ── Desactivar / activar una carpeta compartida ─────────────────────────────
+// Desactivada, deja de verse para todos (el sync borra las copias de cada
+// espacio) y los originales no se tocan. Reactivar vuelve a copiar: no es
+// inmediato. La puede desactivar su dueño (el espacio) o la organización.
+
+export async function desactivarCarpeta(organizationId: string, circuloId: string): Promise<Circulo> {
+  return handleResponse<Circulo>(
+    await fetch(`${base(organizationId)}/circulos/${encodeURIComponent(circuloId)}/desactivar`, { method: 'POST' }),
+  );
+}
+
+export async function activarCarpeta(organizationId: string, circuloId: string): Promise<Circulo> {
+  return handleResponse<Circulo>(
+    await fetch(`${base(organizationId)}/circulos/${encodeURIComponent(circuloId)}/activar`, { method: 'POST' }),
+  );
+}
+
+export async function desactivarCarpetaDeEspacio(projectId: string, circuloId: string): Promise<Circulo> {
+  return handleResponse<Circulo>(
+    await fetch(`${baseEspacio(projectId)}/carpetas/${encodeURIComponent(circuloId)}/desactivar`, { method: 'POST' }),
+  );
+}
+
+export async function activarCarpetaDeEspacio(projectId: string, circuloId: string): Promise<Circulo> {
+  return handleResponse<Circulo>(
+    await fetch(`${baseEspacio(projectId)}/carpetas/${encodeURIComponent(circuloId)}/activar`, { method: 'POST' }),
   );
 }

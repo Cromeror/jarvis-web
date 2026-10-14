@@ -1,17 +1,9 @@
-import React, { useEffect, useRef, useState } from "react";
-import type {
-  Circulo,
-  MiembroDeCirculo,
-  ProyectoDeRed,
-} from "../../lib/red-de-contexto-api.js";
-import {
-  estadoEnLaCarpeta,
-  slugDeNombre,
-  slugValido,
-} from "../../modules/red-de-contexto/estado.js";
-import type { StatusBadgeTone } from "../ui/atoms/StatusBadge.js";
-import { Tabla, type ColumnaDeTabla } from "../ui/Tabla.js";
-import { ChipsDeEspacios } from "./ChipsDeEspacios.js";
+import React, { useEffect, useRef, useState } from 'react';
+import type { Circulo, MiembroDeCirculo, ProyectoDeRed } from '../../lib/red-de-contexto-api.js';
+import { estadoEnLaCarpeta, slugDeNombre, slugValido } from '../../modules/red-de-contexto/estado.js';
+import type { StatusBadgeTone } from '../ui/atoms/StatusBadge.js';
+import { Tabla, type ColumnaDeTabla } from '../ui/Tabla.js';
+import { ChipsDeEspacios } from './ChipsDeEspacios.js';
 
 /**
  * LAS PIEZAS DE LAS CARPETAS COMPARTIDAS que comparten las dos superficies de
@@ -21,23 +13,22 @@ import { ChipsDeEspacios } from "./ChipsDeEspacios.js";
  */
 
 /** Mismas superficies que `OrganizationPortsSection`: viven en el mismo panel y tienen que leerse igual. */
-export const PANEL_CLASS =
-  "rounded-xl border border-white/10 bg-white/[0.03] p-4";
+export const PANEL_CLASS = 'rounded-xl border border-border bg-muted p-4';
 export const INPUT_CLASS =
-  "w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 outline-none focus:border-indigo-400 [&>option]:bg-[#221f1d] [&>option]:text-white";
+  'w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary [&>option]:bg-popover [&>option]:text-popover-foreground';
 export const BOTON_PRIMARIO =
-  "rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50";
+  'rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50';
 
 export type CarpetaDeTabla = Circulo & { miembros: MiembroDeCirculo[] };
 
 /* La tabla reparte el ancho que sobra en proporción al ideal de cada columna:
    con 200 · 200 · 600, «Se comparte con» se queda con el 60%. */
 const COLUMNAS_CARPETAS: ColumnaDeTabla[] = [
-  { id: "nombre", label: "Nombre", dato: "nombre", w: 200 },
-  { id: "descripcion", label: "Descripción", w: 200, orden: false },
+  { id: 'nombre', label: 'Nombre', dato: 'nombre', w: 200 },
+  { id: 'descripcion', label: 'Descripción', w: 200, orden: false },
   {
-    id: "espacios",
-    label: "Se comparte con",
+    id: 'espacios',
+    label: 'Se comparte con',
     w: 600,
     elastica: true,
     orden: false,
@@ -53,16 +44,13 @@ const DESCRIPCION_MAX = 200;
  * espacio, como un ícono —se ve de un vistazo cuál anda mal— con su detalle en
  * el globo.
  */
-const ICONO_DE_ESTADO: Record<
-  StatusBadgeTone,
-  { icono: string; clase: string }
-> = {
-  success: { icono: "check", clase: "text-emerald-400" },
-  warning: { icono: "alerta", clase: "text-amber-400" },
-  danger: { icono: "alerta", clase: "text-red-400" },
-  neutral: { icono: "reloj", clase: "text-slate-400" },
+const ICONO_DE_ESTADO: Record<StatusBadgeTone, { icono: string; clase: string }> = {
+  success: { icono: 'check', clase: 'text-emerald-400' },
+  warning: { icono: 'alerta', clase: 'text-amber-400' },
+  danger: { icono: 'alerta', clase: 'text-red-400' },
+  neutral: { icono: 'reloj', clase: 'text-muted-foreground' },
   // Pendiente de aprobación: espera a una persona, no al sync.
-  info: { icono: "reloj", clase: "text-sky-400" },
+  info: { icono: 'reloj', clase: 'text-sky-400' },
 };
 
 /**
@@ -88,8 +76,8 @@ export function TablaDeCarpetas({
   mostrarDueno = false,
   onCompartir,
   onDejarDeCompartir,
-  onEditar,
-  onBorrar,
+  onDesactivar,
+  onActivar,
 }: {
   carpetas: CarpetaDeTabla[];
   proyectos: ProyectoDeRed[];
@@ -98,10 +86,18 @@ export function TablaDeCarpetas({
   /** Decir de qué espacio es cada carpeta (en la superficie de la organización). */
   mostrarDueno?: boolean;
   onCompartir: (c: CarpetaDeTabla, p: ProyectoDeRed) => void;
-  onDejarDeCompartir: (c: CarpetaDeTabla, p: ProyectoDeRed) => void;
-  onEditar: (c: CarpetaDeTabla) => void;
-  onBorrar: (c: CarpetaDeTabla) => void;
+  /* Las tres de abajo ya vienen CONFIRMADAS: la tabla pide la confirmación —en
+     un diálogo, encima del modal de Ajustes, sin cerrarlo— y recién ahí llama. */
+  onDejarDeCompartir: (c: CarpetaDeTabla, p: ProyectoDeRed) => Promise<boolean>;
+  onDesactivar: (c: CarpetaDeTabla) => Promise<boolean>;
+  onActivar: (c: CarpetaDeTabla) => Promise<boolean>;
 }): React.ReactElement {
+  /** La acción que espera confirmación: qué se va a hacer, con qué carpeta y (si aplica) con qué espacio. */
+  const [porConfirmar, setPorConfirmar] = useState<
+    | { tipo: 'dejar'; c: CarpetaDeTabla; p: ProyectoDeRed; pendiente: boolean }
+    | { tipo: 'desactivar' | 'activar'; c: CarpetaDeTabla }
+    | null
+  >(null);
   const porId = new Map(proyectos.map((p) => [p.id, p]));
   const proyectoDe = (m: MiembroDeCirculo): ProyectoDeRed =>
     porId.get(m.project_id) ?? {
@@ -114,8 +110,7 @@ export function TablaDeCarpetas({
      miembro de su propia carpeta porque el sync necesita leer lo que publica,
      pero no "se comparte" consigo mismo: nombrarlo acá, o dejar tildarlo en el
      menú, era decir que se compartía con él. */
-  const conQuien = (c: CarpetaDeTabla) =>
-    c.miembros.filter((m) => m.project_id !== c.owner_project_id);
+  const conQuien = (c: CarpetaDeTabla) => c.miembros.filter((m) => m.project_id !== c.owner_project_id);
   const estados = (c: CarpetaDeTabla) =>
     conQuien(c).map((m) => ({
       nombre: proyectoDe(m).name,
@@ -124,48 +119,46 @@ export function TablaDeCarpetas({
 
   function celda(c: CarpetaDeTabla, col: ColumnaDeTabla): React.ReactNode {
     switch (col.id) {
-      case "nombre":
+      case 'nombre':
         /* El nombre y, abajo, dónde vive en cada espacio. */
         return (
           <div className="py-2 leading-tight">
-            <div className="truncate font-medium text-white">{c.nombre}</div>
-            <code className="text-[11px] text-slate-400">
-              contexto-org/{c.slug}/
-            </code>
+            <div className="flex items-center gap-2">
+              <span className={`truncate font-medium ${c.desactivada_at ? 'text-muted-foreground' : 'text-foreground'}`}>
+                {c.nombre}
+              </span>
+              {c.desactivada_at && (
+                <span className="shrink-0 rounded-full border border-border px-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+                  Desactivada
+                </span>
+              )}
+            </div>
+            <code className="text-[11px] text-muted-foreground">contexto-org/{c.slug}/</code>
             {mostrarDueno && (
-              <div className="text-[11px] text-slate-500">
+              <div className="text-[11px] text-muted-foreground">
                 {c.owner_project_id
                   ? `de ${porId.get(c.owner_project_id)?.name ?? c.owner_project_id}`
-                  : "de la organización"}
+                  : 'de la organización'}
               </div>
             )}
           </div>
         );
-      case "descripcion": {
+      case 'descripcion': {
         /* Hasta dos líneas y DESCRIPCION_MAX caracteres; completa en el globo.
            La tabla deja una sola línea por celda (su CSS es del template y no se
            toca), así que el salto se habilita acá adentro. */
         const texto = c.contexto.trim();
-        if (!texto)
-          return <span className="text-slate-500">Sin descripción</span>;
-        const corto =
-          texto.length > DESCRIPCION_MAX
-            ? `${texto.slice(0, DESCRIPCION_MAX).trimEnd()}…`
-            : texto;
+        if (!texto) return <span className="text-muted-foreground">Sin descripción</span>;
+        const corto = texto.length > DESCRIPCION_MAX ? `${texto.slice(0, DESCRIPCION_MAX).trimEnd()}…` : texto;
         return (
-          <div
-            className="line-clamp-2 whitespace-normal py-2 text-xs leading-snug text-slate-300"
-            title={texto}
-          >
+          <div className="line-clamp-2 whitespace-normal py-2 text-xs leading-snug text-secondary-foreground" title={texto}>
             {corto}
           </div>
         );
       }
-      case "espacios":
-        if (conQuien(c).length === 0)
-          return (
-            <span className="text-slate-500">Todavía con ningún espacio</span>
-          );
+      case 'espacios':
+        if (c.desactivada_at) return <span className="text-muted-foreground">Desactivada: no se entrega a nadie</span>;
+        if (conQuien(c).length === 0) return <span className="text-muted-foreground">Todavía con ningún espacio</span>;
         return (
           <ChipsDeEspacios
             chips={estados(c).map((x) => {
@@ -175,7 +168,7 @@ export function TablaDeCarpetas({
                 icono: x.e.icono ?? i.icono,
                 claseIcono: i.clase,
                 etiqueta: x.e.etiqueta,
-                detalle: `${x.e.etiqueta}${x.e.detalle ? ` — ${x.e.detalle}` : ""}`,
+                detalle: `${x.e.etiqueta}${x.e.detalle ? ` — ${x.e.detalle}` : ''}`,
               };
             })}
           />
@@ -185,94 +178,250 @@ export function TablaDeCarpetas({
     }
   }
 
+  const confirmacion = (() => {
+    const pc = porConfirmar;
+    if (!pc) return null;
+    if (pc.tipo === 'dejar' && pc.pendiente) {
+      return {
+        titulo: `Retirar la invitación a «${pc.p.name}»`,
+        puntos: [
+          'Todavía no recibió nada: la invitación esperaba a la organización.',
+          'Para volver a compartir con este espacio hay que invitarlo de nuevo, y que la organización lo apruebe.',
+        ],
+        boton: 'Retirar la invitación',
+        peligro: true,
+        hacer: () => onDejarDeCompartir(pc.c, pc.p),
+      };
+    }
+    if (pc.tipo === 'dejar') {
+      return {
+        titulo: `Dejar de compartir «${pc.c.nombre}» con «${pc.p.name}»`,
+        puntos: [
+          `«${pc.p.name}» pierde el acceso: se borran de su disco las copias que recibió de esta carpeta.`,
+          'Lo que ese espacio publicó en ella deja de llegarles a los demás.',
+          'Los originales, en el publicado/ de cada espacio, no se tocan.',
+          'Volver a compartir no es inmediato: hay que invitarlo de nuevo y sincronizar, es decir, que el sistema vuelva a copiar los archivos.',
+        ],
+        boton: 'Dejar de compartir',
+        peligro: true,
+        hacer: () => onDejarDeCompartir(pc.c, pc.p),
+      };
+    }
+    if (pc.tipo === 'desactivar') {
+      return {
+        titulo: `Desactivar «${pc.c.nombre}»`,
+        puntos: [
+          'Deja de verse para todos los espacios con los que se comparte: se borran las copias de sus discos.',
+          'Los originales, en el publicado/ de cada espacio, no se tocan.',
+          'Reactivarla no es inmediato: el sistema tiene que volver a copiar los archivos a cada espacio, y eso lleva una sincronización.',
+        ],
+        boton: 'Desactivar',
+        peligro: true,
+        hacer: () => onDesactivar(pc.c),
+      };
+    }
+    return {
+      titulo: `Activar «${pc.c.nombre}»`,
+      puntos: [
+        'Vuelve a llegarles a los espacios con los que se comparte.',
+        'No es inmediato: el sistema tiene que volver a copiar los archivos a cada espacio, y eso lleva una sincronización.',
+      ],
+      boton: 'Activar',
+      peligro: false,
+      hacer: () => onActivar(pc.c),
+    };
+  })();
+
   return (
-    <Tabla<CarpetaDeTabla>
-      titulo="Carpetas compartidas"
-      columnas={COLUMNAS_CARPETAS}
-      filas={carpetas}
-      clave={(c) => c.id}
-      nombreFila={(c) => c.nombre}
-      seleccion={false}
-      celda={celda}
-      menuFila={(c) => {
-        const miembroDe = (id: string) =>
-          c.miembros.find((m) => m.project_id === id);
-        const candidatos = proyectos.filter(
-          (p) => p.id !== excluir && p.id !== c.owner_project_id,
-        );
-        return {
-          groups: [
-            {
-              items: candidatos.length
-                ? candidatos.map((p) => {
-                    const m = miembroDe(p.id);
-                    const sufijo =
-                      m?.estado === "pendiente"
-                        ? " — pendiente de aprobación"
-                        : m?.estado === "rechazada"
-                          ? " — rechazada"
-                          : !p.con_modulo
-                            ? " — sin la red"
-                            : !p.tiene_root
-                              ? " — sin carpeta"
-                              : "";
-                    /* Sin carpeta en el servidor no hay dónde recibir: no se
+    <>
+      <ConfirmarAccion
+        abierta={confirmacion !== null}
+        titulo={confirmacion?.titulo ?? ''}
+        puntos={confirmacion?.puntos ?? []}
+        boton={confirmacion?.boton ?? ''}
+        peligro={confirmacion?.peligro ?? false}
+        onConfirmar={() => (confirmacion ? confirmacion.hacer() : Promise.resolve(false))}
+        onCerrar={() => setPorConfirmar(null)}
+      />
+      <Tabla<CarpetaDeTabla>
+        titulo="Carpetas compartidas"
+        columnas={COLUMNAS_CARPETAS}
+        filas={carpetas}
+        clave={(c) => c.id}
+        nombreFila={(c) => c.nombre}
+        seleccion={false}
+        celda={celda}
+        menuFila={(c) => {
+          const miembroDe = (id: string) => c.miembros.find((m) => m.project_id === id);
+          const candidatos = proyectos.filter((p) => p.id !== excluir && p.id !== c.owner_project_id);
+          return {
+            groups: [
+              {
+                items: candidatos.length
+                  ? candidatos.map((p) => {
+                      const m = miembroDe(p.id);
+                      const sufijo =
+                        m?.estado === 'pendiente'
+                          ? ' — pendiente de aprobación'
+                          : m?.estado === 'rechazada'
+                            ? ' — rechazada'
+                            : !p.con_modulo
+                              ? ' — sin la red'
+                              : !p.tiene_root
+                                ? ' — sin carpeta'
+                                : '';
+                      /* Sin carpeta en el servidor no hay dónde recibir: no se
                        ofrece invitarlo. Sí se puede sacar si ya estaba. */
-                    const sinDondeRecibir = !p.tiene_root && !m;
-                    // Desactivado en la red: no comparte ni recibe, así que
-                    // invitarlo no le entregaría nada.
-                    const apagado = Boolean(p.desactivado) && !m;
-                    return {
-                      id: `espacio:${p.id}`,
-                      label: apagado
-                        ? `${p.name} — desactivado en la red`
-                        : sinDondeRecibir
-                          ? `${p.name} — sin carpeta, no puede recibir`
-                          : `${p.name}${sufijo}`,
-                      // Rechazada no cuenta como compartida: tocarla la vuelve a pedir.
-                      checked: Boolean(m) && m?.estado !== "rechazada",
-                      disabled: sinDondeRecibir || apagado,
-                    };
-                  })
-                : [
-                    {
-                      id: "sin-espacios",
-                      label: "La organización no tiene espacios",
-                      disabled: true,
-                    },
-                  ],
+                      const sinDondeRecibir = !p.tiene_root && !m;
+                      // Desactivado en la red: no comparte ni recibe, así que
+                      // invitarlo no le entregaría nada.
+                      const apagado = Boolean(p.desactivado) && !m;
+                      return {
+                        id: `espacio:${p.id}`,
+                        label: apagado
+                          ? `${p.name} — desactivado en la red`
+                          : sinDondeRecibir
+                            ? `${p.name} — sin carpeta, no puede recibir`
+                            : `${p.name}${sufijo}`,
+                        // Rechazada no cuenta como compartida: tocarla la vuelve a pedir.
+                        checked: Boolean(m) && m?.estado !== 'rechazada',
+                        // Desactivada, no se comparte con nadie: primero se activa.
+                        disabled: sinDondeRecibir || apagado || Boolean(c.desactivada_at),
+                      };
+                    })
+                  : [
+                      {
+                        id: 'sin-espacios',
+                        label: 'La organización no tiene espacios',
+                        disabled: true,
+                      },
+                    ],
+              },
+              {
+                items: c.desactivada_at
+                  ? [{ id: 'activar', label: 'Activar carpeta…', icon: 'eye' }]
+                  : [
+                      {
+                        id: 'desactivar',
+                        label: 'Desactivar carpeta…',
+                        icon: 'eyeOff',
+                        danger: true,
+                      },
+                    ],
+              },
+            ],
+            onSelect: (id, fila) => {
+              if (id === 'desactivar') return setPorConfirmar({ tipo: 'desactivar', c: fila });
+              if (id === 'activar') return setPorConfirmar({ tipo: 'activar', c: fila });
+              if (id.startsWith('espacio:')) {
+                const p = porId.get(id.slice('espacio:'.length));
+                if (!p) return;
+                const m = fila.miembros.find((x) => x.project_id === p.id);
+                if (m && m.estado !== 'rechazada')
+                  setPorConfirmar({
+                    tipo: 'dejar',
+                    c: fila,
+                    p,
+                    pendiente: m.estado === 'pendiente',
+                  });
+                else onCompartir(fila, p);
+              }
             },
-            {
-              items: [
-                {
-                  id: "editar",
-                  label: "Editar nombre y contexto…",
-                  icon: "sliders",
-                },
-              ],
-            },
-            {
-              items: [{ id: "borrar", label: "Borrar carpeta", danger: true }],
-            },
-          ],
-          onSelect: (id, fila) => {
-            if (id === "editar") return onEditar(fila);
-            if (id === "borrar") return onBorrar(fila);
-            if (id.startsWith("espacio:")) {
-              const p = porId.get(id.slice("espacio:".length));
-              if (!p) return;
-              const m = fila.miembros.find((x) => x.project_id === p.id);
-              if (m && m.estado !== "rechazada") onDejarDeCompartir(fila, p);
-              else onCompartir(fila, p);
-            }
-          },
-        };
+          };
+        }}
+        textos={{
+          vacio: 'Todavía no hay carpetas compartidas',
+          vacioPaso: 'Creá la primera con el formulario de arriba.',
+        }}
+      />
+    </>
+  );
+}
+
+/**
+ * Confirmar una acción que AFECTA A OTROS ESPACIOS: dice qué pasa, punto por
+ * punto, y sobre todo que volver atrás no es inmediato —para la interfaz es un
+ * botón, para el sistema es copiar archivos—. Es un `<dialog>` con su propio
+ * botón y no un `confirm()`: quien confirma tiene que poder leerlo.
+ *
+ * Se abre ENCIMA del modal de Ajustes y cerrarlo no lo cierra: `AjustesModal`
+ * sólo atiende su propio `close`.
+ */
+export function ConfirmarAccion({
+  abierta,
+  titulo,
+  puntos,
+  boton,
+  peligro,
+  onConfirmar,
+  onCerrar,
+}: {
+  abierta: boolean;
+  titulo: string;
+  puntos: string[];
+  boton: string;
+  peligro: boolean;
+  onConfirmar: () => Promise<boolean>;
+  onCerrar: () => void;
+}): React.ReactElement {
+  const ref = useRef<HTMLDialogElement>(null);
+  const [enviando, setEnviando] = useState(false);
+
+  useEffect(() => {
+    const d = ref.current;
+    if (!d) return;
+    if (abierta && !d.open) d.showModal();
+    if (!abierta && d.open) d.close();
+  }, [abierta]);
+
+  async function confirmar(): Promise<void> {
+    setEnviando(true);
+    const ok = await onConfirmar();
+    setEnviando(false);
+    if (ok) ref.current?.close();
+  }
+
+  return (
+    <dialog
+      ref={ref}
+      className="dialog"
+      onClose={(e) => {
+        // Que el `close` no siga subiendo por el árbol de React hasta el modal de Ajustes.
+        e.stopPropagation();
+        onCerrar();
       }}
-      textos={{
-        vacio: "Todavía no hay carpetas compartidas",
-        vacioPaso: "Creá la primera con el formulario de arriba.",
+      onClick={(e) => {
+        e.stopPropagation();
+        if (e.target === ref.current) ref.current?.close();
       }}
-    />
+    >
+      <article style={{ width: '100%', maxWidth: 'min(560px, calc(100vw - 2rem))' }}>
+        <header>
+          <h2>{titulo}</h2>
+        </header>
+        <section>
+          <ul className="list-disc space-y-1 pl-5 text-sm text-secondary-foreground">
+            {puntos.map((p) => (
+              <li key={p}>{p}</li>
+            ))}
+          </ul>
+        </section>
+        <footer>
+          <button type="button" className="btn" data-variant="outline" onClick={() => ref.current?.close()}>
+            Cancelar
+          </button>
+          <button
+            type="button"
+            className="btn"
+            data-variant={peligro ? 'destructive' : undefined}
+            disabled={enviando}
+            onClick={() => void confirmar()}
+          >
+            {enviando ? 'Un momento…' : boton}
+          </button>
+        </footer>
+      </article>
+    </dialog>
   );
 }
 
@@ -290,14 +439,11 @@ export function EditarCarpetaDialog({
 }: {
   carpeta: Circulo | null;
   onCerrar: () => void;
-  onGuardar: (patch: {
-    nombre?: string;
-    contexto?: string;
-  }) => Promise<boolean>;
+  onGuardar: (patch: { nombre?: string; contexto?: string }) => Promise<boolean>;
 }): React.ReactElement {
   const ref = useRef<HTMLDialogElement>(null);
-  const [nombre, setNombre] = useState("");
-  const [contexto, setContexto] = useState("");
+  const [nombre, setNombre] = useState('');
+  const [contexto, setContexto] = useState('');
   const [guardando, setGuardando] = useState(false);
 
   useEffect(() => {
@@ -310,9 +456,7 @@ export function EditarCarpetaDialog({
     } else if (d.open) d.close();
   }, [carpeta]);
 
-  const cambio =
-    carpeta !== null &&
-    (nombre.trim() !== carpeta.nombre || contexto !== carpeta.contexto);
+  const cambio = carpeta !== null && (nombre.trim() !== carpeta.nombre || contexto !== carpeta.contexto);
 
   async function guardar(e: React.FormEvent): Promise<void> {
     e.preventDefault();
@@ -335,32 +479,24 @@ export function EditarCarpetaDialog({
         if (e.target === ref.current) ref.current?.close();
       }}
     >
-      <article
-        style={{ width: "100%", maxWidth: "min(640px, calc(100vw - 2rem))" }}
-      >
+      <article style={{ width: '100%', maxWidth: 'min(640px, calc(100vw - 2rem))' }}>
         <form onSubmit={(e) => void guardar(e)}>
           <header>
             <h2>Editar carpeta compartida</h2>
             {carpeta && (
               <p>
-                En cada espacio: <code>contexto-org/{carpeta.slug}/</code> — no
-                se cambia.
+                En cada espacio: <code>contexto-org/{carpeta.slug}/</code> — no se cambia.
               </p>
             )}
           </header>
           <section className="space-y-3">
             <label className="block">
-              <span className="mb-1 block text-xs text-slate-400">Nombre</span>
-              <input
-                className={INPUT_CLASS}
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-              />
+              <span className="mb-1 block text-xs text-muted-foreground">Nombre</span>
+              <input className={INPUT_CLASS} value={nombre} onChange={(e) => setNombre(e.target.value)} />
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs text-slate-400">
-                Contexto general — lo leen todos los espacios con los que se
-                comparte, y su IA, en el LEEME.md
+              <span className="mb-1 block text-xs text-muted-foreground">
+                Contexto general — lo leen todos los espacios con los que se comparte, y su IA, en el LEEME.md
               </span>
               <textarea
                 className={`${INPUT_CLASS} min-h-40 font-mono text-xs`}
@@ -371,20 +507,11 @@ export function EditarCarpetaDialog({
             </label>
           </section>
           <footer>
-            <button
-              type="button"
-              className="btn"
-              data-variant="outline"
-              onClick={() => ref.current?.close()}
-            >
+            <button type="button" className="btn" data-variant="outline" onClick={() => ref.current?.close()}>
               Cancelar
             </button>
-            <button
-              type="submit"
-              className="btn"
-              disabled={!cambio || !nombre.trim() || guardando}
-            >
-              {guardando ? "Guardando…" : "Guardar"}
+            <button type="submit" className="btn" disabled={!cambio || !nombre.trim() || guardando}>
+              {guardando ? 'Guardando…' : 'Guardar'}
             </button>
           </footer>
         </form>
@@ -397,18 +524,14 @@ export function NuevoCirculo({
   onCrear,
   vacio,
 }: {
-  onCrear: (input: {
-    slug: string;
-    nombre: string;
-    contexto?: string;
-  }) => Promise<boolean>;
+  onCrear: (input: { slug: string; nombre: string; contexto?: string }) => Promise<boolean>;
   vacio: boolean;
 }): React.ReactElement {
-  const [nombre, setNombre] = useState("");
-  const [slug, setSlug] = useState("");
+  const [nombre, setNombre] = useState('');
+  const [slug, setSlug] = useState('');
   /** Mientras nadie toque el slug, sigue al nombre. Una vez editado a mano, es de quien lo editó. */
   const [slugTocado, setSlugTocado] = useState(false);
-  const [contexto, setContexto] = useState("");
+  const [contexto, setContexto] = useState('');
   const [creando, setCreando] = useState(false);
 
   const slugFinal = slugTocado ? slug : slugDeNombre(nombre);
@@ -423,29 +546,27 @@ export function NuevoCirculo({
     });
     setCreando(false);
     if (ok) {
-      setNombre("");
-      setSlug("");
+      setNombre('');
+      setSlug('');
       setSlugTocado(false);
-      setContexto("");
+      setContexto('');
     }
   }
 
   return (
     <div className={PANEL_CLASS}>
-      <h3 className="mb-1 text-sm font-semibold text-white">
-        {vacio
-          ? "Crear la primera carpeta compartida"
-          : "Nueva carpeta compartida"}
+      <h3 className="mb-1 text-sm font-semibold text-foreground">
+        {vacio ? 'Crear la primera carpeta compartida' : 'Nueva carpeta compartida'}
       </h3>
       {vacio && (
-        <p className="mb-3 text-xs text-slate-400">
-          Por ejemplo «Producto», con diseño y desarrollo adentro: lo que diseño
-          publica le llega a desarrollo, y al revés.
+        <p className="mb-3 text-xs text-muted-foreground">
+          Por ejemplo «Producto», con diseño y desarrollo adentro: lo que diseño publica le llega a desarrollo, y al
+          revés.
         </p>
       )}
       <div className="flex flex-wrap items-end gap-3">
         <label className="min-w-56 flex-1">
-          <span className="mb-1 block text-xs text-slate-400">Nombre</span>
+          <span className="mb-1 block text-xs text-muted-foreground">Nombre</span>
           <input
             className={INPUT_CLASS}
             value={nombre}
@@ -454,9 +575,7 @@ export function NuevoCirculo({
           />
         </label>
         <label className="w-56">
-          <span className="mb-1 block text-xs text-slate-400">
-            Carpeta (no se cambia después)
-          </span>
+          <span className="mb-1 block text-xs text-muted-foreground">Carpeta (no se cambia después)</span>
           <input
             className={`${INPUT_CLASS} font-mono`}
             value={slugFinal}
@@ -470,12 +589,11 @@ export function NuevoCirculo({
       </div>
       {slugFinal && !slugValido(slugFinal) && (
         <p className="mt-1 text-xs text-amber-300">
-          La carpeta va en minúsculas, números y guiones, y empieza con letra o
-          número.
+          La carpeta va en minúsculas, números y guiones, y empieza con letra o número.
         </p>
       )}
       <label className="mt-3 block">
-        <span className="mb-1 block text-xs text-slate-400">
+        <span className="mb-1 block text-xs text-muted-foreground">
           Contexto general (opcional, se puede escribir después)
         </span>
         <textarea
@@ -486,12 +604,7 @@ export function NuevoCirculo({
         />
       </label>
       <div className="mt-3">
-        <button
-          type="button"
-          className={BOTON_PRIMARIO}
-          disabled={!valido || creando}
-          onClick={() => void crear()}
-        >
+        <button type="button" className={BOTON_PRIMARIO} disabled={!valido || creando} onClick={() => void crear()}>
           Crear carpeta compartida
         </button>
       </div>
