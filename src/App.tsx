@@ -10,7 +10,6 @@ import { WorkspacesPage } from './pages/WorkspacesPage.js';
 import { LoginPage } from './pages/LoginPage.js';
 import { CatalogPage } from './pages/CatalogPage.js';
 import { PortGrantsPage } from './pages/PortGrantsPage.js';
-import { OrganizacionPage } from './pages/OrganizacionPage.js';
 import { SuitePage } from './pages/SuitePage.js';
 import { UsersPage } from './pages/UsersPage.js';
 import { PreviewLoginPage } from './pages/PreviewLoginPage.js';
@@ -76,7 +75,6 @@ export default function App(): React.ReactElement {
           <Route path="/users" element={<UsersPage />} />
           <Route path="/catalogo" element={<CatalogPage />} />
           <Route path="/puertos" element={<PortGrantsPage />} />
-          <Route path="/organizacion" element={<OrganizacionPage />} />
           {/* El proyecto va en la URL porque las suites son SUYAS: el mismo
               slug puede estar asignado a dos proyectos y no son la misma vista. */}
           <Route path="/suites/:projectId/:suiteSlug" element={<SuitePage />} />

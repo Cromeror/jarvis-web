@@ -44,8 +44,20 @@ export interface CatalogModule {
   status: 'active' | 'missing';
   /** `any` = acepta también las herramientas abiertas; `declared` = sólo las que lo nombran. */
   accepts: 'any' | 'declared';
+  /** Para quién es: el catálogo (`cliente` = el espacio, `organizacion` = la organización como tal). */
+  ambito: 'cliente' | 'organizacion';
+  /**
+   * DÓNDE SE MUESTRA: `riel` (la navegación) o `ajustes` (el modal de Ajustes).
+   * Independiente de `ambito`. Ver `docs/05-ambito-de-los-modulos.md` del workspace.
+   */
+  superficie: 'riel' | 'ajustes';
   created_at: string;
   updated_at: string;
+}
+
+/** Si un módulo se dibuja en la navegación. Lo de `ajustes` va al modal de Ajustes, no al riel. */
+export function vaEnElRiel(m: Pick<CatalogModule, 'superficie'>): boolean {
+  return m.superficie !== 'ajustes';
 }
 
 export interface CatalogSuite {

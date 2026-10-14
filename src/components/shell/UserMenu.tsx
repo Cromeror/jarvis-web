@@ -1,4 +1,5 @@
 import React from 'react';
+import { useAjustes } from '../../hooks/useAjustes.js';
 import { DropdownMenu } from 'radix-ui';
 import { Icon } from '../Icon.js';
 import { useAuth } from '../../hooks/useAuth.js';
@@ -48,14 +49,15 @@ const TEMAS: { valor: Tema; icono: string; etiqueta: string }[] = [
   { valor: 'dark', icono: 'moon', etiqueta: 'Oscuro' },
 ];
 
-const ACCIONES: { icono: string; etiqueta: string; atajo?: string }[] = [
-  { icono: 'sliders', etiqueta: 'Ajustes' },
+const ACCIONES: { icono: string; etiqueta: string; atajo?: string; ajustes?: true }[] = [
+  { icono: 'sliders', etiqueta: 'Ajustes', ajustes: true },
   { icono: 'grid', etiqueta: 'Atajos de teclado', atajo: '⌘K' },
   { icono: 'info', etiqueta: 'Ayuda' },
 ];
 
 export function UserMenu(): React.ReactElement {
   const { user, logout } = useAuth();
+  const ajustes = useAjustes();
   const { projectId, proyectos, elegir } = useActiveProject();
   const tema = useTheme();
 
@@ -165,7 +167,7 @@ export function UserMenu(): React.ReactElement {
           </DropdownMenu.Separator>
 
           {ACCIONES.map((a) => (
-            <DropdownMenu.Item key={a.etiqueta} asChild>
+            <DropdownMenu.Item key={a.etiqueta} onSelect={a.ajustes ? () => ajustes.abrir() : undefined} asChild>
               <button type="button">
                 <Icon name={a.icono} />
                 <span>{a.etiqueta}</span>

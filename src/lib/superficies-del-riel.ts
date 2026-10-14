@@ -1,4 +1,5 @@
 import type { CatalogSuite, CatalogModuleTool } from './catalog-api.js';
+import { vaEnElRiel } from './catalog-api.js';
 
 /**
  * QUÉ ENTRADAS TIENE EL RIEL — la regla sola, sin render.
@@ -96,17 +97,6 @@ const ADMINISTRACION: Superficie[] = [
   { id: '/users', to: '/users', match: '/users', icono: 'users', label: 'Usuarios', directa: true, alPie: true },
 ];
 
-/** La configuración de la organización: sus módulos de organización (ver `pages/OrganizacionPage.tsx`). */
-const MI_ORGANIZACION: Superficie = {
-  id: '/organizacion',
-  to: '/organizacion',
-  match: '/organizacion',
-  icono: 'shield',
-  label: 'Mi organización',
-  directa: true,
-  alPie: true,
-};
-
 /**
  * Dónde vive la pantalla de cada módulo de INSTALACIÓN.
  *
@@ -159,15 +149,9 @@ export function superficiesDe(entrada: {
    * obligaría a cargar algo que no usan. Quien dibuja el riel (`Sidebar`) sí lo
    * pasa.
    */
-  modulosDeInstalacion?: { key: string; name: string }[];
-  /**
-   * Si este usuario tiene algo que configurar en alguna organización: un
-   * permiso de organización en alguna de las suyas. El operador siempre lo
-   * tiene. Omitirlo = no, y la entrada no se dibuja.
-   */
-  configuraOrganizacion?: boolean;
+  modulosDeInstalacion?: { key: string; name: string; superficie?: 'riel' | 'ajustes' }[];
 }): Superficie[] {
-  const { suites, projectId, esOperador, modulosDeInstalacion = [], configuraOrganizacion = false } = entrada;
+  const { suites, projectId, esOperador, modulosDeInstalacion = [] } = entrada;
 
   const herramientas: Superficie[] = (esOperador ? HERRAMIENTAS : []).map((h) => ({
     id: h.id,
@@ -182,9 +166,15 @@ export function superficiesDe(entrada: {
     directa: true,
   }));
 
+  /* Sólo los módulos que se muestran en el riel: los de `ajustes` van al modal de
+     Ajustes. Una suite cuyos módulos son todos de Ajustes no tiene nada que
+     dibujar acá, y no aparece. */
   const deSuites: Superficie[] =
     projectId && !esOperador
-      ? suites.map((suite) => ({
+      ? suites
+          .map((suite) => ({ ...suite, modules: suite.modules.filter(vaEnElRiel) }))
+          .filter((suite) => suite.modules.length > 0)
+          .map((suite) => ({
           id: `/suites/${suite.slug}`,
           to: `/suites/${projectId}/${suite.slug}`,
           match: `/suites/${projectId}/${suite.slug}`,
@@ -213,6 +203,7 @@ export function superficiesDe(entrada: {
      superadmin del cliente pueda editar. */
   const deInstalacion: Superficie[] = esOperador
     ? modulosDeInstalacion.flatMap((m) => {
+        if (m.superficie === 'ajustes') return [];
         const pantalla = PANTALLAS_DE_INSTALACION[m.key];
         if (!pantalla) return [];
         return [{
@@ -227,14 +218,12 @@ export function superficiesDe(entrada: {
       })
     : [];
 
-  /* «Mi organización»: los módulos de ORGANIZACIÓN —configuración que vale para
-     todos los proyectos de la organización—. Va al pie, con la administración,
-     y la ve quien tenga algo que configurar ahí, cliente u operador: el
-     administrador de una organización es un cliente con un rol, no otro tipo de
-     cuenta. */
-  const deOrganizacion: Superficie[] = configuraOrganizacion ? [MI_ORGANIZACION] : [];
+  /* La configuración de la organización NO va en el riel: vive en el modal
+     de Ajustes (menú del avatar y pie de la navegación). Era una entrada «Mi
+     organización» que el operador veía siempre, aunque no hubiera nada que
+     configurar. */
 
-  return [...herramientas, ...deSuites, ...(esOperador ? ADMINISTRACION : []), ...deOrganizacion, ...deInstalacion];
+  return [...herramientas, ...deSuites, ...(esOperador ? ADMINISTRACION : []), ...deInstalacion];
 }
 
 /**

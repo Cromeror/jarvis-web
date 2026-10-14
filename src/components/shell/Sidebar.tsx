@@ -4,7 +4,7 @@ import { Icon } from '../Icon.js';
 import { useActiveProject } from '../../hooks/useActiveProject.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useInstallationModules } from '../../hooks/useInstallationModules.js';
-import { useConfiguraOrganizacion } from '../../hooks/useConfiguraOrganizacion.js';
+import { useAjustes } from '../../hooks/useAjustes.js';
 import {
   superficiesDe,
   superficieDeLaRuta,
@@ -65,13 +65,12 @@ export function Sidebar({ children }: { children?: React.ReactNode }): React.Rea
   const [query, setQuery] = useState('');
 
   const modulosDeInstalacion = useInstallationModules();
-  const configuraOrganizacion = useConfiguraOrganizacion();
+  const ajustes = useAjustes();
   const superficies = superficiesDe({
     suites,
     projectId,
     esOperador: user?.account_type === 'operator',
     modulosDeInstalacion,
-    configuraOrganizacion,
   });
   /* El riel de un cliente sin suites habilitadas queda VACÍO, y entonces no
      hay superficie que describir: el panel se dibuja igual pero sin rótulo de
@@ -247,6 +246,7 @@ export function Sidebar({ children }: { children?: React.ReactNode }): React.Rea
             type="button"
             tabIndex={-1}
             data-n="Ajustes"
+            onClick={() => ajustes.abrir()}
             onPointerEnter={(e) => llevarA(e.currentTarget)}
             onFocus={(e) => llevarA(e.currentTarget)}
           >

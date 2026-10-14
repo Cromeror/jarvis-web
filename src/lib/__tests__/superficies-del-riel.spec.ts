@@ -36,6 +36,8 @@ const suite = (slug: string, modulos: string[]): CatalogSuite => ({
     origin: 'manual' as const,
     status: 'active' as const,
     accepts: 'any' as const,
+    ambito: 'cliente' as const,
+    superficie: 'riel' as const,
     created_at: '',
     updated_at: '',
   })),
@@ -289,20 +291,29 @@ describe('el borde con la API: `moduleTool` se traduce a `herramienta` acá y no
   });
 });
 
-describe('«Mi organización» en el riel', () => {
-  const ids = (configura: boolean, esOperador: boolean) =>
-    superficiesDe({ suites: [], projectId: 'p1', esOperador, configuraOrganizacion: configura }).map((x) => x.id);
+describe('la configuración de la organización no va en el riel', () => {
+  it('ni para el cliente ni para el operador: vive en el modal de Ajustes', () => {
+    for (const esOperador of [false, true]) {
+      const ids = superficiesDe({ suites: [], projectId: 'p1', esOperador }).map((x) => x.id);
+      expect(ids).not.toContain('/organizacion');
+    }
+  });
+});
 
-  it('la ve quien tiene algo que configurar, cliente u operador, al pie', () => {
-    expect(ids(true, false)).toContain('/organizacion');
-    expect(ids(true, true)).toContain('/organizacion');
-    const entrada = superficiesDe({ suites: [], projectId: null, esOperador: false, configuraOrganizacion: true }).find(
-      (x) => x.id === '/organizacion',
-    );
-    expect(entrada?.alPie).toBe(true);
+describe('la superficie de cada módulo decide si va en el riel', () => {
+  const conAjustes = (base: CatalogSuite, enAjustes: string[]): CatalogSuite => ({
+    ...base,
+    modules: base.modules.map((m) => (enAjustes.includes(m.slug) ? { ...m, superficie: 'ajustes' as const } : m)),
   });
 
-  it('sin nada que configurar no aparece: llevaría a una pantalla vacía', () => {
-    expect(ids(false, false)).not.toContain('/organizacion');
+  it('un módulo de Ajustes no aparece en el riel; los demás de su suite, sí', () => {
+    const s = conAjustes(suite('red', ['ver', 'compartir']), ['compartir']);
+    const entrada = superficiesDe({ suites: [s], projectId: 'p1', esOperador: false }).find((x) => x.id === '/suites/red');
+    expect(entrada?.modulos?.map((m) => m.slug)).toEqual(['ver']);
+  });
+
+  it('una suite con todos sus módulos en Ajustes no se dibuja', () => {
+    const s = conAjustes(suite('red', ['compartir']), ['compartir']);
+    expect(superficiesDe({ suites: [s], projectId: 'p1', esOperador: false }).map((x) => x.id)).not.toContain('/suites/red');
   });
 });

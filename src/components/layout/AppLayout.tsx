@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { AjustesProvider } from '../../hooks/useAjustes.js';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AppShell } from '../shell/AppShell.js';
 import { FloatingChat } from '../Chat/FloatingChat.js';
@@ -83,6 +84,7 @@ export function AppLayout(): React.ReactElement {
     // adentro cada navegación lo remontaría — o sea que volvería a pedir la
     // lista y el menú parpadearía en cada pantalla.
     <ActiveProjectProvider>
+      <AjustesProvider>
       {/* El canal de la última corrida envuelve al shell porque sus dos puntas
           están adentro y no se ven entre sí: la caja de herramientas de la
           columna derecha corre, y el área de trabajo de la página muestra. */}
@@ -99,6 +101,7 @@ export function AppLayout(): React.ReactElement {
           </MedidaDeSuperficieProvider>
         </WorkspaceAnchorProvider>
       </HerramientaCorridaProvider>
+      </AjustesProvider>
     </ActiveProjectProvider>
   );
 }

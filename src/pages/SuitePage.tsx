@@ -1,6 +1,6 @@
 import React, { Suspense, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { fetchNavigation } from '../lib/catalog-api.js';
+import { fetchNavigation, vaEnElRiel } from '../lib/catalog-api.js';
 import type { CatalogSuite } from '../lib/catalog-api.js';
 import { StatusBadge } from '../components/ui/atoms/StatusBadge.js';
 import { moduleView } from '../modules/registry.js';
@@ -57,7 +57,9 @@ export function SuitePage(): React.ReactElement {
   const suite = suites?.find((p) => p.slug === suiteSlug) ?? null;
   // Sin módulo en la URL se muestra el primero: entrar a una suite y ver una
   // pantalla vacía obligaría a un clic más para llegar a lo único que hay.
-  const modulo = suite?.modules.find((m) => m.slug === moduleSlug) ?? suite?.modules[0] ?? null;
+  // Sólo los del riel: un módulo de Ajustes no se abre como pantalla de la suite.
+  const delRiel = suite?.modules.filter(vaEnElRiel) ?? [];
+  const modulo = delRiel.find((m) => m.slug === moduleSlug) ?? delRiel[0] ?? null;
   const Vista = moduleView(modulo?.key ?? null);
 
   if (error) {
@@ -106,7 +108,7 @@ export function SuitePage(): React.ReactElement {
           dicen el riel encendido, las migas y el título del topbar, que desde
           ahora nombra el módulo. Repetirlo acá gasta el alto que necesita el
           trabajo, que es lo que la persona vino a hacer. */}
-      {suite.modules.length === 0 ? (
+      {delRiel.length === 0 ? (
         <p className="mt-4 text-sm text-slate-400">Esta suite todavía no tiene módulos configurados.</p>
       ) : (
         <>
