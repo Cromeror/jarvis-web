@@ -11,6 +11,18 @@ const STATUS_LABEL: Record<string, string> = {
   skipped: '⊘ saltado',
 };
 
+/* El estado de un paso (y del run) como `.badge` de Basecoat. Antes cada
+   tarjeta se pintaba entera con un pastel fijo (rojo, verde, índigo) que en
+   oscuro quedaba como manchas claras; ahora la tarjeta es la superficie del
+   tema y el estado lo dice el badge, con los tokens de estado. */
+const STATUS_VARIANT: Record<string, string | undefined> = {
+  pending: 'mute',
+  running: 'warning',
+  completed: 'success',
+  failed: 'error',
+  skipped: 'mute',
+};
+
 /** Groups steps into visual "layers" of steps whose [started_at, finished_at] intervals overlapped — a cheap stand-in for a real DAG layout. */
 function groupByOverlap(steps: PlanRunStepSnapshot[]): PlanRunStepSnapshot[][] {
   const withTimes = steps.filter((s) => s.started_at);
@@ -41,64 +53,71 @@ export function PlanRunView(): React.ReactElement {
   const layers = groupByOverlap(steps);
 
   return (
-    <div className="plan-run-view h-full overflow-y-auto bg-white mx-auto max-w-3xl px-6 py-6">
-      <h1 className="text-lg font-semibold text-slate-900">Plan run {runId}</h1>
-      <p className="mt-1 text-sm text-slate-500">
-        Estado: {STATUS_LABEL[runStatus] ?? runStatus}
-        {' · '}
-        {/* Dónde corrió: sin réplica es el working tree del proyecto, el mismo
-            que usa el chat. Con réplica, su worktree — nadie se pisa. */}
-        {replicaId ? 'en una réplica' : 'en el proyecto'}
-      </p>
+    <div className="plan-run-view h-full overflow-y-auto bg-[var(--sw-ink)]">
+      <div className="mx-auto flex max-w-3xl flex-col gap-4 px-6 py-6">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-lg font-semibold text-foreground">Plan run {runId}</h1>
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            Estado:
+            <span className="badge" data-variant={STATUS_VARIANT[runStatus]}>
+              {STATUS_LABEL[runStatus] ?? runStatus}
+            </span>
+            {' · '}
+            {/* Dónde corrió: sin réplica es el working tree del proyecto, el mismo
+                que usa el chat. Con réplica, su worktree — nadie se pisa. */}
+            {replicaId ? 'en una réplica' : 'en el proyecto'}
+          </p>
+        </div>
 
-      <div className="mt-4 space-y-3">
-        {layers.map((layer, i) => (
-          <div key={i} className="flex flex-wrap gap-2">
-            {layer.map((step) => (
-              <div
-                key={step.step_id}
-                className={`min-w-[220px] flex-1 rounded-xl border px-3 py-2 text-xs ${
-                  step.status === 'failed'
-                    ? 'border-red-200 bg-red-50'
-                    : step.status === 'skipped'
-                    ? 'border-slate-200 bg-slate-50 opacity-60'
-                    : step.status === 'completed'
-                    ? 'border-emerald-200 bg-emerald-50'
-                    : 'border-indigo-200 bg-indigo-50'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <strong className="font-mono text-[11px] text-slate-700">{step.step_id}</strong>
-                  <span className="text-slate-500">{STATUS_LABEL[step.status] ?? step.status}</span>
-                </div>
-                {step.started_at && (
-                  <div className="mt-1 text-[11px] text-slate-400">
-                    {step.started_at}
-                    {step.finished_at ? ` → ${step.finished_at}` : ''}
+        <div className="flex flex-col gap-3">
+          {layers.map((layer, i) => (
+            <div key={i} className="flex flex-wrap gap-2">
+              {layer.map((step) => (
+                <div
+                  key={step.step_id}
+                  className={`flex min-w-[220px] flex-1 flex-col gap-1 rounded-[var(--sw-r-lg)] border bg-card px-3 py-2 text-xs ${
+                    step.status === 'failed' ? 'border-[var(--sw-error)]' : 'border-border'
+                  } ${step.status === 'skipped' ? 'opacity-60' : ''}`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <strong className="font-mono text-[11px] text-foreground">{step.step_id}</strong>
+                    <span className="badge" data-variant={STATUS_VARIANT[step.status]}>
+                      {STATUS_LABEL[step.status] ?? step.status}
+                    </span>
                   </div>
-                )}
-                {step.error && <pre className="mt-1 whitespace-pre-wrap text-[11px] text-red-600">{step.error}</pre>}
-                {/* También en 'failed': una tool que declara el fallo en su
-                    salida deja la evidencia ahí (qué check rompió, la cola del
-                    log) y `error` sólo dice por qué el paso cuenta como fallado.
-                    Sin esto, el único caso donde el detalle importa es el único
-                    que no se ve. */}
-                {step.output && (step.status === 'completed' || step.status === 'failed') && (
-                  <pre className="mt-1 max-h-24 overflow-y-auto whitespace-pre-wrap text-[11px] text-slate-600">{step.output}</pre>
-                )}
-                {/* Live output while the step runs — same <pre> treatment as the
-                    completed output above, with a streaming caret. Fills the gap
-                    between step_started and step_completed. */}
-                {step.status === 'running' && stepProgress[step.step_id] && (
-                  <pre className="mt-1 max-h-24 overflow-y-auto whitespace-pre-wrap text-[11px] text-slate-600">
-                    {stepProgress[step.step_id]}
-                    <span className="animate-pulse text-indigo-400">▋</span>
-                  </pre>
-                )}
-              </div>
-            ))}
-          </div>
-        ))}
+                  {step.started_at && (
+                    <div className="text-[11px] text-muted-foreground">
+                      {step.started_at}
+                      {step.finished_at ? ` → ${step.finished_at}` : ''}
+                    </div>
+                  )}
+                  {step.error && (
+                    <pre className="whitespace-pre-wrap text-[11px] text-[var(--sw-error)]">{step.error}</pre>
+                  )}
+                  {/* También en 'failed': una tool que declara el fallo en su
+                      salida deja la evidencia ahí (qué check rompió, la cola del
+                      log) y `error` sólo dice por qué el paso cuenta como fallado.
+                      Sin esto, el único caso donde el detalle importa es el único
+                      que no se ve. */}
+                  {step.output && (step.status === 'completed' || step.status === 'failed') && (
+                    <pre className="max-h-24 overflow-y-auto whitespace-pre-wrap text-[11px] text-secondary-foreground">
+                      {step.output}
+                    </pre>
+                  )}
+                  {/* Live output while the step runs — same <pre> treatment as the
+                      completed output above, with a streaming caret. Fills the gap
+                      between step_started and step_completed. */}
+                  {step.status === 'running' && stepProgress[step.step_id] && (
+                    <pre className="max-h-24 overflow-y-auto whitespace-pre-wrap text-[11px] text-secondary-foreground">
+                      {stepProgress[step.step_id]}
+                      <span className="animate-pulse text-primary">▋</span>
+                    </pre>
+                  )}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

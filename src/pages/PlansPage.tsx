@@ -6,44 +6,15 @@ import { listPlans, launchPlan, approvePlan, deletePlan, getLatestPlanRun } from
 import type { PlanSummary, PlanStatus } from '../lib/plans-api.js';
 import { filterPlansByStatus } from '../lib/plan-filters.js';
 import { Toast, useToast } from '../components/ui/atoms/Toast.js';
-import { PillDropdown } from '../components/ui/atoms/PillDropdown.js';
-import { FilterPopover } from '../components/ui/atoms/FilterPopover.js';
-import { FilterIcon } from '../components/ui/atoms/FilterIcon.js';
-import { SortIcon } from '../components/ui/atoms/SortIcon.js';
-import { EntityCard } from '../components/ui/molecules/EntityCard.js';
-import { EmptyCard } from '../components/ui/molecules/EmptyCard.js';
+import { Button } from '../components/ui/atoms/Button.js';
+import { Tabla, type ColumnaDeTabla } from '../components/ui/Tabla.js';
+import { Toolbar, ToolbarBoton, ToolbarGrupo } from '../components/ui/molecules/Toolbar.js';
+import { Combo } from '../components/ui/Combo.js';
 import { PlanFullscreenModal } from '../components/Plan/PlanFullscreenModal.js';
 import { PlanLaunchDialog } from '../components/Plan/PlanLaunchDialog.js';
-import type { StatusBadgeTone } from '../components/ui/atoms/StatusBadge.js';
+import { ETIQUETA_DE_ESTADO, VARIANTE_DE_ESTADO } from '../components/Plan/estado-del-plan.js';
 
-const STATUS_LABEL: Record<PlanStatus, string> = {
-  draft: 'Borrador',
-  approved: 'Aprobado',
-  running: 'Ejecutando',
-  done: 'Completado',
-  failed: 'Falló',
-  archived: 'Archivado',
-};
-
-const STATUS_TONE: Record<PlanStatus, StatusBadgeTone> = {
-  draft: 'neutral',
-  approved: 'info',
-  running: 'warning',
-  done: 'success',
-  failed: 'danger',
-  archived: 'neutral',
-};
-
-const STATUS_FILTER_OPTIONS = (Object.entries(STATUS_LABEL) as Array<[PlanStatus, string]>).map(
-  ([value, label]) => ({ label, value }),
-);
-
-const SORT_OPTIONS = [
-  { label: 'Recently Updated', value: 'desc' as const },
-  { label: 'Oldest First', value: 'asc' as const },
-];
-
-/** Relative "hace X" from an ISO timestamp — minutes/hours/days, matches the reference card's "DEPLOYS 4M AGO" style. */
+/** Relative "hace X" from an ISO timestamp — minutes/hours/days. */
 function timeAgo(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
   const minutes = Math.floor(diffMs / 60_000);
@@ -53,6 +24,27 @@ function timeAgo(iso: string): string {
   if (hours < 24) return `hace ${hours}h`;
   return `hace ${Math.floor(hours / 24)}d`;
 }
+
+/* UN PLAN ES UNA FILA: título, proyecto, estado y cuándo se tocó, que es lo
+   que se compara entre planes. Eran tarjetas en grilla de tres, y una grilla
+   de tarjetas no se ordena ni se recorre de arriba abajo: para encontrar «el
+   último que falló» había que leerlas todas. La tabla del template trae el
+   orden por columna (por eso se fue el desplegable «Recently Updated») y el
+   menú de fila para lo que no es la acción principal.
+
+   `titulo` es la elástica: es la única de largo impredecible. */
+const COLUMNAS: ColumnaDeTabla[] = [
+  { id: 'titulo', label: 'Plan', dato: 'title', w: 420, tip: true, elastica: true },
+  { id: 'proyecto', label: 'Proyecto', w: 180, tip: true },
+  { id: 'estado', label: 'Estado', dato: 'status', w: 120 },
+  {
+    id: 'actualizado',
+    label: 'Actualizado',
+    w: 120,
+    valor: ((p: PlanSummary) => new Date(p.updated_at).getTime()) as (fila: never) => unknown,
+  },
+  { id: 'accion', label: '', w: 130, orden: false, al: 'der' },
+];
 
 /**
  * Secondary view: list of plans for a project, with a manual "Lanzar"
@@ -66,29 +58,33 @@ export function PlansPage(): React.ReactElement {
   const navigate = useNavigate();
   const { toasts, addToast, removeToast } = useToast();
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
-  const [projectFilter, setProjectFilter] = useState<string[]>([]);
+  /* Un proyecto o «todos» (`''`), y un estado o «todos». Eran filtros de
+     selección múltiple en un popover propio; ahora son los combos del template,
+     en la toolbar, como los filtros de Contabilidad. */
+  const [projectFilter, setProjectFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<PlanStatus | ''>('');
   const [plans, setPlans] = useState<PlanSummary[]>([]);
   const [busyPlanId, setBusyPlanId] = useState<string | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   /** Plan esperando que se elija dónde corre — el launch pasa por PlanLaunchDialog. */
   const [launchTarget, setLaunchTarget] = useState<PlanSummary | null>(null);
-  const [statusFilter, setStatusFilter] = useState<PlanStatus[]>([]);
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
-    listProjects().catch((err: unknown) => {
-      addToast(err instanceof Error ? err.message : 'Error al cargar proyectos', 'error');
-    }).then((data) => {
-      if (data) setProjects(data);
-    });
+    listProjects()
+      .catch((err: unknown) => {
+        addToast(err instanceof Error ? err.message : 'Error al cargar proyectos', 'error');
+      })
+      .then((data) => {
+        if (data) setProjects(data);
+      });
   }, [addToast]);
 
   // La ruta /plans/:projectId (si viene) precarga ese proyecto en el filtro; sin ella arranca "todos".
   useEffect(() => {
-    if (initialProjectId) setProjectFilter([initialProjectId]);
+    if (initialProjectId) setProjectFilter(initialProjectId);
   }, [initialProjectId]);
 
-  const projectIdsToLoad = projectFilter.length > 0 ? projectFilter : projects.map((p) => p.id);
+  const projectIdsToLoad = projectFilter ? [projectFilter] : projects.map((p) => p.id);
 
   const loadPlans = useCallback(
     (projectIds: string[]) => {
@@ -105,18 +101,12 @@ export function PlansPage(): React.ReactElement {
     if (projectIdsToLoad.length > 0) loadPlans(projectIdsToLoad);
   }, [projectIdsToLoad.join(','), loadPlans]);
 
-  const projectNameById = useMemo(
-    () => new Map(projects.map((p) => [p.id, p.name])),
-    [projects],
-  );
+  const projectNameById = useMemo(() => new Map(projects.map((p) => [p.id, p.name])), [projects]);
 
-  const visiblePlans = useMemo(() => {
-    const filtered = filterPlansByStatus(plans, statusFilter);
-    const sign = sortOrder === 'desc' ? -1 : 1;
-    return [...filtered].sort(
-      (a, b) => sign * (new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime()),
-    );
-  }, [plans, statusFilter, sortOrder]);
+  const visiblePlans = useMemo(
+    () => filterPlansByStatus(plans, statusFilter ? [statusFilter] : []),
+    [plans, statusFilter],
+  );
 
   // Polling liviano, en dos velocidades. Rápido (6s) mientras haya un plan
   // 'running', para que el badge 'Ejecutando' se actualice cuando el run
@@ -135,10 +125,13 @@ export function PlansPage(): React.ReactElement {
 
   useEffect(() => {
     if (projectIdsToLoad.length === 0) return;
-    const interval = setInterval(() => {
-      if (document.hidden) return;
-      loadPlans(projectIdsToLoad);
-    }, hasRunningPlan ? 6_000 : 20_000);
+    const interval = setInterval(
+      () => {
+        if (document.hidden) return;
+        loadPlans(projectIdsToLoad);
+      },
+      hasRunningPlan ? 6_000 : 20_000,
+    );
     return () => clearInterval(interval);
   }, [hasRunningPlan, projectIdsToLoad.join(','), loadPlans]);
 
@@ -185,106 +178,161 @@ export function PlansPage(): React.ReactElement {
     [navigate, addToast],
   );
 
-  const projectOptions = useMemo(
-    () => projects.map((p) => ({ label: p.name, value: p.id })),
-    [projects],
-  );
+  const createPlanProjectId = projectFilter || (projects[0]?.id ?? null);
 
-  const createPlanProjectId = projectFilter.length === 1 ? projectFilter[0] : (projects[0]?.id ?? null);
+  /** La acción principal de cada plan, la misma que llevaba su tarjeta. */
+  function accionDe(plan: PlanSummary): { label: string; run: () => void } {
+    const isLaunchable = plan.status === 'draft' || plan.status === 'approved';
+    if (isLaunchable) {
+      return { label: busyPlanId === plan.id ? 'Lanzando…' : 'Lanzar', run: () => setLaunchTarget(plan) };
+    }
+    return {
+      label: plan.status === 'running' ? 'Ver progreso' : 'Ver detalles',
+      run: () => void handleViewProgress(plan.id),
+    };
+  }
+
+  function celda(plan: PlanSummary, c: ColumnaDeTabla): React.ReactNode {
+    if (c.id === 'titulo') return <span className="font-medium text-foreground">{plan.title}</span>;
+    if (c.id === 'proyecto') {
+      return <span className="text-secondary-foreground">{projectNameById.get(plan.project_id ?? '') ?? plan.project_id}</span>;
+    }
+    if (c.id === 'estado') {
+      return (
+        <span className="badge" data-variant={VARIANTE_DE_ESTADO[plan.status]}>
+          {ETIQUETA_DE_ESTADO[plan.status] ?? plan.status}
+        </span>
+      );
+    }
+    if (c.id === 'actualizado') {
+      return (
+        <span className="text-muted-foreground" title={new Date(plan.updated_at).toLocaleString()}>
+          {timeAgo(plan.updated_at)}
+        </span>
+      );
+    }
+    if (c.id === 'accion') {
+      const accion = accionDe(plan);
+      return (
+        <Button variant="outline" disabled={busyPlanId === plan.id} onClick={accion.run}>
+          {accion.label}
+        </Button>
+      );
+    }
+    return null;
+  }
+
+  /* El menú de fila lleva lo que la tarjeta tenía alrededor de su botón: abrir
+     el plan (que era hacer clic en la tarjeta), la acción principal repetida y
+     eliminar — que no se ofrece mientras corre, igual que antes. */
+  const menuDePlan = (plan: PlanSummary) => ({
+    groups: [
+      { items: [{ id: 'abrir', label: 'Abrir el plan' }, { id: 'accion', label: accionDe(plan).label }] },
+      ...(plan.status === 'running' ? [] : [{ items: [{ id: 'eliminar', label: 'Eliminar el plan', danger: true }] }]),
+    ],
+    onSelect: (id: string) => {
+      if (id === 'abrir') setSelectedPlanId(plan.id);
+      if (id === 'accion') accionDe(plan).run();
+      if (id === 'eliminar') void handleDelete(plan);
+    },
+  });
 
   return (
-    // Una sola columna de contenido (flex-1, con scroll propio); el detalle de un
-    // plan seleccionado ya no es un panel a la derecha sino el modal fullscreen,
-    // que al ser `fixed` no ocupa lugar en el layout — mismo patrón que ChatPage.
-    // El flex sobrevive a la segunda columna a propósito: es lo que le da al
-    // contenido su alto acotado y su propio scroll (`flex-1 overflow-hidden`),
-    // que era lo que antes evitaba el contenedor centrado (mx-auto max-w-6xl).
-    <div className="flex h-full flex-col bg-white" style={{ fontSize: '16px' }}>
+    // Una sola columna de contenido con scroll propio; el detalle de un plan no
+    // es un panel al costado sino el modal de pantalla completa, que va a la
+    // capa superior del navegador y no ocupa lugar en el layout.
+    <div className="h-full overflow-y-auto bg-[var(--sw-ink)]">
       <Toast toasts={toasts} onDismiss={removeToast} />
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 overflow-y-auto px-6 py-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h1 className="text-xl font-semibold text-slate-900">Planes</h1>
-            <div className="flex items-center gap-2">
-              <FilterPopover
-                icon={<FilterIcon />}
-                groups={[
-                  { label: 'Proyectos', options: projectOptions, selected: projectFilter, onChange: setProjectFilter },
-                  { label: 'Estados', options: STATUS_FILTER_OPTIONS, selected: statusFilter, onChange: setStatusFilter },
-                ]}
-              />
-              <PillDropdown
-                value={sortOrder}
-                options={SORT_OPTIONS}
-                onChange={setSortOrder}
-                icon={<SortIcon />}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {visiblePlans.length === 0 && (
-              <EmptyCard
-                icon="pi-plus"
-                title="Crear Plan"
-                description="Proponé uno desde el chat en Modo Plan"
-                onClick={() => createPlanProjectId && navigate(`/chat/${createPlanProjectId}`)}
-              />
-            )}
-            {visiblePlans.map((plan) => {
-          const isLaunchable = plan.status === 'draft' || plan.status === 'approved';
-          return (
-            <EntityCard
-              key={plan.id}
-              icon="pi-file-edit"
-              title={plan.title}
-              description={plan.context}
-              statusLabel={STATUS_LABEL[plan.status] ?? plan.status}
-              statusTone={STATUS_TONE[plan.status] ?? 'neutral'}
-              meta={`${projectNameById.get(plan.project_id ?? '') ?? plan.project_id} · Actualizado ${timeAgo(plan.updated_at)}`}
-              actionLabel={
-                plan.status === 'running'
-                  ? 'Ver progreso'
-                  : isLaunchable
-                    ? (busyPlanId === plan.id ? 'Lanzando…' : 'Lanzar')
-                    : 'Ver detalles'
-              }
-              onAction={() => {
-                if (isLaunchable) setLaunchTarget(plan);
-                else void handleViewProgress(plan.id);
-              }}
-              onDelete={plan.status === 'running' ? undefined : () => void handleDelete(plan)}
-              selected={selectedPlanId === plan.id}
-              onSelect={() => setSelectedPlanId((id) => (id === plan.id ? null : plan.id))}
+      {/* LA TOOLBAR DE LA SUPERFICIE, a todo el ancho y pegada arriba como en
+          el template: los filtros a la izquierda y, en su propio grupo, la
+          acción principal. «Crear plan» antes aparecía sólo con la lista vacía
+          (una tarjeta fantasma); acá está siempre, porque proponer un plan no
+          depende de que no haya otros. Lleva al chat: los planes nacen ahí. */}
+      <div className="sticky top-0 z-10">
+        <Toolbar label="Planes">
+          <ToolbarGrupo>
+            <Combo
+              rotulo="Proyecto"
+              opciones={[{ id: '', label: 'Todos los proyectos' }, ...projects.map((p) => ({ id: p.id, label: p.name }))]}
+              valor={projectFilter}
+              alCambiar={setProjectFilter}
             />
-          );
-        })}
-          </div>
-        </div>
-
-        {launchTarget && (
-          <PlanLaunchDialog
-            planTitle={launchTarget.title}
-            projectId={launchTarget.project_id}
-            onCancel={() => setLaunchTarget(null)}
-            onConfirm={(replicaId) => void handleLaunch(launchTarget.id, launchTarget.status, replicaId)}
-          />
-        )}
-
-        {/*
-          * `activeSessionId={null}` y sin `onSendToChat`: acá no hay una
-          * conversación abierta, así que las anotaciones se pueden crear pero no
-          * enviar — el propio modal lo dice y ofrece abrir el chat del proyecto.
-          */}
-        {selectedPlanId && (
-          <PlanFullscreenModal
-            planId={selectedPlanId}
-            onClose={() => setSelectedPlanId(null)}
-            onLaunched={(runId) => navigate(`/plan-runs/${runId}`)}
-            activeSessionId={null}
-          />
-        )}
+            <Combo
+              rotulo="Estado"
+              opciones={[
+                { id: '', label: 'Todos los estados' },
+                ...(Object.entries(ETIQUETA_DE_ESTADO) as Array<[PlanStatus, string]>).map(([id, label]) => ({
+                  id,
+                  label,
+                })),
+              ]}
+              valor={statusFilter}
+              alCambiar={(v) => setStatusFilter(v as PlanStatus | '')}
+            />
+          </ToolbarGrupo>
+          <ToolbarGrupo>
+            <ToolbarBoton
+              primario
+              disabled={!createPlanProjectId}
+              onClick={() => createPlanProjectId && navigate(`/chat/${createPlanProjectId}`)}
+              title="Los planes se proponen desde el chat del proyecto"
+            >
+              + Crear plan
+            </ToolbarBoton>
+          </ToolbarGrupo>
+        </Toolbar>
       </div>
+
+      <div className="p-6">
+        <Tabla<PlanSummary>
+          titulo="Planes"
+          columnas={COLUMNAS}
+          filas={visiblePlans}
+          clave={(p) => p.id}
+          nombreFila={(p) => p.title}
+          seleccion={false}
+          celda={celda}
+          textoDeCelda={(p, c) =>
+            c.id === 'proyecto' ? (projectNameById.get(p.project_id ?? '') ?? p.project_id ?? '') : p.title
+          }
+          menuFila={menuDePlan}
+          onAbrir={(p) => setSelectedPlanId(p.id)}
+          orden={{ col: 'actualizado', dir: 'desc' }}
+          porPagina={25}
+          opcionesPagina={[25, 50, 100]}
+          textos={
+            plans.length > 0
+              ? { vacio: 'Ningún plan en ese estado', vacioPaso: 'Probá con «Todos los estados».' }
+              : {
+                  vacio: 'Todavía no hay planes',
+                  vacioPaso: 'Se proponen desde el chat del proyecto: pedile uno y lo guarda.',
+                }
+          }
+        />
+      </div>
+
+      {launchTarget && (
+        <PlanLaunchDialog
+          planTitle={launchTarget.title}
+          projectId={launchTarget.project_id}
+          onCancel={() => setLaunchTarget(null)}
+          onConfirm={(replicaId) => void handleLaunch(launchTarget.id, launchTarget.status, replicaId)}
+        />
+      )}
+
+      {/*
+       * `activeSessionId={null}` y sin `onSendToChat`: acá no hay una
+       * conversación abierta, así que las anotaciones se pueden crear pero no
+       * enviar — el propio modal lo dice y ofrece abrir el chat del proyecto.
+       */}
+      {selectedPlanId && (
+        <PlanFullscreenModal
+          planId={selectedPlanId}
+          onClose={() => setSelectedPlanId(null)}
+          onLaunched={(runId) => navigate(`/plan-runs/${runId}`)}
+          activeSessionId={null}
+        />
+      )}
     </div>
   );
 }

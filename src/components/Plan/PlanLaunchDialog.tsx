@@ -6,6 +6,7 @@ import {
   type ProjectReplica,
 } from '../../lib/project-replicas-api.js';
 import { Button } from '../ui/atoms/Button.js';
+import { Dialogo } from '../ui/Dialogo.js';
 import { Spinner } from '../ui/atoms/Spinner.js';
 import { ReplicaChoiceList } from '../ui/molecules/ReplicaChoiceList.js';
 
@@ -83,73 +84,70 @@ export function PlanLaunchDialog({
     }
   }
 
+  /* EL MODAL DEL SISTEMA (`Dialogo`) y no un overlay propio: aquel era una
+     tarjeta blanca también en oscuro y vivía en la capa de `z-index`, así que
+     abierto desde el modal del plan —que ya está en la capa superior— quedaba
+     debajo. */
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onCancel();
-      }}
+    <Dialogo
+      abierto
+      onCerrar={onCancel}
+      titulo="¿Dónde corre el plan?"
+      descripcion={planTitle}
+      ancho={448}
+      pie={
+        <>
+          <Button variant="outline" onClick={onCancel}>
+            Cancelar
+          </Button>
+          <Button onClick={() => onConfirm(selected === ROOT_REPLICA ? undefined : selected)} disabled={creating}>
+            Ejecutar
+          </Button>
+        </>
+      }
     >
-      <div className="flex w-full max-w-md flex-col gap-4 rounded-2xl bg-white p-5 shadow-2xl">
-        <div>
-          <h2 className="text-base font-semibold text-slate-900">¿Dónde corre el plan?</h2>
-          <p className="mt-1 text-sm text-slate-500">{planTitle}</p>
-        </div>
-
+      <div className="flex flex-col gap-3 text-sm">
         {!projectId && (
-          <p className="text-sm text-slate-500">
+          <p className="text-muted-foreground">
             Este plan no tiene proyecto, así que corre contra el directorio del servidor.
           </p>
         )}
 
-        {projectId && (loading ? (
-          <div className="flex items-center gap-2 text-sm text-slate-500">
-            <Spinner /> Buscando réplicas…
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2">
-            <ReplicaChoiceList
-              replicas={replicas}
-              value={selected}
-              onChange={setSelected}
-              rootHint="Mismo working tree que el chat — si los dos editan el mismo archivo a la vez, se pisan."
-            />
-
-            <div className="flex items-center gap-2 pt-1">
-              <input
-                type="text"
-                value={newSlug}
-                onChange={(e) => setNewSlug(e.target.value)}
-                placeholder="slug de una réplica nueva"
-                className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                disabled={creating}
-              />
-              <Button variant="outlined" onClick={() => void handleCreate()} disabled={creating || !newSlug.trim()}>
-                {creating ? 'Creando…' : 'Crear'}
-              </Button>
+        {projectId &&
+          (loading ? (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Spinner /> Buscando réplicas…
             </div>
-            {creating && (
-              <p className="text-xs text-slate-500">
-                Creando el worktree y corriendo el init hook — puede tardar.
-              </p>
-            )}
-          </div>
-        ))}
+          ) : (
+            <div className="flex flex-col gap-2">
+              <ReplicaChoiceList
+                replicas={replicas}
+                value={selected}
+                onChange={setSelected}
+                rootHint="Mismo working tree que el chat — si los dos editan el mismo archivo a la vez, se pisan."
+              />
 
-        {error && <p className="text-sm text-rose-600">{error}</p>}
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="text"
+                  value={newSlug}
+                  onChange={(e) => setNewSlug(e.target.value)}
+                  placeholder="slug de una réplica nueva"
+                  className="input min-w-0 flex-1"
+                  disabled={creating}
+                />
+                <Button variant="outline" onClick={() => void handleCreate()} disabled={creating || !newSlug.trim()}>
+                  {creating ? 'Creando…' : 'Crear'}
+                </Button>
+              </div>
+              {creating && (
+                <p className="text-xs text-muted-foreground">Creando el worktree y corriendo el init hook — puede tardar.</p>
+              )}
+            </div>
+          ))}
 
-        <div className="flex justify-end gap-2">
-          <Button variant="neutral" onClick={onCancel}>
-            Cancelar
-          </Button>
-          <Button
-            onClick={() => onConfirm(selected === ROOT_REPLICA ? undefined : selected)}
-            disabled={creating}
-          >
-            Ejecutar
-          </Button>
-        </div>
+        {error && <p className="text-[var(--sw-error)]">{error}</p>}
       </div>
-    </div>
+    </Dialogo>
   );
 }
