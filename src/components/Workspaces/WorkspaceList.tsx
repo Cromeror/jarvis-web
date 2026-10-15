@@ -30,7 +30,7 @@ export function WorkspaceList({ section, selectedId, missingId, onSelect, onRetr
     return (
       <div className="flex items-center gap-3 p-8 text-muted-foreground">
         <Spinner />
-        <span>Leyendo los espacios de trabajo…</span>
+        <span>Leyendo las copias…</span>
       </div>
     );
   }
@@ -39,7 +39,7 @@ export function WorkspaceList({ section, selectedId, missingId, onSelect, onRetr
     return (
       <div className="flex flex-col items-center gap-2 rounded-[var(--sw-r-lg)] border border-border bg-card p-8 text-center">
         <Icon name="folder" className="text-muted-foreground" />
-        <h3 className="text-base font-medium text-foreground">Este proyecto todavía no tiene espacios de trabajo</h3>
+        <h3 className="text-base font-medium text-foreground">Este proyecto todavía no tiene copias</h3>
         <p className="max-w-xl text-sm text-muted-foreground">{section.reason}</p>
       </div>
     );
@@ -49,7 +49,7 @@ export function WorkspaceList({ section, selectedId, missingId, onSelect, onRetr
     return (
       <div className="flex flex-col items-center gap-2 rounded-[var(--sw-r-lg)] border border-[var(--sw-error)] bg-[var(--sw-error-bg)] p-8 text-center text-[var(--sw-on-error)]">
         <Icon name="alerta" />
-        <h3 className="text-base font-medium">No se pudieron leer los espacios de trabajo</h3>
+        <h3 className="text-base font-medium">No se pudieron leer las copias</h3>
         <p className="max-w-xl text-sm">{section.message}</p>
         <Button onClick={onRetry} variant="outline">
           Reintentar
@@ -62,7 +62,7 @@ export function WorkspaceList({ section, selectedId, missingId, onSelect, onRetr
     <div className="flex flex-col gap-4">
       {missingId && (
         <div className="rounded-[var(--sw-r-md)] border border-[var(--sw-warning)] bg-[var(--sw-warning-bg)] px-4 py-3 text-sm text-[var(--sw-on-warning)]">
-          El espacio de trabajo <code className="font-mono">{missingId}</code> del link ya no existe. Elegí otro de la lista.
+          La copia <code className="font-mono">{missingId}</code> del link ya no existe. Elegí otra de la lista.
         </div>
       )}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

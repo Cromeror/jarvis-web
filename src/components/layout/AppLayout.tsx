@@ -29,7 +29,7 @@ const TITULOS: Record<string, { titulo: string; sub?: string }> = {
   chat: { titulo: 'Chat', sub: 'Conversaciones por proyecto' },
   plans: { titulo: 'Planes', sub: 'Lo que se ejecuta por pasos' },
   environments: { titulo: 'Environments', sub: 'Lo que cada proyecto necesita corriendo' },
-  workspaces: { titulo: 'Workspaces', sub: 'Espacios de trabajo y sus cambios' },
+  workspaces: { titulo: 'Archivos', sub: 'Los archivos del espacio, sus cambios y su historia' },
   catalogo: { titulo: 'Catálogo', sub: 'Suites y módulos' },
   puertos: { titulo: 'Puertos', sub: 'Qué bloque tiene cada organización' },
   users: { titulo: 'Usuarios', sub: 'Quién entra y con qué permisos' },

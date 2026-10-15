@@ -72,7 +72,7 @@ export type Superficie = {
 
 /**
  * Las herramientas del producto, y son DEL OPERADOR: el Dashboard mira el
- * estado de la flota, y Planes, Environments y Workspaces son la maquinaria con
+ * estado de la flota, y Planes, Environments y Archivos son la maquinaria con
  * la que se construye. Un cliente no opera nada de eso — entra a usar lo que
  * tiene contratado.
  *
@@ -88,7 +88,7 @@ const HERRAMIENTAS: { id: string; icono: string; label: string; conProyecto: boo
   { id: '/', icono: 'grid', label: 'Dashboard', conProyecto: false, exacta: true },
   { id: '/plans', icono: 'listaCheck', label: 'Planes', conProyecto: true },
   { id: '/environments', icono: 'cubo', label: 'Environments', conProyecto: true },
-  { id: '/workspaces', icono: 'folder', label: 'Workspaces', conProyecto: true },
+  { id: '/workspaces', icono: 'folder', label: 'Archivos', conProyecto: true },
 ];
 
 /** Administración del producto: el catálogo y quién entra. Sólo el operador. */

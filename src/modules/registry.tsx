@@ -27,6 +27,8 @@ export const MODULE_VIEWS: Record<string, React.LazyExoticComponent<React.Compon
   'MOD-0001': lazy(async () => ({ default: (await import('./causacion-facturas/View.js')).View })),
   'MOD-0000': lazy(async () => ({ default: (await import('./demo-conciliacion/View.js')).View })),
   'MOD-0004': lazy(async () => ({ default: (await import('./red-de-contexto/View.js')).View })),
+  'MOD-0008': lazy(async () => ({ default: (await import('./archivos/View.js')).View })),
+  'MOD-0009': lazy(async () => ({ default: (await import('./ajustes-de-archivos/View.js')).View })),
 };
 
 /**

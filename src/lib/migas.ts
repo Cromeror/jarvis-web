@@ -27,7 +27,7 @@ const SECCIONES: Record<string, string> = {
   chat: 'Chat',
   plans: 'Planes',
   environments: 'Environments',
-  workspaces: 'Workspaces',
+  workspaces: 'Archivos',
   catalogo: 'Catálogo',
   puertos: 'Puertos',
   users: 'Usuarios',
