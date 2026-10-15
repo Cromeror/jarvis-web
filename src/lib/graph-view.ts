@@ -134,8 +134,23 @@ export function buildCommitGraph(commits: Commit[]): CommitGraph {
   return { rows, laneCount };
 }
 
-/** Color estable por carril, para que una rama mantenga el suyo al scrollear. */
-const LANE_COLORS = ['#6366f1', '#059669', '#d97706', '#dc2626', '#0891b2', '#7c3aed', '#db2777', '#65a30d'];
+/**
+ * Color estable por carril, para que una rama mantenga el suyo al scrollear.
+ *
+ * Son tokens del tema y no hex: cada uno tiene su variante clara y oscura, así
+ * que el grafo se lee en los dos temas. Van en un orden que alterna el tono,
+ * para que dos carriles vecinos no salgan parecidos.
+ */
+const LANE_COLORS = [
+  'var(--sw-accent)',
+  'var(--sw-success)',
+  'var(--sw-warning)',
+  'var(--sw-formato-pdf)',
+  'var(--sw-error)',
+  'var(--sw-attention)',
+  'var(--sw-presence)',
+  'var(--sw-formato-planilla)',
+];
 
 export function laneColor(lane: number): string {
   return LANE_COLORS[lane % LANE_COLORS.length];

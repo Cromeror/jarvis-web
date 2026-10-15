@@ -156,7 +156,7 @@ describe('laneColor', () => {
     expect(laneColor(0)).toBe(laneColor(0));
     expect(laneColor(0)).not.toBe(laneColor(1));
     expect(laneColor(8)).toBe(laneColor(0));
-    expect(laneColor(99)).toMatch(/^#[0-9a-f]{6}$/);
+    expect(laneColor(99)).toMatch(/^var\(--sw-[a-z-]+\)$/);
   });
 });
 
