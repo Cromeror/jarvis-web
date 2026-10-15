@@ -343,23 +343,28 @@ export function Tabla<F>({
       );
     }
     if (c.id === ID_MENU) {
+      /* Una fila sin acciones (`menuFila` devuelve null) deja la celda vacía:
+         unos tres puntos que abren un menú en blanco prometen algo que no hay. */
+      const conMenu = menuFila?.(f) != null;
       return (
         <React.Fragment key={c.id}>
           <td className="sw-tabla__sobra" aria-hidden="true" />
           <td className="sw-tabla__cmenu">
-            <button
-              type="button"
-              className="sw-tabla__puntos sw-touch-target"
-              aria-haspopup="menu"
-              aria-expanded={menu?.de === 'fila' && menu.fila === f}
-              aria-label={rell(T.accionesFila, { '%s': nombreDe(f) })}
-              onClick={(e) => {
-                const r = e.currentTarget.getBoundingClientRect();
-                setMenu({ x: r.right, y: r.bottom + 2, de: 'fila', fila: f });
-              }}
-            >
-              <Icon name="puntos" />
-            </button>
+            {conMenu && (
+              <button
+                type="button"
+                className="sw-tabla__puntos sw-touch-target"
+                aria-haspopup="menu"
+                aria-expanded={menu?.de === 'fila' && menu.fila === f}
+                aria-label={rell(T.accionesFila, { '%s': nombreDe(f) })}
+                onClick={(e) => {
+                  const r = e.currentTarget.getBoundingClientRect();
+                  setMenu({ x: r.right, y: r.bottom + 2, de: 'fila', fila: f });
+                }}
+              >
+                <Icon name="puntos" />
+              </button>
+            )}
           </td>
         </React.Fragment>
       );

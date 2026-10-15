@@ -20,17 +20,17 @@ const COLUMNAS: ColumnaDeTabla[] = [
   { id: 'espacio', label: 'Espacio', dato: 'name', w: 260, elastica: true },
   { id: 'propias', label: 'Carpetas propias', w: 130, al: 'der', orden: false },
   { id: 'participa', label: 'Participa en', w: 120, al: 'der', orden: false },
-  { id: 'disco', label: 'En disco, sin agregar', w: 240, orden: false },
   { id: 'estado', label: 'En la red', w: 220, orden: false },
 ];
-
-const CHIP_DISCO =
-  'inline-flex items-center gap-1 rounded-full border border-dashed border-border px-2 py-0.5 text-xs text-secondary-foreground';
 
 /**
  * LOS ESPACIOS EN LA RED, del lado de la organización: cuántas carpetas tiene y
  * comparte cada uno, si puede participar, y las carpetas que tiene en el disco
  * sin agregar a la red.
+ *
+ * Esas carpetas sueltas son la excepción, así que no ocupan una columna: van
+ * como una marca al lado del nombre del espacio, y agregarlas está en el menú
+ * de su fila —que sólo aparece cuando hay algo para agregar—.
  *
  * Desactivar un espacio entero en la red existió y se quitó: nació de un
  * malentendido —lo que se quería desactivar eran carpetas, y eso vive en
@@ -94,37 +94,38 @@ export function OrganizationEspaciosSection({
 
   function celda(p: ProyectoDeRed, col: ColumnaDeTabla): React.ReactNode {
     switch (col.id) {
-      case 'espacio':
+      case 'espacio': {
+        const lista = sinAgregar(p);
         return (
           <div className="py-2 leading-tight">
-            <div className="truncate font-medium text-foreground">{p.name}</div>
+            <div className="flex items-center gap-2">
+              <span className="truncate font-medium text-foreground">{p.name}</span>
+              {lista.length > 0 && (
+                <span
+                  className="badge shrink-0"
+                  data-variant="attention"
+                  /* `title` y no `data-tooltip`: la celda recorta lo que sale de
+                     ella (`overflow: hidden`) y el globo de Basecoat no se vería. */
+                  title={`En el disco y fuera de la red: ${lista
+                    .map(
+                      (c) =>
+                        `${c.slug} (${c.publicados} en publicado/${c.nombre_valido ? '' : ', el nombre no sirve'})`,
+                    )
+                    .join(', ')}. Se agregan desde el menú de la fila.`}
+                >
+                  <Icon name="folder" />
+                  {lista.length} sin agregar
+                </span>
+              )}
+            </div>
             <code className="text-[11px] text-muted-foreground">{p.id}</code>
           </div>
         );
+      }
       case 'propias':
         return propias(p);
       case 'participa':
         return participa(p);
-      case 'disco': {
-        if (enDisco === null) return <span className="text-xs text-muted-foreground">Leyendo…</span>;
-        const lista = sinAgregar(p);
-        if (lista.length === 0) return <span className="text-muted-foreground">—</span>;
-        return (
-          <div className="flex flex-wrap gap-1 py-2 whitespace-normal">
-            {lista.map((c) => (
-              <span
-                key={c.slug}
-                className={CHIP_DISCO}
-                title={`contexto-org/${c.slug}/ — ${c.publicados} archivo(s) en publicado/${c.nombre_valido ? '' : ' · el nombre no sirve: renombrá la carpeta en minúsculas, números y guiones'}`}
-              >
-                <Icon name="folder" />
-                {c.slug}
-                <span className="text-muted-foreground">· {c.publicados}</span>
-              </span>
-            ))}
-          </div>
-        );
-      }
       case 'estado':
         if (!p.tiene_root) {
           return (
@@ -153,8 +154,8 @@ export function OrganizationEspaciosSection({
       {enDisco && enDisco.length > 0 && (
         <div className="mb-3 rounded-lg border border-dashed border-border bg-muted px-3 py-2 text-sm text-secondary-foreground">
           {enDisco.length === 1 ? 'Hay 1 carpeta' : `Hay ${enDisco.length} carpetas`} en el disco de los espacios que la
-          red no conoce (columna «En disco, sin agregar»). Para la red no existen: nada sale de ahí hasta que alguien la
-          agregue desde el menú del espacio.
+          red no conoce (marcadas «sin agregar» al lado del espacio). Para la red no existen: nada sale de ahí hasta que
+          alguien la agregue desde el menú del espacio.
         </div>
       )}
       {error && (
@@ -218,7 +219,6 @@ export function OrganizationEspaciosSection({
     </section>
   );
 }
-
 
 /** Tamaño legible: lo que viajaría si se comparte. */
 function tamano(bytes: number): string {
