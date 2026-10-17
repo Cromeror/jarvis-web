@@ -479,7 +479,7 @@ export function OrganizationRolesPanel({
           estila): contraído —el estado de partida— dice cuántos hay y cuáles;
           expandido, la tabla. La tabla es lo que se viene a editar de vez en
           cuando; el resumen es lo que se quiere saber cada vez que se entra. */}
-      <section className="accordion overflow-hidden rounded-xl border border-b-0 border-[var(--sw-line-strong)] bg-card">
+      <section className="accordion overflow-hidden rounded-xl border border-[var(--sw-line-strong)] bg-card">
         <details open={rolesAbiertos} onToggle={(e) => setRolesAbiertos(e.currentTarget.open)}>
           <summary className="items-center gap-3 px-4 py-3 hover:bg-accent hover:no-underline">
             <div className="flex min-w-0 flex-1 flex-col gap-1.5">

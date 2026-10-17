@@ -22,9 +22,8 @@ export interface CatalogModuleTool {
   description: string | null;
   /** La tool que la ejecuta. `null` = declarada antes de que su tool exista. */
   tool_name: string | null;
-  /** El identificador del CÓDIGO. `null` = la escribieron a mano en la pantalla. */
+  /** El identificador del CÓDIGO: la herramienta que declara esta fila. */
   key: string | null;
-  origin: 'code' | 'manual';
   /** `missing` = el código dejó de declararla; sigue configurada, pero ya no resuelve. */
   status: 'active' | 'missing';
   /** `'*'` = abierta; lista = cerrada a esos `module.key`; `null` = sin declarar (entra en cualquiera). */
@@ -40,7 +39,6 @@ export interface CatalogModule {
   description: string | null;
   module_tools: CatalogModuleTool[];
   key: string | null;
-  origin: 'code' | 'manual';
   status: 'active' | 'missing';
   /** `any` = acepta también las herramientas abiertas; `declared` = sólo las que lo nombran. */
   accepts: 'any' | 'declared';
@@ -68,11 +66,6 @@ export interface CatalogSuite {
   modules: CatalogModule[];
   created_at: string;
   updated_at: string;
-}
-
-export interface CatalogToolOption {
-  name: string;
-  description: string;
 }
 
 /** Un error de la API con su status — un 400 acá es una regla, no una falla. */
@@ -120,8 +113,14 @@ export interface CatalogItemInput {
   description?: string | null;
 }
 
-export interface CatalogModuleToolInput extends CatalogItemInput {
-  tool_name?: string | null;
+/**
+ * Lo único editable de un módulo o una herramienta. El resto —descripción,
+ * tool, compatibilidad— lo declara el código y lo pisa el sync al arrancar la
+ * API, así que la pantalla no lo ofrece.
+ */
+export interface NombreYSlugInput {
+  name?: string;
+  slug?: string;
 }
 
 export async function listSuites(): Promise<CatalogSuite[]> {
@@ -149,16 +148,8 @@ export async function listModules(): Promise<CatalogModule[]> {
   return handle<CatalogModule[]>(await fetch('/api/catalog/modules'));
 }
 
-export async function createModule(input: CatalogItemInput): Promise<CatalogModule> {
-  return send('POST', '/api/catalog/modules', input);
-}
-
-export async function updateModule(id: string, input: Partial<CatalogItemInput>): Promise<CatalogModule> {
+export async function updateModule(id: string, input: NombreYSlugInput): Promise<CatalogModule> {
   return send('PATCH', `/api/catalog/modules/${encodeURIComponent(id)}`, input);
-}
-
-export async function deleteModule(id: string): Promise<void> {
-  await send('DELETE', `/api/catalog/modules/${encodeURIComponent(id)}`);
 }
 
 export async function setModuleTools(id: string, ids: string[]): Promise<CatalogModule> {
@@ -169,27 +160,22 @@ export async function listModuleTools(): Promise<CatalogModuleTool[]> {
   return handle<CatalogModuleTool[]>(await fetch('/api/catalog/module-tools'));
 }
 
-export async function createModuleTool(input: CatalogModuleToolInput): Promise<CatalogModuleTool> {
-  return send('POST', '/api/catalog/module-tools', input);
-}
-
-export async function updateModuleTool(id: string, input: Partial<CatalogModuleToolInput>): Promise<CatalogModuleTool> {
+export async function updateModuleTool(id: string, input: NombreYSlugInput): Promise<CatalogModuleTool> {
   return send('PATCH', `/api/catalog/module-tools/${encodeURIComponent(id)}`, input);
-}
-
-export async function deleteModuleTool(id: string): Promise<void> {
-  await send('DELETE', `/api/catalog/module-tools/${encodeURIComponent(id)}`);
-}
-
-/** Las tools que se pueden asociar a una herramienta — la misma fuente que valida al guardar. */
-export async function listCatalogTools(): Promise<CatalogToolOption[]> {
-  const body = await handle<{ tools: CatalogToolOption[] }>(await fetch('/api/catalog/tools'));
-  return body.tools;
 }
 
 /** A qué proyectos está asignada cada suite, indexado por suite_id. */
 export async function listAssignments(): Promise<Record<string, string[]>> {
   return handle<Record<string, string[]>>(await fetch('/api/catalog/assignments'));
+}
+
+/**
+ * En qué proyectos está asignada una suite: la lista que se manda es la que
+ * queda. Sólo toca las filas de ESTA suite; las demás suites de cada proyecto,
+ * y su orden, no cambian.
+ */
+export async function setSuiteProjects(id: string, ids: string[]): Promise<{ project_ids: string[] }> {
+  return send('PUT', `/api/catalog/suites/${encodeURIComponent(id)}/projects`, { ids });
 }
 
 export async function setProjectSuites(projectId: string, ids: string[]): Promise<CatalogSuite[]> {
@@ -203,9 +189,8 @@ export async function setProjectSuites(projectId: string, ids: string[]): Promis
  * que la pantalla ofrezca sólo lo compatible en vez de dejar elegir algo que el
  * servidor va a rechazar. El filtro es comodidad; la regla la aplica el backend.
  *
- * Sin compatibilidad declarada (`null`, las creadas a mano antes del registro)
- * entra en cualquier módulo: si no, la pantalla escondería composiciones que ya
- * existen.
+ * Sin compatibilidad declarada (`null`) entra en cualquier módulo: si no, la
+ * pantalla escondería composiciones que ya existen.
  */
 export function esCompatible(moduleTool: CatalogModuleTool, module: CatalogModule): boolean {
   if (moduleTool.compatible_with === null) return true;
