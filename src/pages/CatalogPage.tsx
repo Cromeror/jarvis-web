@@ -566,7 +566,7 @@ export function CatalogPage(): React.ReactElement {
               contraído —el estado de partida— dice cuántos hay; expandido, la
               tabla. Cambian en el código, no acá, así que no ocupan la vista. */}
           <section className="accordion mb-8 overflow-hidden rounded-xl border border-[var(--sw-line-strong)] bg-card">
-            <details open={modulosAbiertos} onToggle={(e) => setModulosAbiertos(e.currentTarget.open)}>
+            <details className="group" open={modulosAbiertos} onToggle={(e) => setModulosAbiertos(e.currentTarget.open)}>
               <summary className="items-center gap-3 px-4 py-3 hover:bg-accent hover:no-underline">
                 <span className="flex min-w-0 flex-1 items-baseline gap-2">
                   <span className="text-sm font-semibold text-foreground">Módulos y herramientas</span>
@@ -574,7 +574,11 @@ export function CatalogPage(): React.ReactElement {
                 </span>
                 <Icon name="chevron" className="text-muted-foreground" />
               </summary>
-              <div className="border-t border-[var(--sw-line-strong)] p-3">
+              {/* El separador sólo con el acordeón ABIERTO. Basecoat no oculta el
+              contenido de un <details> cerrado: lo deja en alto cero con una
+              transición, y un `border-t` fijo quedaba asomando como una línea
+              debajo del encabezado al colapsar. */}
+          <div className="border-[var(--sw-line-strong)] p-3 group-open:border-t">
                 <Tabla<CatalogModule>
                   titulo="Módulos"
                   columnas={COLUMNAS_MODULO}

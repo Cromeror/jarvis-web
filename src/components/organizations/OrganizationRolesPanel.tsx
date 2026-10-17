@@ -480,7 +480,7 @@ export function OrganizationRolesPanel({
           expandido, la tabla. La tabla es lo que se viene a editar de vez en
           cuando; el resumen es lo que se quiere saber cada vez que se entra. */}
       <section className="accordion overflow-hidden rounded-xl border border-[var(--sw-line-strong)] bg-card">
-        <details open={rolesAbiertos} onToggle={(e) => setRolesAbiertos(e.currentTarget.open)}>
+        <details className="group" open={rolesAbiertos} onToggle={(e) => setRolesAbiertos(e.currentTarget.open)}>
           <summary className="items-center gap-3 px-4 py-3 hover:bg-accent hover:no-underline">
             <div className="flex min-w-0 flex-1 flex-col gap-1.5">
               <span className="flex items-baseline gap-2">
@@ -519,7 +519,11 @@ export function OrganizationRolesPanel({
             </Button>
             <Icon name="chevron" className="text-muted-foreground" />
           </summary>
-          <div className="border-t border-[var(--sw-line-strong)] p-3">
+          {/* El separador sólo con el acordeón ABIERTO. Basecoat no oculta el
+              contenido de un <details> cerrado: lo deja en alto cero con una
+              transición, y un `border-t` fijo quedaba asomando como una línea
+              debajo del encabezado al colapsar. */}
+          <div className="border-[var(--sw-line-strong)] p-3 group-open:border-t">
             <Tabla<RoleSummary>
               titulo="Roles"
               columnas={COLUMNAS_ROL}
