@@ -13,6 +13,7 @@ import {
   shutdownEnvironmentByName,
   checkEnvironmentByName,
   runBelongsToEnvironment,
+  NEW_ENVIRONMENT_TEMPLATE,
 } from '../lib/environments-api.js';
 import type { EnvironmentRunSummary } from '../lib/environments-api.js';
 import { listProjectReplicas, ROOT_REPLICA } from '../lib/project-replicas-api.js';
@@ -23,14 +24,6 @@ import type { EnvironmentListItem } from '../components/Environments/Environment
 import { Toast, useToast } from '../components/ui/atoms/Toast.js';
 import { FilterPopover } from '../components/ui/atoms/FilterPopover.js';
 import { FilterIcon } from '../components/ui/atoms/FilterIcon.js';
-
-// `check` y `stop` son opcionales a propósito — se incluyen acá para que
-// queden descubribles (es la única "documentación" del formato que un
-// usuario ve). `check` debe salir con exit code 0 solo si el environment
-// está realmente sano — sin reintentos propios del runner, así que un
-// comando que necesite esperar debe reintentar puertas adentro.
-const NEW_ENVIRONMENT_TEMPLATE =
-  'name: mi-environment\nsteps:\n  - run: docker compose up -d\ncheck:\n  - run: docker compose ps --status running | grep -q .\nstop:\n  - run: docker compose down\n';
 
 /**
  * Environments view: definitions from every project (or a filtered subset)

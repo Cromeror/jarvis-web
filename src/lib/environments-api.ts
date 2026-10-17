@@ -197,3 +197,16 @@ export async function deleteEnvironmentDefinition(projectId: string, name: strin
     throw new Error(`HTTP ${res.status}: ${body}`);
   }
 }
+
+/**
+ * Lo que trae un entorno nuevo. Lo usan la página del operador y la vista del
+ * módulo Entornos.
+ *
+ * `check` y `stop` son opcionales a propósito — se incluyen acá para que
+ * queden descubribles (es la única "documentación" del formato que un usuario
+ * ve). `check` debe salir con exit code 0 solo si el environment está realmente
+ * sano — sin reintentos propios del runner, así que un comando que necesite
+ * esperar debe reintentar puertas adentro.
+ */
+export const NEW_ENVIRONMENT_TEMPLATE =
+  'name: mi-environment\nsteps:\n  - run: docker compose up -d\ncheck:\n  - run: docker compose ps --status running | grep -q .\nstop:\n  - run: docker compose down\n';
