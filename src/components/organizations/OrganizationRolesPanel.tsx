@@ -519,11 +519,11 @@ export function OrganizationRolesPanel({
             </Button>
             <Icon name="chevron" className="text-muted-foreground" />
           </summary>
-          {/* El separador sólo con el acordeón ABIERTO. Basecoat no oculta el
-              contenido de un <details> cerrado: lo deja en alto cero con una
-              transición, y un `border-t` fijo quedaba asomando como una línea
-              debajo del encabezado al colapsar. */}
-          <div className="border-[var(--sw-line-strong)] p-3 group-open:border-t">
+          {/* Cerrado, este div NO EXISTE (`hidden`), y el separador va sólo con
+              el acordeón abierto. Basecoat no oculta el contenido de un
+              <details> cerrado: lo deja en alto cero con una transición, y el
+              borde de este div quedaba asomando debajo del encabezado. */}
+          <div className="hidden border-[var(--sw-line-strong)] p-3 group-open:block group-open:border-t">
             <Tabla<RoleSummary>
               titulo="Roles"
               columnas={COLUMNAS_ROL}
